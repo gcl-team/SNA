@@ -22,4 +22,8 @@
     </PackageReference>
   </ItemGroup>
 
+  <ItemGroup>
+	<ProjectReference Include="..\SimNextgenApp\SimNextgenApp.csproj" />
+  </ItemGroup>
+
 </Project>
