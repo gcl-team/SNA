@@ -1,6 +1,6 @@
 using SimNextgenApp.Core;
 
-namespace SimulationNextgenApp.Tests.Core;
+namespace SimNextgenApp.Tests.Core;
 
 public class DurationRunStrategyTests
 {
@@ -37,7 +37,7 @@ public class DurationRunStrategyTests
     {
         Assert.Throws<ArgumentOutOfRangeException>("warmupDuration", () => new DurationRunStrategy(5.0, 20.0));
     }
-    
+
     [Theory]
     [InlineData(100.0, 100.0)]
     [InlineData(100.0, 101.0)]
@@ -62,11 +62,5 @@ public class DurationRunStrategyTests
 
         // Assert
         Assert.Equal(expectedResult, actualResult);
-    }
-
-    private class TestRunContext : IRunContext
-    {
-        public double ClockTime { get; set; }
-        public long ExecutedEventCount { get; set; }
     }
 }

@@ -1,12 +1,8 @@
 using SimNextgenApp.Core;
 using SimNextgenApp.Modeling;
-using Xunit;
-using System.Collections.Generic;
-using System;
-using System.Threading.Tasks;
 using System.Diagnostics; 
 
-namespace SimulationNextgenApp.Tests.Modeling;
+namespace SimNextgenApp.Tests.Modeling;
 
 public class AbstractSimulationModelTests
 {

@@ -1,6 +1,6 @@
 using SimNextgenApp.Core;
 
-namespace SimulationNextgenApp.Tests.Core;
+namespace SimNextgenApp.Tests.Core;
 
 public class AbsoluteTimeRunStrategyTests
 {
@@ -54,11 +54,5 @@ public class AbsoluteTimeRunStrategyTests
 
         // Assert
         Assert.Equal(expectedResult, actualResult);
-    }
-
-    private class TestRunContext : IRunContext
-    {
-        public double ClockTime { get; set; }
-        public long ExecutedEventCount { get; set; }
     }
 }
