@@ -1,5 +1,3 @@
-using System;
-
 namespace SimNextgenApp.Core;
 
 /// <summary>
@@ -39,8 +37,8 @@ public class EventCountRunStrategy : IRunStrategy
     /// Returns true if the engine's executed event count is less than the specified maximum.
     /// NOTE: Requires the SimulationEngine to track the number of executed events.
     /// </remarks>
-    public bool ShouldContinue(SimulationEngine engine)
+    public bool ShouldContinue(IRunContext runContext)
     {
-        return engine.ExecutedEventCount < _maxEventCount;
+        return runContext.ExecutedEventCount < _maxEventCount;
     }
 }

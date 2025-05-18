@@ -1,5 +1,3 @@
-using System;
-
 namespace SimNextgenApp.Core;
 
 /// <summary>
@@ -7,7 +5,7 @@ namespace SimNextgenApp.Core;
 /// </summary>
 public class ConditionalRunStrategy : IRunStrategy
 {
-    private readonly Func<SimulationEngine, bool> _continueCondition;
+    private readonly Func<IRunContext, bool> _continueCondition;
 
     /// <inheritdoc/>
     public double? WarmupEndTime { get; }
@@ -19,7 +17,7 @@ public class ConditionalRunStrategy : IRunStrategy
     /// <param name="warmupEndTime">Optional absolute simulation time when the warm-up period ends.</param>
     /// <exception cref="ArgumentNullException">Thrown if continueCondition is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if warmupEndTime is negative.</exception>
-    public ConditionalRunStrategy(Func<SimulationEngine, bool> continueCondition, double? warmupEndTime = null)
+    public ConditionalRunStrategy(Func<IRunContext, bool> continueCondition, double? warmupEndTime = null)
     {
         _continueCondition = continueCondition ?? throw new ArgumentNullException(nameof(continueCondition));
 
@@ -34,9 +32,9 @@ public class ConditionalRunStrategy : IRunStrategy
     /// <remarks>
     /// Returns the result of evaluating the provided continue condition function.
     /// </remarks>
-    public bool ShouldContinue(SimulationEngine engine)
+    public bool ShouldContinue(IRunContext context)
     {
-        return _continueCondition(engine);
+        return _continueCondition(context);
     }
 }
 

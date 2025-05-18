@@ -1,11 +1,7 @@
 using SimNextgenApp.Core;
-using SimNextgenApp.Modeling;
-using Xunit;
 using Moq;
-using System.Collections.Generic;
-using System;
-using System.Threading.Tasks;
-using System.Diagnostics;
+using SimNextgenApp.Modeling;
+using Microsoft.Extensions.Logging;
 
 namespace SimulationNextgenApp.Tests.Core;
 
@@ -52,23 +48,27 @@ public class DurationRunStrategyTests
         Assert.Throws<ArgumentOutOfRangeException>("warmupDuration", () => new DurationRunStrategy(runDuration, invalidWarmup));
     }
 
-    // TODO: Continue the development of the following on Visual Studio.
-    // [Theory]
-    // [InlineData(0.0, 100.0, true)] 
-    // [InlineData(99.9, 100.0, true)]
-    // [InlineData(100.0, 100.0, false)]
-    // [InlineData(100.1, 100.0, false)]
-    // public void ShouldContinue_ReturnsCorrectValueBasedOnClockTime(double clockTime, double runDuration, bool expectedResult)
-    // {
-    //     // Arrange
-    //     var strategy = new DurationRunStrategy(runDuration);
-    //     var mockEngine = new Mock<SimulationEngine>(MockBehavior.Strict, null!, null!);
-    //     mockEngine.SetupGet(e => e.ClockTime).Returns(clockTime);
+    [Theory]
+    [InlineData(0.0, 100.0, true)]
+    [InlineData(99.9, 100.0, true)]
+    [InlineData(100.0, 100.0, false)]
+    [InlineData(100.1, 100.0, false)]
+    public void ShouldContinue_ReturnsCorrectValueBasedOnClockTime(double clockTime, double runDuration, bool expectedResult)
+    {
+        // Arrange
+        var context = new TestRunContext { ClockTime = clockTime };
+        var strategy = new DurationRunStrategy(runDuration);
 
-    //     // Act
-    //     bool actualResult = strategy.ShouldContinue(mockEngine.Object);
+        // Act
+        bool actualResult = strategy.ShouldContinue(context);
 
-    //     // Assert
-    //     Assert.Equal(expectedResult, actualResult);
-    // }
+        // Assert
+        Assert.Equal(expectedResult, actualResult);
+    }
+
+    private class TestRunContext : IRunContext
+    {
+        public double ClockTime { get; set; }
+        public long ExecutedEventCount { get; set; }
+    }
 }

@@ -9,7 +9,7 @@ namespace SimNextgenApp.Core;
 /// Owns the simulation clock and the Future Event List (FEL),
 /// and processes events in chronological order.
 /// </summary>
-public class SimulationEngine : IScheduler // Implement IScheduler
+public class SimulationEngine : IScheduler, IRunContext
 {
     private readonly ILogger<SimulationEngine> _logger;
     private readonly PriorityQueue<AbstractEvent, (double Time, long Sequence)> _fel;

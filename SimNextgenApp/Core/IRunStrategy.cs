@@ -19,7 +19,7 @@ public interface IRunStrategy
     /// Determines whether the simulation engine should continue processing the next event.
     /// Called by the SimulationEngine at the start of each iteration of the main event loop.
     /// </summary>
-    /// <param name="engine">The simulation engine instance, providing access to current state like ClockTime.</param>
+    /// <param name="runContext">The simulation running context, providing access to current state like ClockTime.</param>
     /// <returns>true if the simulation should continue; false if the simulation should stop.</returns>
-    bool ShouldContinue(SimulationEngine engine);
+    bool ShouldContinue(IRunContext runContext);
 }

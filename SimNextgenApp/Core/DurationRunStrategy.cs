@@ -1,5 +1,3 @@
-using System;
-
 namespace SimNextgenApp.Core;
 
 /// <summary>
@@ -44,11 +42,11 @@ public class DurationRunStrategy : IRunStrategy
 
     /// <inheritdoc/>
     /// <remarks>
-    /// Returns true if the engine's current ClockTime is less than the specified run duration.
+    /// Returns true if the current ClockTime is less than the specified end time.
     /// </remarks>
-    public bool ShouldContinue(SimulationEngine engine)
+    public bool ShouldContinue(IRunContext runContext)
     {
         // Use < to stop exactly at or just after the duration is reached
-        return engine.ClockTime < _runDuration;
+        return runContext.ClockTime < _runDuration;
     }
 }

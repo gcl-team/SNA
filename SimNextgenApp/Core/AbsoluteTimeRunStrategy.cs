@@ -1,5 +1,3 @@
-using System;
-
 namespace SimNextgenApp.Core;
 
 /// <summary>
@@ -43,11 +41,11 @@ public class AbsoluteTimeRunStrategy : IRunStrategy
 
     /// <inheritdoc/>
     /// <remarks>
-    /// Returns true if the engine's current ClockTime is less than the specified stop time.
+    /// Returns true if the current ClockTime is less than the specified stop time.
     /// </remarks>
-    public bool ShouldContinue(SimulationEngine engine)
+    public bool ShouldContinue(IRunContext context)
     {
         // Use < to stop exactly at or just after the stop time is reached
-        return engine.ClockTime < _stopTime;
+        return context.ClockTime < _stopTime;
     }
 }
