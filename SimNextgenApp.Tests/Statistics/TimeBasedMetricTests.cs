@@ -1,16 +1,9 @@
 using SimNextgenApp.Statistics;
 
-namespace SimNextgenApp.Tests.Core;
+namespace SimNextgenApp.Tests.Statistics;
 
 public class TimeBasedMetricTests
 {
-    private const double Epsilon = 0.000001; // Tolerance for double comparisons
-
-    private static void AssertAreEqual(double expected, double actual)
-    {
-        Assert.Equal(expected, actual, Epsilon);
-    }
-
     [Fact]
     public void Constructor_DefaultInitialization_PropertiesAreSetCorrectly()
     {
@@ -18,13 +11,13 @@ public class TimeBasedMetricTests
         var metric = new TimeBasedMetric();
 
         // Assert
-        AssertAreEqual(0.0, metric.InitialTime);
-        AssertAreEqual(0.0, metric.CurrentTime);
-        AssertAreEqual(0.0, metric.CurrentCount);
-        AssertAreEqual(0.0, metric.TotalIncrementObserved);
-        AssertAreEqual(0.0, metric.TotalDecrementObserved);
-        AssertAreEqual(0.0, metric.TotalActiveDuration);
-        AssertAreEqual(0.0, metric.CumulativeCountTimeProduct);
+        AssertHelpers.AreEqual(0.0, metric.InitialTime);
+        AssertHelpers.AreEqual(0.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(0.0, metric.CurrentCount);
+        AssertHelpers.AreEqual(0.0, metric.TotalIncrementObserved);
+        AssertHelpers.AreEqual(0.0, metric.TotalDecrementObserved);
+        AssertHelpers.AreEqual(0.0, metric.TotalActiveDuration);
+        AssertHelpers.AreEqual(0.0, metric.CumulativeCountTimeProduct);
         Assert.False(metric.IsHistoryEnabled);
         Assert.NotNull(metric.TimePerCount);
         Assert.Empty(metric.TimePerCount);
@@ -39,8 +32,8 @@ public class TimeBasedMetricTests
         var metric = new TimeBasedMetric(initialTime: 10.0, enableHistory: true);
 
         // Assert
-        AssertAreEqual(10.0, metric.InitialTime);
-        AssertAreEqual(10.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(10.0, metric.InitialTime);
+        AssertHelpers.AreEqual(10.0, metric.CurrentTime);
         Assert.True(metric.IsHistoryEnabled);
         Assert.NotNull(metric.History);
     }
@@ -55,16 +48,16 @@ public class TimeBasedMetricTests
         metric.ObserveCount(count: 5.0, clockTime: 10.0);
 
         // Assert
-        AssertAreEqual(10.0, metric.CurrentTime);
-        AssertAreEqual(5.0, metric.CurrentCount);
-        AssertAreEqual(5.0, metric.TotalIncrementObserved); // From 0 to 5
-        AssertAreEqual(0.0, metric.TotalDecrementObserved);
-        AssertAreEqual(10.0, metric.TotalActiveDuration); // Duration from 0 to 10
-        AssertAreEqual(0.0 * 10.0, metric.CumulativeCountTimeProduct); // Count was 0 for 10s
-        AssertAreEqual(0.0, metric.AverageCount); // (0*10)/10
+        AssertHelpers.AreEqual(10.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(5.0, metric.CurrentCount);
+        AssertHelpers.AreEqual(5.0, metric.TotalIncrementObserved); // From 0 to 5
+        AssertHelpers.AreEqual(0.0, metric.TotalDecrementObserved);
+        AssertHelpers.AreEqual(10.0, metric.TotalActiveDuration); // Duration from 0 to 10
+        AssertHelpers.AreEqual(0.0 * 10.0, metric.CumulativeCountTimeProduct); // Count was 0 for 10s
+        AssertHelpers.AreEqual(0.0, metric.AverageCount); // (0*10)/10
 
         Assert.True(metric.TimePerCount.ContainsKey(0), "TimePerCount should contain key 0");
-        AssertAreEqual(10.0, metric.TimePerCount[0]);
+        AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]);
     }
 
     [Fact]
@@ -79,31 +72,31 @@ public class TimeBasedMetricTests
         metric.ObserveCount(count: 6.0, clockTime: 20.0); // Count 8 for 5s (20-15), then becomes 6
 
         // Assert
-        AssertAreEqual(20.0, metric.CurrentTime);
-        AssertAreEqual(6.0, metric.CurrentCount);
+        AssertHelpers.AreEqual(20.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(6.0, metric.CurrentCount);
 
         // Increments: (5-0) + (8-5) = 5 + 3 = 8
         // Decrements: (8-6) = 2
-        AssertAreEqual(8.0, metric.TotalIncrementObserved);
-        AssertAreEqual(2.0, metric.TotalDecrementObserved);
+        AssertHelpers.AreEqual(8.0, metric.TotalIncrementObserved);
+        AssertHelpers.AreEqual(2.0, metric.TotalDecrementObserved);
 
         // Durations:
         // Time 0-10: Count 0. Duration = 10. Product = 0 * 10 = 0
         // Time 10-15: Count 5. Duration = 5. Product = 5 * 5 = 25
         // Time 15-20: Count 8. Duration = 5. Product = 8 * 5 = 40
-        AssertAreEqual(10.0 + 5.0 + 5.0, metric.TotalActiveDuration); // 20
-        AssertAreEqual(0 + 25 + 40, metric.CumulativeCountTimeProduct); // 65
+        AssertHelpers.AreEqual(10.0 + 5.0 + 5.0, metric.TotalActiveDuration); // 20
+        AssertHelpers.AreEqual(0 + 25 + 40, metric.CumulativeCountTimeProduct); // 65
 
-        AssertAreEqual(65.0 / 20.0, metric.AverageCount); // 3.25
+        AssertHelpers.AreEqual(65.0 / 20.0, metric.AverageCount); // 3.25
 
         // TimePerCount
         // Count 0: 10s
         // Count 5: 5s
         // Count 8: 5s
-        AssertAreEqual(3, metric.TimePerCount.Count);
-        AssertAreEqual(10.0, metric.TimePerCount[0]);
-        AssertAreEqual(5.0, metric.TimePerCount[5]);
-        AssertAreEqual(5.0, metric.TimePerCount[8]);
+        AssertHelpers.AreEqual(3, metric.TimePerCount.Count);
+        AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]);
+        AssertHelpers.AreEqual(5.0, metric.TimePerCount[5]);
+        AssertHelpers.AreEqual(5.0, metric.TimePerCount[8]);
     }
 
     [Fact]
@@ -117,16 +110,16 @@ public class TimeBasedMetricTests
         metric.ObserveCount(count: 7.0, clockTime: 10.0); // Observe again at the same time
 
         // Assert
-        AssertAreEqual(10.0, metric.CurrentTime);
-        AssertAreEqual(7.0, metric.CurrentCount); // Count updated
-        AssertAreEqual(5.0 + (7.0 - 5.0), metric.TotalIncrementObserved); // Increment 5 (0->5) + 2 (5->7) = 7
-        AssertAreEqual(10.0, metric.TotalActiveDuration); // Duration should not change
-        AssertAreEqual(0.0, metric.CumulativeCountTimeProduct);  // CCTP should not change
-        AssertAreEqual(0.0, metric.AverageCount); // (0*10)/10
+        AssertHelpers.AreEqual(10.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(7.0, metric.CurrentCount); // Count updated
+        AssertHelpers.AreEqual(5.0 + (7.0 - 5.0), metric.TotalIncrementObserved); // Increment 5 (0->5) + 2 (5->7) = 7
+        AssertHelpers.AreEqual(10.0, metric.TotalActiveDuration); // Duration should not change
+        AssertHelpers.AreEqual(0.0, metric.CumulativeCountTimeProduct);  // CCTP should not change
+        AssertHelpers.AreEqual(0.0, metric.AverageCount); // (0*10)/10
 
         // TimePerCount should still reflect duration for count 0, as no new duration passed
-        AssertAreEqual(1, metric.TimePerCount.Count);
-        AssertAreEqual(10.0, metric.TimePerCount[0]);
+        AssertHelpers.AreEqual(1, metric.TimePerCount.Count);
+        AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]);
     }
 
 
@@ -141,12 +134,12 @@ public class TimeBasedMetricTests
         metric.ObserveChange(change: 3.0, clockTime: 15.0); // Count 5 for 5s, CCTP += 5*5=25. Then count becomes 8. TotalIncrement += 3.
 
         // Assert
-        AssertAreEqual(15.0, metric.CurrentTime);
-        AssertAreEqual(8.0, metric.CurrentCount); // 5 + 3
-        AssertAreEqual(5.0 + 3.0, metric.TotalIncrementObserved); // Initial 5 + change 3
-        AssertAreEqual(10.0 + 5.0, metric.TotalActiveDuration); // 15
-        AssertAreEqual(0.0 + (5.0 * 5.0), metric.CumulativeCountTimeProduct); // 25
-        AssertAreEqual(25.0 / 15.0, metric.AverageCount);
+        AssertHelpers.AreEqual(15.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(8.0, metric.CurrentCount); // 5 + 3
+        AssertHelpers.AreEqual(5.0 + 3.0, metric.TotalIncrementObserved); // Initial 5 + change 3
+        AssertHelpers.AreEqual(10.0 + 5.0, metric.TotalActiveDuration); // 15
+        AssertHelpers.AreEqual(0.0 + (5.0 * 5.0), metric.CumulativeCountTimeProduct); // 25
+        AssertHelpers.AreEqual(25.0 / 15.0, metric.AverageCount);
     }
 
     [Fact]
@@ -160,13 +153,13 @@ public class TimeBasedMetricTests
         metric.ObserveChange(change: -4.0, clockTime: 12.0); // Count 10 for 7s. CCTP += 10*7=70. Then count becomes 6. TotalDecrement=4.
 
         // Assert
-        AssertAreEqual(12.0, metric.CurrentTime);
-        AssertAreEqual(6.0, metric.CurrentCount); // 10 - 4
-        AssertAreEqual(10.0, metric.TotalIncrementObserved);
-        AssertAreEqual(4.0, metric.TotalDecrementObserved);
-        AssertAreEqual(5.0 + 7.0, metric.TotalActiveDuration); // 12
-        AssertAreEqual(0.0 + (10.0 * 7.0), metric.CumulativeCountTimeProduct); // 70
-        AssertAreEqual(70.0 / 12.0, metric.AverageCount);
+        AssertHelpers.AreEqual(12.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(6.0, metric.CurrentCount); // 10 - 4
+        AssertHelpers.AreEqual(10.0, metric.TotalIncrementObserved);
+        AssertHelpers.AreEqual(4.0, metric.TotalDecrementObserved);
+        AssertHelpers.AreEqual(5.0 + 7.0, metric.TotalActiveDuration); // 12
+        AssertHelpers.AreEqual(0.0 + (10.0 * 7.0), metric.CumulativeCountTimeProduct); // 70
+        AssertHelpers.AreEqual(70.0 / 12.0, metric.AverageCount);
     }
 
     [Fact]
@@ -179,8 +172,8 @@ public class TimeBasedMetricTests
 
         // Assert
         // TotalIncrement = 5. TotalDecrement = 3. TotalActiveDuration = 10 (at count 0) + 10 (at count 5) = 20
-        AssertAreEqual(5.0 / 20.0, metric.IncrementRate);
-        AssertAreEqual(3.0 / 20.0, metric.DecrementRate);
+        AssertHelpers.AreEqual(5.0 / 20.0, metric.IncrementRate);
+        AssertHelpers.AreEqual(3.0 / 20.0, metric.DecrementRate);
     }
 
     [Fact]
@@ -191,8 +184,8 @@ public class TimeBasedMetricTests
         metric.ObserveCount(5, 0); // Observation at initial time, no duration passed yet.
 
         // Assert
-        AssertAreEqual(0.0, metric.IncrementRate); // TotalActiveDuration is 0
-        AssertAreEqual(0.0, metric.DecrementRate); // TotalActiveDuration is 0
+        AssertHelpers.AreEqual(0.0, metric.IncrementRate); // TotalActiveDuration is 0
+        AssertHelpers.AreEqual(0.0, metric.DecrementRate); // TotalActiveDuration is 0
     }
 
     [Fact]
@@ -218,7 +211,7 @@ public class TimeBasedMetricTests
 
         double expectedAvgCount = 150.0 / 30.0;
         double expectedDecRate = 5.0 / 30.0;
-        AssertAreEqual(expectedAvgCount / expectedDecRate, metric.AverageSojournTime);
+        AssertHelpers.AreEqual(expectedAvgCount / expectedDecRate, metric.AverageSojournTime);
     }
 
     [Fact]
@@ -229,7 +222,7 @@ public class TimeBasedMetricTests
         metric.ObserveCount(5, 10); // Only increments
 
         // Assert
-        AssertAreEqual(0.0, metric.AverageSojournTime);
+        AssertHelpers.AreEqual(0.0, metric.AverageSojournTime);
     }
 
 
@@ -245,13 +238,13 @@ public class TimeBasedMetricTests
         metric.WarmedUp(clockTime: 20.0);
 
         // Assert
-        AssertAreEqual(20.0, metric.InitialTime);
-        AssertAreEqual(20.0, metric.CurrentTime);
-        AssertAreEqual(0.0, metric.CurrentCount); // Resets to 0
-        AssertAreEqual(0.0, metric.TotalIncrementObserved);
-        AssertAreEqual(0.0, metric.TotalDecrementObserved);
-        AssertAreEqual(0.0, metric.TotalActiveDuration);
-        AssertAreEqual(0.0, metric.CumulativeCountTimeProduct);
+        AssertHelpers.AreEqual(20.0, metric.InitialTime);
+        AssertHelpers.AreEqual(20.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(0.0, metric.CurrentCount); // Resets to 0
+        AssertHelpers.AreEqual(0.0, metric.TotalIncrementObserved);
+        AssertHelpers.AreEqual(0.0, metric.TotalDecrementObserved);
+        AssertHelpers.AreEqual(0.0, metric.TotalActiveDuration);
+        AssertHelpers.AreEqual(0.0, metric.CumulativeCountTimeProduct);
         Assert.True(metric.IsHistoryEnabled, "IsHistoryEnabled should be preserved");
         Assert.NotNull(metric.TimePerCount);
         Assert.Empty(metric.TimePerCount);
@@ -271,10 +264,10 @@ public class TimeBasedMetricTests
 
         // Assert
         Assert.Equal(2, metric.History.Count);
-        AssertAreEqual(10.0, metric.History[0].Time);
-        AssertAreEqual(5.0, metric.History[0].CountValue);
-        AssertAreEqual(15.0, metric.History[1].Time);
-        AssertAreEqual(3.0, metric.History[1].CountValue);
+        AssertHelpers.AreEqual(10.0, metric.History[0].Time);
+        AssertHelpers.AreEqual(5.0, metric.History[0].CountValue);
+        AssertHelpers.AreEqual(15.0, metric.History[1].Time);
+        AssertHelpers.AreEqual(3.0, metric.History[1].CountValue);
     }
 
     [Fact]
@@ -364,16 +357,16 @@ public class TimeBasedMetricTests
         // Actual max observed count is 3 in TimeForCount. So bins [0,2), [2,4)
 
         // Bin 1: [0, 2)
-        AssertAreEqual(0.0, histogram[0].CountLowerBound);
-        AssertAreEqual(10.0 + 10.0, histogram[0].TotalTime); // Time for count 0 and 1
-        AssertAreEqual((10.0 + 10.0) / 30.0, histogram[0].Probability);
-        AssertAreEqual((10.0 + 10.0) / 30.0, histogram[0].CumulativeProbability);
+        AssertHelpers.AreEqual(0.0, histogram[0].CountLowerBound);
+        AssertHelpers.AreEqual(10.0 + 10.0, histogram[0].TotalTime); // Time for count 0 and 1
+        AssertHelpers.AreEqual((10.0 + 10.0) / 30.0, histogram[0].Probability);
+        AssertHelpers.AreEqual((10.0 + 10.0) / 30.0, histogram[0].CumulativeProbability);
 
         // Bin 2: [2, 4)
-        AssertAreEqual(2.0, histogram[1].CountLowerBound);
-        AssertAreEqual(10.0, histogram[1].TotalTime); // Time for count 3
-        AssertAreEqual(10.0 / 30.0, histogram[1].Probability);
-        AssertAreEqual((20.0 + 10.0) / 30.0, histogram[1].CumulativeProbability);
+        AssertHelpers.AreEqual(2.0, histogram[1].CountLowerBound);
+        AssertHelpers.AreEqual(10.0, histogram[1].TotalTime); // Time for count 3
+        AssertHelpers.AreEqual(10.0 / 30.0, histogram[1].Probability);
+        AssertHelpers.AreEqual((20.0 + 10.0) / 30.0, histogram[1].CumulativeProbability);
     }
 
     [Fact]
@@ -394,12 +387,12 @@ public class TimeBasedMetricTests
         // [6, 8): count 7 (10s). P=10/30. CP=30/30
 
         Assert.Equal(4, histogram.Count);
-        AssertAreEqual(0.0, histogram[0].CountLowerBound); AssertAreEqual(10.0, histogram[0].TotalTime);
-        AssertAreEqual(2.0, histogram[1].CountLowerBound); AssertAreEqual(0.0, histogram[1].TotalTime);
-        AssertAreEqual(4.0, histogram[2].CountLowerBound); AssertAreEqual(10.0, histogram[2].TotalTime);
-        AssertAreEqual(6.0, histogram[3].CountLowerBound); AssertAreEqual(10.0, histogram[3].TotalTime);
+        AssertHelpers.AreEqual(0.0, histogram[0].CountLowerBound); AssertHelpers.AreEqual(10.0, histogram[0].TotalTime);
+        AssertHelpers.AreEqual(2.0, histogram[1].CountLowerBound); AssertHelpers.AreEqual(0.0, histogram[1].TotalTime);
+        AssertHelpers.AreEqual(4.0, histogram[2].CountLowerBound); AssertHelpers.AreEqual(10.0, histogram[2].TotalTime);
+        AssertHelpers.AreEqual(6.0, histogram[3].CountLowerBound); AssertHelpers.AreEqual(10.0, histogram[3].TotalTime);
 
-        AssertAreEqual(1.0, histogram.Last().CumulativeProbability);
+        AssertHelpers.AreEqual(1.0, histogram.Last().CumulativeProbability);
     }
 
 
@@ -448,7 +441,7 @@ public class TimeBasedMetricTests
         var metric = new TimeBasedMetric(0);
         metric.ObserveCount(1, 10); // ActiveDuration = 10. CurrentTime = 10. InitialTime = 0.
         // Ratio = 10 / (10-0) = 1
-        AssertAreEqual(1.0, metric.ObservationCoverageRatio);
+        AssertHelpers.AreEqual(1.0, metric.ObservationCoverageRatio);
     }
 
     [Fact]
@@ -457,7 +450,7 @@ public class TimeBasedMetricTests
         var metric = new TimeBasedMetric(5); // InitialTime = 5
         metric.ObserveCount(1, 10); // ActiveDuration = 5 (from 5 to 10). CurrentTime = 10. InitialTime = 5.
         // Ratio = 5 / (10-5) = 1
-        AssertAreEqual(1.0, metric.ObservationCoverageRatio);
+        AssertHelpers.AreEqual(1.0, metric.ObservationCoverageRatio);
     }
 
     [Fact]
@@ -477,9 +470,9 @@ public class TimeBasedMetricTests
         // and CurrentTime later moves (hypothetically).
 
         // Directly, after construction:
-        AssertAreEqual(0.0, metric.ObservationCoverageRatio);
+        AssertHelpers.AreEqual(0.0, metric.ObservationCoverageRatio);
 
         metric.ObserveCount(1,0); // Observe at initial time
-        AssertAreEqual(0.0, metric.ObservationCoverageRatio);
+        AssertHelpers.AreEqual(0.0, metric.ObservationCoverageRatio);
     }
 }
