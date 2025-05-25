@@ -12,6 +12,7 @@ namespace SimNextgenApp.Core;
 public class SimulationEngine : IScheduler, IRunContext
 {
     private readonly ILogger<SimulationEngine> _logger;
+    private readonly long _ticksPerSimulationUnit;
     private readonly PriorityQueue<AbstractEvent, (double Time, long Sequence)> _fel;
     private long _eventSequenceCounter = 0;
     private bool _isInitialized = false;
@@ -50,16 +51,20 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <summary>
     /// Initializes a new instance of the <see cref="SimulationEngine"/> class.
     /// </summary>
+    /// <param name="baseTimeUnit">Defines the meaning of one unit of the simulation 'double' ClockTime in terms of standard TimeSpan units.</param>
     /// <param name="model">The simulation model instance to execute.</param>
     /// <param name="loggerFactory">Factory for creating loggers.</param>
     /// <exception cref="ArgumentNullException">Thrown if model or loggerFactory is null.</exception>
-    public SimulationEngine(ISimulationModel model, ILoggerFactory loggerFactory)
+    public SimulationEngine(SimulationTimeUnit baseTimeUnit, ISimulationModel model, ILoggerFactory loggerFactory)
     {
-        if (loggerFactory == null) throw new ArgumentNullException(nameof(loggerFactory));
+        ArgumentNullException.ThrowIfNull(loggerFactory);
+
+        _ticksPerSimulationUnit = TimeUnitConverter.GetTicksPerSimulationUnit(baseTimeUnit);
+
         Model = model ?? throw new ArgumentNullException(nameof(model));
 
         _logger = loggerFactory.CreateLogger<SimulationEngine>();
-        
+
         _fel = new PriorityQueue<AbstractEvent, (double Time, long Sequence)>();
 
         _logger.LogInformation("SimulationEngine created for Model: {ModelName} (ID: {ModelId})", Model.Name, Model.Id);
@@ -110,7 +115,9 @@ public class SimulationEngine : IScheduler, IRunContext
                 stopwatch.Stop();
                 throw new SimulationException($"Model initialization failed for Model ID {Model.Id}.", ex);
             }
-        } else {
+        }
+        else
+        {
             // This could be an error if trying to re-run without reset, depending on desired behavior.
             _logger.LogWarning("Simulation engine is being re-run without an explicit Reset. Ensure this is intended.");
         }
@@ -147,7 +154,7 @@ public class SimulationEngine : IScheduler, IRunContext
                 if (!strategy.ShouldContinue(this)) break;
             }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             _logger.LogError(ex, "Simulation run failed during execution for Model ID {ModelId} at simulation time {ClockTime}.", Model.Id, ClockTime);
             stopwatch.Stop();
@@ -183,5 +190,18 @@ public class SimulationEngine : IScheduler, IRunContext
         long sequence = Interlocked.Increment(ref _eventSequenceCounter);
         _fel.Enqueue(ev, (time, sequence));
         _logger.LogTrace("Scheduled event {EventType} for time {ExecutionTime} (Seq: {Sequence})", ev.GetType().Name, time, sequence);
+    }
+    
+    public void Schedule(AbstractEvent ev, TimeSpan delay)
+    {
+        if (delay < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(delay), "Delay cannot be negative.");
+        if (_ticksPerSimulationUnit <= 0)
+            throw new InvalidOperationException("Ticks per simulation unit is not configured correctly.");
+
+        // Convert TimeSpan delay to double simulation clock units
+        double delayInSimUnits = (double)delay.Ticks / _ticksPerSimulationUnit;
+        double eventExecutionTime = ClockTime + delayInSimUnits;
+        Schedule(ev, eventExecutionTime);
     }
 }
