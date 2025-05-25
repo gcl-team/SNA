@@ -1,5 +1,3 @@
-using Xunit.Sdk;
-
 namespace SimNextgenApp.Tests;
 
 public static class TestConstants
@@ -21,4 +19,9 @@ public static class AssertHelpers
     {
         Assert.Equal(expected, actual, TestConstants.Epsilon);
     }
+}
+
+public class DummyLoadType
+{
+    
 }
