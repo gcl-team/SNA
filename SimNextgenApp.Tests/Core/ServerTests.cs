@@ -141,8 +141,8 @@ public class ServerTests
         var server = CreateAndInitializeServer(config: new ServerStaticConfig<DummyLoad>(_defaultServiceTimeFunc) { Capacity = 1 });
         var load1 = CreateDummyLoad("L1");
         _currentTestTime = 10.0;
-        server.TryStartService(_mockEngine.Object, load1); // Fill capacity by scheduling
-                                                                                   // Manually execute the event to occupy the server for this test's purpose
+        server.TryStartService(_mockEngine.Object, load1);
+
         var startEvent = new ServerStartServiceEvent<DummyLoad>(server, load1);
         startEvent.Execute(_mockEngine.Object);
         _mockScheduler.ResetCalls(); // Reset calls after filling capacity
