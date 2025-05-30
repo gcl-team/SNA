@@ -54,7 +54,7 @@ public class DurationRunStrategyTests
     public void ShouldContinue_ReturnsCorrectValueBasedOnClockTime(double clockTime, double runDuration, bool expectedResult)
     {
         // Arrange
-        var context = new TestRunContext { ClockTime = clockTime };
+        var context = new TestRunContext(null!) { ClockTime = clockTime };
         var strategy = new DurationRunStrategy(runDuration);
 
         // Act

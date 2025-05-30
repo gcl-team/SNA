@@ -34,7 +34,7 @@ public abstract class AbstractEvent
     /// <param name="engine">A reference to the simulation engine, providing access
     /// to the current state (ClockTime) and core services like the scheduler (IScheduler).
     /// </param>
-    public abstract void Execute(SimulationEngine engine);
+    public abstract void Execute(IRunContext engine);
 
     /// <summary>
     /// Provides a basic string representation, useful for debugging/logging.

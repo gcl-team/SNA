@@ -28,6 +28,8 @@ public class SimulationEngine : IScheduler, IRunContext
     /// </summary>
     public double ClockTime { get; private set; } = 0.0;
 
+    public IScheduler Scheduler => this; // Engine is the scheduler
+
     /// <summary>
     /// Gets the current number of events that have been executed in the simulation.
     /// </summary>

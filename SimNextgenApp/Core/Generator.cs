@@ -1,4 +1,5 @@
 using SimNextgenApp.Configurations;
+using SimNextgenApp.Events;
 using SimNextgenApp.Modeling;
 
 namespace SimNextgenApp.Core;
@@ -14,6 +15,10 @@ public class Generator<TLoad> : AbstractSimulationModel
     private readonly GeneratorStaticConfig<TLoad> _config;
     private readonly Random _random;
     private IScheduler? _scheduler;
+
+    // Make config and random internally accessible for event classes
+    internal GeneratorStaticConfig<TLoad> Configuration => _config;
+    internal Random RandomProvider => _random;
 
     /// <summary>
     /// Gets the simulation time when the generator was last started or when the warm-up period ended.
@@ -53,11 +58,6 @@ public class Generator<TLoad> : AbstractSimulationModel
     {
         ArgumentNullException.ThrowIfNull(config);
 
-        if (config.InterArrivalTime == null)
-            throw new ArgumentException("Generator configuration must have InterArrivalTime defined.", nameof(config));
-        if (config.LoadFactory == null)
-            throw new ArgumentException("Generator configuration must have LoadFactory defined.", nameof(config));
-
         _config = config;
         _random = new Random(seed);
 
@@ -74,11 +74,11 @@ public class Generator<TLoad> : AbstractSimulationModel
     /// <param name="engine">The simulation engine instance, used to get current time for scheduling.</param>
     /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="engine"/> is null.</exception>
-    public void StartGenerating(SimulationEngine engine)
+    public void StartGenerating(IRunContext engine)
     {
         ArgumentNullException.ThrowIfNull(engine);
         EnsureSchedulerInitialized();
-        _scheduler!.Schedule(new GeneratorStartInternalEvent(this), engine.ClockTime);
+        _scheduler!.Schedule(new GeneratorStartEvent<TLoad>(this), engine.ClockTime);
     }
 
     /// <summary>
@@ -89,11 +89,11 @@ public class Generator<TLoad> : AbstractSimulationModel
     /// <param name="engine">The simulation engine instance, used to get current time for scheduling.</param>
     /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="engine"/> is null.</exception>
-    public void StopGenerating(SimulationEngine engine)
+    public void StopGenerating(IRunContext engine)
     {
         ArgumentNullException.ThrowIfNull(engine);
         EnsureSchedulerInitialized();
-        _scheduler!.Schedule(new GeneratorStopInternalEvent(this), engine.ClockTime); // Assuming engine.ClockTime
+        _scheduler!.Schedule(new GeneratorStopEvent<TLoad>(this), engine.ClockTime);
     }
 
     /// <inheritdoc/>
@@ -117,84 +117,20 @@ public class Generator<TLoad> : AbstractSimulationModel
             throw new InvalidOperationException($"Generator '{Name}' has not been initialized with a scheduler. Call Initialize first.");
     }
 
-    private abstract class GeneratorAbstractInternalEvent : AbstractEvent
+    internal void PerformActivation(double currentTime)
     {
-        protected Generator<TLoad> OwningGenerator { get; }
-
-        protected GeneratorAbstractInternalEvent(Generator<TLoad> owner)
-        {
-            ArgumentNullException.ThrowIfNull(owner);
-            OwningGenerator = owner;
-        }
+        IsActive = true;
+        StartTime = currentTime;
+        LoadsGeneratedCount = 0;
     }
 
-    private sealed class GeneratorStartInternalEvent(Generator<TLoad> owner) : GeneratorAbstractInternalEvent(owner)
+    internal void PerformDeactivation()
     {
-        public override void Execute(SimulationEngine engine)
-        {
-            double currentTime = engine.ClockTime;
-
-            if (!OwningGenerator.IsActive)
-            {
-                OwningGenerator.IsActive = true;
-                OwningGenerator.StartTime = currentTime;
-                OwningGenerator.LoadsGeneratedCount = 0;
-
-                if (OwningGenerator._config.IsSkippingFirst)
-                {
-                    TimeSpan delay = OwningGenerator._config.InterArrivalTime!(OwningGenerator._random);
-                    engine.Schedule( // Use engine.Scheduler
-                        new GeneratorArriveInternalEvent(OwningGenerator),
-                        currentTime + delay.TotalSeconds // Adjust .TotalSeconds if clock units differ
-                    );
-                }
-                else
-                {
-                    engine.Schedule(
-                        new GeneratorArriveInternalEvent(OwningGenerator),
-                        currentTime // Schedule for current time
-                    );
-                }
-            }
-        }
-        public override string ToString() => $"{OwningGenerator.Name}_Start#{EventId} @ {ExecutionTime:F4}";
+        IsActive = false;
     }
 
-    private sealed class GeneratorStopInternalEvent(Generator<TLoad> owner) : GeneratorAbstractInternalEvent(owner)
+    internal void IncrementLoadsGenerated()
     {
-        public override void Execute(SimulationEngine engine)
-        {
-            if (OwningGenerator.IsActive)
-            {
-                OwningGenerator.IsActive = false;
-            }
-        }
-        public override string ToString() => $"{OwningGenerator.Name}_Stop#{EventId} @ {ExecutionTime:F4}";
-    }
-
-    private sealed class GeneratorArriveInternalEvent(Generator<TLoad> owner) : GeneratorAbstractInternalEvent(owner)
-    {
-        public override void Execute(SimulationEngine engine)
-        {
-            double currentTime = engine.ClockTime;
-
-            if (OwningGenerator.IsActive)
-            {
-                TLoad load = OwningGenerator._config.LoadFactory!(OwningGenerator._random);
-                OwningGenerator.LoadsGeneratedCount++;
-
-                TimeSpan nextDelay = OwningGenerator._config.InterArrivalTime!(OwningGenerator._random);
-                engine.Schedule(
-                    new GeneratorArriveInternalEvent(OwningGenerator),
-                    currentTime + nextDelay.TotalSeconds
-                );
-
-                foreach (var action in OwningGenerator.LoadGeneratedActions)
-                {
-                    action(load, currentTime);
-                }
-            }
-        }
-        public override string ToString() => $"{OwningGenerator.Name}_Arrive#{EventId} (Gen: {OwningGenerator.LoadsGeneratedCount}) @ {ExecutionTime:F4}";
+        LoadsGeneratedCount++;
     }
 }

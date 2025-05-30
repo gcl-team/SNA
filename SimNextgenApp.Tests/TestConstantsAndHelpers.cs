@@ -8,6 +8,41 @@ public static class TestConstants
     public const double Epsilon = 0.000001;
 }
 
+/// <summary>
+/// A simple, anemic data class used as a placeholder for TLoad in unit tests,
+/// particularly for testing generic components like Generator<TLoad> or Server<TLoad>.
+/// </summary>
+public class DummyLoad
+{
+    private static int _instanceCounter = 0;
+
+    /// <summary>
+    /// A unique ID for differentiating dummy load instances if needed during testing.
+    /// </summary>
+    public int Id { get; }
+
+    /// <summary>
+    /// An optional value that can be set by a test LoadFactory to verify creation.
+    /// </summary>
+    public int Value { get; set; }
+
+    /// <summary>
+    /// An optional tag for debugging or specific test scenarios.
+    /// </summary>
+    public string? Tag { get; set; }
+
+    public DummyLoad(string? tag = null)
+    {
+        Id = System.Threading.Interlocked.Increment(ref _instanceCounter);
+        Tag = tag;
+    }
+
+    public override string ToString()
+    {
+        return $"DummyLoad{(string.IsNullOrWhiteSpace(Tag) ? "" : $"({Tag})")}#{Id}";
+    }
+}
+
 public static class AssertHelpers
 {
     /// <summary>

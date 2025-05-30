@@ -2,6 +2,11 @@ using SimNextgenApp.Core;
 
 namespace SimNextgenApp.Modeling;
 
+/// <summary>
+/// Provides a foundational abstract base class for all simulation models within the framework.
+/// This class handles common functionalities such as unique instance identification, naming,
+/// metadata storage, and defines the core lifecycle methods that concrete models must implement.
+/// </summary>
 public abstract class AbstractSimulationModel : ISimulationModel
 {
     private static long _instanceCounter = 0;

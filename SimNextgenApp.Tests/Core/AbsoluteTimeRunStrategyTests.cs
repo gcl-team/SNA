@@ -46,7 +46,7 @@ public class AbsoluteTimeRunStrategyTests
     public void ShouldContinue_ReturnsCorrectValueBasedOnClockTime(double clockTime, double stopTime, bool expectedResult)
     {
         // Arrange
-        var context = new TestRunContext { ClockTime = clockTime };
+        var context = new TestRunContext(null!) { ClockTime = clockTime };
         var strategy = new AbsoluteTimeRunStrategy(stopTime);
 
         // Act

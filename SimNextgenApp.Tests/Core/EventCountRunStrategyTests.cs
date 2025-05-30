@@ -32,7 +32,7 @@ public class EventCountRunStrategyTests
     public void ShouldContinue_ReturnsExpectedValue(long executedEventCount, long maxEventCount, bool expected)
     {
         // Arrange
-        var context = new TestRunContext { ExecutedEventCount = executedEventCount };
+        var context = new TestRunContext(null!) { ExecutedEventCount = executedEventCount };
         var strategy = new EventCountRunStrategy(maxEventCount);
 
         // Act

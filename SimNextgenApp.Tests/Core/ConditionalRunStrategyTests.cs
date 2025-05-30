@@ -38,7 +38,7 @@ public class ConditionalRunStrategyTests
     {
         // Arrange: Condition allows up to 9 events only
         var strategy = new ConditionalRunStrategy(ctx => ctx.ExecutedEventCount < 10);
-        var context = new TestRunContext { ExecutedEventCount = executedEvents };
+        var context = new TestRunContext(null!) { ExecutedEventCount = executedEvents };
 
         // Act
         var result = strategy.ShouldContinue(context);

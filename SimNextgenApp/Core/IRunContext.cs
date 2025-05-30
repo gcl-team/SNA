@@ -19,4 +19,6 @@ public interface IRunContext
     /// Gets the number of events that have been executed so far in the simulation run.
     /// </summary>
     long ExecutedEventCount { get; }
+
+    IScheduler Scheduler { get; }
 }
