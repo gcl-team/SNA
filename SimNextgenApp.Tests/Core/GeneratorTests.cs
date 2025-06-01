@@ -1,4 +1,5 @@
-﻿using Moq;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
@@ -47,7 +48,7 @@ public class GeneratorTests
         string name = DefaultGeneratorName)
     {
         _loadFactoryCallCount = 0; // Reset for each generator creation
-        return new Generator<DummyLoad>(config ?? _validConfig, seed, name);
+        return new Generator<DummyLoad>(config ?? _validConfig, seed, name, NullLoggerFactory.Instance);
     }
 
     [Fact]
@@ -75,7 +76,7 @@ public class GeneratorTests
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
-            new Generator<DummyLoad>(nullConfig, seed, name) // Call constructor directly
+            new Generator<DummyLoad>(nullConfig, seed, name, NullLoggerFactory.Instance)
         );
         Assert.Equal("config", ex.ParamName);
     }
@@ -343,6 +344,10 @@ public class GeneratorTests
         // Arrange
         var generator = CreateGenerator();
         generator.Initialize(_mockScheduler.Object);
+
+        // Reset the mock to forget the call made by Initialize
+        _mockScheduler.Invocations.Clear(); // Clear invocations but keep setups.
+
         generator.PerformDeactivation();
         _currentTestTime = 30.0;
         var arriveEvent = new GeneratorArriveEvent<DummyLoad>(generator);

@@ -88,7 +88,7 @@ internal sealed class GeneratorArriveEvent<TLoad> : AbstractGeneratorEvent<TLoad
         // OwningGenerator.HandleArriveLogic(engine);
         double currentTime = engine.ClockTime;
 
-        if (OwningGenerator.IsActive) // Assuming IsActive has internal get
+        if (OwningGenerator.IsActive)
         {
             var config = OwningGenerator.Configuration;
             var random = OwningGenerator.RandomProvider;
