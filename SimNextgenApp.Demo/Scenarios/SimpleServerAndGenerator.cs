@@ -46,16 +46,14 @@ internal static class SimpleServerAndGenerator
 
         // 3. Create the Composite Model
         var simpleSystem = new GeneratorAndServerModel(
-            generatorConfig, 123, // Gen seed
-            serverConfig, 456,    // Server seed
+            generatorConfig, 123,
+            serverConfig, 456,
             loggerFactory);
 
         // 4. Create the SimulationEngine
-        // NOTE: SimulationEngine implements IRunContext, which MySimpleSystemModel needs
-        // for TryStartService.
         var simulationEngine = new SimulationEngine(
             baseTimeUnit: SimulationTimeUnit.Seconds,
-            model: simpleSystem, // Pass the composite model
+            model: simpleSystem,
             loggerFactory: loggerFactory
         );
 

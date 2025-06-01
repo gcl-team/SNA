@@ -2,5 +2,5 @@
 
 Console.WriteLine("Hello, World!");
 
-//SimpleGenerator.RunDemo();
+SimpleGenerator.RunDemo();
 SimpleServerAndGenerator.RunDemo();
