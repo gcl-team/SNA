@@ -7,20 +7,10 @@ namespace SimNextgenApp.Demo.Scenarios;
 
 internal static class SimpleGenerator
 {
-    public static void RunDemo() 
+    public static void RunDemo(ILoggerFactory loggerFactory) 
     {
 
-        // 1. Create a Logger Factory (standard Microsoft.Extensions.Logging)
-        var loggerFactory = LoggerFactory.Create(builder =>
-        {
-            builder
-                .AddFilter("SimNextgenApp", LogLevel.Trace) // Set log level for your library
-                .AddFilter("Microsoft", LogLevel.Warning)
-                .AddFilter("System", LogLevel.Warning)
-                .AddConsole();
-        });
-
-        // 2. Create the GeneratorStaticConfig
+        // 1. Create the GeneratorStaticConfig
         //    Define how loads are created and their arrival pattern.
 
         // Example: Inter-arrival time is exponentially distributed with a mean of 10.0 time units.
@@ -48,7 +38,7 @@ internal static class SimpleGenerator
             IsSkippingFirst = false // For this demo, let's not skip the first one
         };
 
-        // 3. Create the Generator instance
+        // 2. Create the Generator instance
         //    The generator will be our entire simulation model in this simple case.
         //    It needs a seed for its internal Random instance and a name.
         int randomSeed = 12345;
@@ -59,7 +49,7 @@ internal static class SimpleGenerator
             loggerFactory: loggerFactory
         );
 
-        // 4. (CRUCIAL FOR GENERATOR) Tell the Generator what to do when a load is generated.
+        // 3. (CRUCIAL FOR GENERATOR) Tell the Generator what to do when a load is generated.
         //    This connects the generator's output.
         myGenerator.LoadGeneratedActions.Add((load, generationTime) =>
         {
@@ -71,17 +61,17 @@ internal static class SimpleGenerator
             consoleLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime:F2} -> {load} ---");
         });
 
-        // 5. Create the SimulationEngine
+        // 4. Create the SimulationEngine
         var simulationEngine = new SimulationEngine(
             baseTimeUnit: SimulationTimeUnit.Seconds, // Defines what 1.0 in ClockTime means
             model: myGenerator,                       // The generator is our model
             loggerFactory: loggerFactory
         );
 
-        // 7. Create a Run Strategy
+        // 5. Create a Run Strategy
         var runStrategy = new DurationRunStrategy(50.0);
 
-        // 8. Run the simulation
+        // 6. Run the simulation
         try
         {
             simulationEngine.Run(runStrategy);
@@ -92,7 +82,7 @@ internal static class SimpleGenerator
             errorLogger.LogCritical(ex, "Simulation run failed!");
         }
 
-        // 9. (Optional) Report results/stats from the engine or model
+        // 7. Report results/stats from the engine or model
         Console.WriteLine("\nSimulation finished.");
         Console.WriteLine($"Final Simulation Clock Time: {simulationEngine.ClockTime:F2}");
         Console.WriteLine($"Total Events Executed: {simulationEngine.ExecutedEventCount}");

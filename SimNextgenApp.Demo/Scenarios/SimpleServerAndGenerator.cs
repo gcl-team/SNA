@@ -7,15 +7,8 @@ namespace SimNextgenApp.Demo.Scenarios;
 
 internal static class SimpleServerAndGenerator
 {
-    public static void RunDemo() 
+    public static void RunDemo(ILoggerFactory loggerFactory) 
     {
-        var loggerFactory = LoggerFactory.Create(builder =>
-        {
-            builder
-                .AddFilter("SimNextgenApp", LogLevel.Trace)
-                .AddFilter("Default", LogLevel.Information) // For Program's own logs
-                .AddConsole();
-        });
         var programLogger = loggerFactory.CreateLogger("Program");
 
         // 1. Generator Configuration

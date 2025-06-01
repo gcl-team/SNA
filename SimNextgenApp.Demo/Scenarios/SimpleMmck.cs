@@ -7,15 +7,8 @@ namespace SimNextgenApp.Demo.Scenarios;
 
 internal static class SimpleMmck
 {
-    public static void RunDemo() 
+    public static void RunDemo(ILoggerFactory loggerFactory) 
     {
-        var loggerFactory = LoggerFactory.Create(builder =>
-        {
-            builder
-                .AddFilter("SimNextgenApp", LogLevel.Information) // Adjust log level as needed
-                .AddFilter("Default", LogLevel.Information)
-                .AddConsole();
-        });
         var programLogger = loggerFactory.CreateLogger("Program");
 
         // --- Simulation Parameters ---

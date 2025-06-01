@@ -1,7 +1,20 @@
-﻿using SimNextgenApp.Demo.Scenarios;
+﻿using Microsoft.Extensions.Logging;
+using SimNextgenApp.Demo.Scenarios;
 
-Console.WriteLine("Hello, World!");
+var loggerFactory = LoggerFactory.Create(builder =>
+{
+    builder
+        .AddFilter("SimNextgenApp", LogLevel.Trace)
+        .AddFilter("Microsoft", LogLevel.Warning)
+        .AddFilter("System", LogLevel.Warning)
+        .AddConsole();
+});
 
-SimpleGenerator.RunDemo();
-SimpleServerAndGenerator.RunDemo();
-SimpleMmck.RunDemo();
+Console.WriteLine("====== Running SimpleGenerator ======");
+SimpleGenerator.RunDemo(loggerFactory);
+
+Console.WriteLine("====== Running SimpleServerAndGenerator ======");
+SimpleServerAndGenerator.RunDemo(loggerFactory);
+
+Console.WriteLine("====== Running SimpleMmck ======");
+SimpleMmck.RunDemo(loggerFactory);
