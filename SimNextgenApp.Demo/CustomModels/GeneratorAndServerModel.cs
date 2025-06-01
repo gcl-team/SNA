@@ -23,7 +23,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         GeneratorStaticConfig<MyLoad> genConfig, int genSeed,
         ServerStaticConfig<MyLoad> serverConfig, int serverSeed,
         ILoggerFactory loggerFactory, string name = "SimpleSystem")
-        : base(name) // AbstractSimulationModel's constructor
+        : base(name)
     {
         _modelLogger = loggerFactory.CreateLogger<GeneratorAndServerModel>();
 

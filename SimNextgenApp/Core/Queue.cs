@@ -28,6 +28,11 @@ public class Queue<TLoad> : AbstractSimulationModel
     public int Occupancy => Waiting.Count;
 
     /// <summary>
+    /// Gets the configured capacity of the queue.
+    /// </summary>
+    public int Capacity => _config.Capacity;
+
+    /// <summary>
     /// Gets the number of available spaces remaining in the queue before it reaches its configured capacity.
     /// </summary>
     public int Vacancy => (_config.Capacity == int.MaxValue) ? int.MaxValue : _config.Capacity - Occupancy;
@@ -78,7 +83,7 @@ public class Queue<TLoad> : AbstractSimulationModel
     /// Actions to perform when the queue's state changes significantly (e.g., occupancy change, ToDequeue status change).
     /// Takes the current simulation time.
     /// </summary>
-    public List<Action<double>> OnStateChangeActions { get; } = new List<Action<double>>();
+    public List<Action<double>> OnStateChangeActions { get; } = [];
 
     /// <summary>
     /// Initialises a new instance of the <see cref="Queue{TLoad}"/> class.
@@ -129,6 +134,15 @@ public class Queue<TLoad> : AbstractSimulationModel
         return true;
     }
 
+    public void TriggerDequeueAttempt(IRunContext engineContext)
+    {
+        EnsureSchedulerInitialized();
+        if (this.ToDequeue && this.Occupancy > 0)
+        {
+            Logger.LogTrace("Dequeue attempt triggered for {QueueName} at {Time} by external signal.", Name, engineContext.ClockTime);
+            engineContext.Scheduler.Schedule(new DequeueEvent<TLoad>(this), engineContext.ClockTime);
+        }
+    }
 
     /// <summary>
     /// Schedules an event to update the ToDequeue status of the queue.
