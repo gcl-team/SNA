@@ -110,6 +110,7 @@ public class SimulationEngine : IScheduler, IRunContext
                 Model.Initialize(this);
                 _isInitialized = true;
                 _logger.LogDebug("Model initialization complete.");
+                _logger.LogInformation(">>> Starting main event loop. FEL count is: {FELCount}", _fel.Count);
             }
             catch (Exception ex)
             {
@@ -196,14 +197,20 @@ public class SimulationEngine : IScheduler, IRunContext
     
     public void Schedule(AbstractEvent ev, TimeSpan delay)
     {
+        if (ev == null) 
+            throw new ArgumentNullException(nameof(ev));
         if (delay < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(delay), "Delay cannot be negative.");
         if (_ticksPerSimulationUnit <= 0)
             throw new InvalidOperationException("Ticks per simulation unit is not configured correctly.");
 
+        _logger.LogDebug("Before scheduling {EventType}, FEL count is: {FELCount}", ev.GetType().Name, _fel.Count);
+
         // Convert TimeSpan delay to double simulation clock units
         double delayInSimUnits = (double)delay.Ticks / _ticksPerSimulationUnit;
         double eventExecutionTime = ClockTime + delayInSimUnits;
         Schedule(ev, eventExecutionTime);
+
+        _logger.LogInformation("--> SCHEDULED: Event {EventType} for time {ExecutionTime}. FEL count is now: {FELCount}", ev.GetType().Name, ClockTime, _fel.Count);
     }
 }

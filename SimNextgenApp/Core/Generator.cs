@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Events;
 using SimNextgenApp.Modeling;
@@ -15,6 +16,7 @@ public class Generator<TLoad> : AbstractSimulationModel
     private readonly GeneratorStaticConfig<TLoad> _config;
     private readonly Random _random;
     private IScheduler? _scheduler;
+    private readonly ILogger<Generator<TLoad>> _logger;
 
     // Make config and random internally accessible for event classes
     internal GeneratorStaticConfig<TLoad> Configuration => _config;
@@ -53,17 +55,20 @@ public class Generator<TLoad> : AbstractSimulationModel
     /// <param name="instanceName">A unique name for this generator instance (e.g., "CustomerArrivals").
     /// This will be used as the base name for the simulation model.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> is <c>null</c>.</exception>
-    public Generator(GeneratorStaticConfig<TLoad> config, int seed, string instanceName)
+    public Generator(GeneratorStaticConfig<TLoad> config, int seed, string instanceName, ILoggerFactory loggerFactory)
         : base(instanceName)
     {
         ArgumentNullException.ThrowIfNull(config);
 
         _config = config;
         _random = new Random(seed);
+        _logger = loggerFactory.CreateLogger<Generator<TLoad>>();
 
         IsActive = false;
         LoadsGeneratedCount = 0;
         LoadGeneratedActions = [];
+
+        _logger.LogInformation("Generator '{GeneratorName}' (ID: {ModelId}) created.", Name, Id);
     }
 
     /// <summary>
@@ -101,6 +106,10 @@ public class Generator<TLoad> : AbstractSimulationModel
     {
         ArgumentNullException.ThrowIfNull(scheduler);
         _scheduler = scheduler;
+
+        _logger.LogInformation("Generator '{GeneratorName}' (ID: {ModelId}) initializing. Scheduling start event at time 0.0.", Name, Id);
+
+        _scheduler.Schedule(new GeneratorStartEvent<TLoad>(this), 0.0);
     }
 
     /// <inheritdoc/>
@@ -122,6 +131,8 @@ public class Generator<TLoad> : AbstractSimulationModel
         IsActive = true;
         StartTime = currentTime;
         LoadsGeneratedCount = 0;
+
+        _logger.LogDebug("Generator '{GeneratorName}' activated at time {ActivationTime}.", Name, currentTime);
     }
 
     internal void PerformDeactivation()

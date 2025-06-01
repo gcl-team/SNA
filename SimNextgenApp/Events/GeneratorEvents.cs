@@ -29,7 +29,7 @@ internal sealed class GeneratorStartEvent<TLoad> : AbstractGeneratorEvent<TLoad>
     {
         double currentTime = engine.ClockTime;
 
-        if (!OwningGenerator.IsActive) // Assuming IsActive has internal setter
+        if (!OwningGenerator.IsActive)
         {
             OwningGenerator.PerformActivation(currentTime); // New internal method on Generator
 
