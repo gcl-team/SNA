@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Demo;
+﻿namespace SimNextgenApp.Demo.CustomModels;
 
 internal class MyLoad
 {
@@ -10,7 +10,7 @@ internal class MyLoad
 
     public MyLoad()
     {
-        Id = System.Threading.Interlocked.Increment(ref _nextId);
+        Id = Interlocked.Increment(ref _nextId);
     }
 
     public override string ToString()

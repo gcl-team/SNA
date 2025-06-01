@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
+using SimNextgenApp.Demo.CustomModels;
 
 namespace SimNextgenApp.Demo.Scenarios;
 
