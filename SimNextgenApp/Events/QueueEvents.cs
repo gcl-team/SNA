@@ -75,11 +75,6 @@ internal sealed class EnqueueEvent<TLoad> : AbstractQueueEvent<TLoad>
         {
             action(currentTime);
         }
-
-        if (OwningQueue.ToDequeue && OwningQueue.Occupancy > 0)
-        {
-            engine.Scheduler.Schedule(new DequeueEvent<TLoad>(OwningQueue), currentTime);
-        }
     }
 
     /// <inheritdoc/>
@@ -175,11 +170,6 @@ internal sealed class DequeueEvent<TLoad> : AbstractQueueEvent<TLoad>
         foreach (var action in OwningQueue.OnStateChangeActions)
         {
             action(currentTime);
-        }
-
-        if (OwningQueue.ToDequeue && OwningQueue.Occupancy > 0)
-        {
-            engine.Scheduler.Schedule(new DequeueEvent<TLoad>(OwningQueue), currentTime);
         }
     }
 
