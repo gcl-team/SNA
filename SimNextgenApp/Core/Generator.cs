@@ -16,6 +16,7 @@ public class Generator<TLoad> : AbstractSimulationModel
     private readonly GeneratorStaticConfig<TLoad> _config;
     private readonly Random _random;
     private IScheduler? _scheduler;
+
     private readonly ILogger<Generator<TLoad>> _logger;
 
     // Make config and random internally accessible for event classes
