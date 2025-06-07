@@ -1,0 +1,14 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: sna-simple-server-5s  # Name of the Job (must be unique if run multiple times)
+spec:
+  template:
+    spec:
+      containers:
+      - name: sna-demo  # Name of the container inside the pod
+        image: sna-demo:latest  # Must be available locally (or on Docker Hub if remote)
+        imagePullPolicy: IfNotPresent  # Use existing image if available locally
+        args: ["demo", "simple-server", "--arrival-secs", "5.0"]  # Command-line args for the demo
+      restartPolicy: Never  # Do not restart the container after it completes
+  backoffLimit: 0  # No retries if the Job fails

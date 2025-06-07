@@ -15,11 +15,38 @@ We can easily run different demo scenarios using Visual Studio Debug Profiles:
 To add or modify demo runs, open the ``launchSettings.json`` file in the Properties folder. 
 Each profile defines the command line arguments for a demo run.
 
+## 🌐 Running the Demo on Non-Windows or Non-Visual Studio Environments
+
+If we do not have Visual Studio or we are using a Linux or macOS machine with .NET installed, 
+we can run the demo directly from the command line.
+
+### Requirements
+
+Install the [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download) to build or run from source.
+
+### Step 1: Running the demo
+
+Navigate to the folder containing the built DLL (SimNextgenApp.Demo.dll) and run:
+
+```bash
+dotnet SimNextgenApp.Demo.dll demo simple-generator
+```
+
+or for other scenarios:
+
+```bash
+dotnet SimNextgenApp.Demo.dll demo simple-server --arrival-secs 5.0
+```
+
+```bash
+dotnet SimNextgenApp.Demo.dll demo mmck --servers 3 --capacity 10 --arrival-secs 2.5
+```
+
 ## 🐳 Running the Demo with Docker
 
 If you have Docker installed, you can build and run the demo inside a container without needing .NET or Visual Studio installed locally.
 
-### Build the Docker image
+### Step 1: Build the Docker image
 
 From the folder containing the Dockerfile, run:
 
@@ -27,7 +54,7 @@ From the folder containing the Dockerfile, run:
 docker build -t sna-demo .
 ```
 
-### Run different demo scenarios inside the container
+### Step 2: Run different demo scenarios inside the container
 
 You can pass command-line arguments to the container just like running the app locally. For example:
 
@@ -45,29 +72,36 @@ docker run --rm sna-demo demo mmck --servers 3 --capacity 10 --arrival-secs 2.5
 
 The logs and output will appear in our terminal.
 
-## 🌐 Running the Demo on Non-Windows or Non-Visual Studio Environments
+## ☁️ Running the Demo in Kubernetes
 
-If we do not have Visual Studio or we are using a Linux or macOS machine with .NET installed, 
-we can run the demo directly from the command line.
+If you have a Kubernetes cluster running (e.g., via Minikube or Docker Desktop), you can run the `SimNextgenApp.Demo` demo as a batch job using the built Docker image.
 
-### Requirements
+> ✅ This is great for showcasing how our DES simulations can run in the cloud or as part of automated workflows.
 
-Install the [.NET 10 SDK](https://dotnet.microsoft.com/en-us/download) to build or run from source.
+## Step 1: Apply the Kubernetes Job
 
-### Running the demo
-
-Navigate to the folder containing the built DLL (SimNextgenApp.Demo.dll) and run:
+Locate the `sna-simple-server-job.yaml` file in the `SimNextgenApp.Demo` folder. 
+This file defines a Kubernetes job that runs the simple server demo.
 
 ```bash
-dotnet SimNextgenApp.Demo.dll demo simple-generator
+kubectl apply -f sna-simple-server-job.yaml
 ```
 
-or for other scenarios:
+## Step 2: Check the Job Status
 
-```bash
-dotnet SimNextgenApp.Demo.dll demo simple-server --arrival-secs 5.0
-```
+Check if the job has completed:
 
 ```bash
-dotnet SimNextgenApp.Demo.dll demo mmck --servers 3 --capacity 10 --arrival-secs 2.5
+kubectl get jobs
 ```
+
+Get the logs of the job to see the output:
+
+```bash
+kubectl logs job/sna-simple-server-5s
+```
+
+This example runs a single simulation with `--arrival-secs 5.0`. We can easily modify the 
+`args` section in the YAML to test different parameters or scenarios.
+
+> 💡 Tip: Use unique `metadata.name` if you run multiple jobs, or `kubectl delete job sna-simple-server-5s` to clean up.
