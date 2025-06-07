@@ -6,68 +6,40 @@ on:
       - 'v*'  # Only run this workflow on version tags like v1.0.0
 
 jobs:
-  build-test:
+  build:
     runs-on: ubuntu-latest
-    outputs:
-      artifact-path: ${{ steps.pack.outputs.path }}
     steps:
     - uses: actions/checkout@v4
-
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
-
     - name: Restore dependencies
       run: dotnet restore
-
     - name: Build
-      run: dotnet build --no-restore --configuration Release
-
+      run: dotnet build --no-restore
     - name: Test
-      run: dotnet test --no-build --configuration Release
+      run: dotnet test --no-build --verbosity normal
 
-    - name: Pack
-      id: pack
-      run: |
-        dotnet pack --configuration Release --output ./artifacts
-        echo "path=./artifacts" >> $GITHUB_OUTPUT
-
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: sna-nuget-package
-        path: ./artifacts/*.nupkg
-
-  release:
-    needs: build-test
+  publish:
+    needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Download artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: sna-nuget-package
-        path: ./artifacts
-  
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
-  
+
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
-  
-    - name: Build Docker image
-      run: docker build -t chunlindocker/sna-demo:latest .
-  
-    - name: Push Docker image
-      run: docker push chunlindocker/sna-demo:latest
-  
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
       with:
-        files: ./artifacts/*.nupkg
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        context: .
+        push: true
+        tags: |
+          ${{ secrets.DOCKERHUB_USERNAME }}/sna-demo:latest
+          ${{ secrets.DOCKERHUB_USERNAME }}/sna-demo:${{ github.sha }}
 
