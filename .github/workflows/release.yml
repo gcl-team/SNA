@@ -41,5 +41,5 @@ jobs:
         push: true
         tags: |
           ${{ secrets.DOCKERHUB_USERNAME }}/sna-demo:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/sna-demo:${{ github.sha }}
+          ${{ secrets.DOCKERHUB_USERNAME }}/sna-demo:${{ github.ref_name }}
 
