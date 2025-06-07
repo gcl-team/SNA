@@ -7,14 +7,13 @@ namespace SimNextgenApp.Demo.Scenarios;
 
 internal static class SimpleServerAndGenerator
 {
-    public static void RunDemo(ILoggerFactory loggerFactory) 
+    public static void RunDemo(ILoggerFactory loggerFactory, double meanArrivalSeconds) 
     {
         var programLogger = loggerFactory.CreateLogger("Program");
 
         // 1. Generator Configuration
         Func<Random, TimeSpan> interArrivalTimeFunc = (rnd) =>
         {
-            double meanArrivalSeconds = 5.0; // Arrive more frequently
             return TimeSpan.FromSeconds(-meanArrivalSeconds * Math.Log(1.0 - rnd.NextDouble()));
         };
         Func<Random, MyLoad> loadFactoryFunc = (rnd) => new MyLoad();

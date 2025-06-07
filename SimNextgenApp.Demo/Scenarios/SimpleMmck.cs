@@ -7,27 +7,19 @@ namespace SimNextgenApp.Demo.Scenarios;
 
 internal static class SimpleMmck
 {
-    public static void RunDemo(ILoggerFactory loggerFactory) 
+    public static void RunDemo(
+        ILoggerFactory loggerFactory,
+        int numberOfServers,
+        int systemCapacityK,
+        double meanArrivalSecs,
+        double meanServiceSecs,
+        double runDuration,
+        double warmupDuration,
+        int genSeed,
+        int serverSeedBase
+    )
     {
         var programLogger = loggerFactory.CreateLogger("Program");
-
-        // --- Simulation Parameters ---
-        int numberOfServers = 2; // c
-        int systemCapacityK = 5; // K (e.g., 2 in service + 3 in queue)
-        // Queue capacity will be K - c = 3
-
-        double meanArrivalSecs = 3.0;  // Average time between arrivals
-        double meanServiceSecs = 5.0;  // Average service time per server (lambda < c*mu for stability)
-                                       // Arrival rate lambda = 1/3 = 0.333
-                                       // Service rate per server mu = 1/5 = 0.2
-                                       // c*mu = 2 * 0.2 = 0.4
-                                       // Traffic intensity rho = lambda / (c*mu) = 0.333 / 0.4 = 0.8325 < 1 (stable)
-
-        int genSeed = 2024;
-        int serverSeedBase = 100;
-
-        double runDuration = 500.0;
-        double warmupDuration = 100.0;
 
         // 1. Generator Configuration
         Func<Random, TimeSpan> interArrivalTimeFunc = (rnd) =>

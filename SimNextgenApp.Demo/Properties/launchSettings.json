@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "Simple Generator Demo": {
+      "commandName": "Project",
+      "commandLineArgs": "demo simple-generator",
+      "workingDirectory": "$(ProjectDir)"
+    },
+    "Simple Server Demo": {
+      "commandName": "Project",
+      "commandLineArgs": "demo simple-server --arrival-secs 5.0",
+      "workingDirectory": "$(ProjectDir)"
+    },
+    "Simple M/M/c/K Demo": {
+      "commandName": "Project",
+      "commandLineArgs": "demo mmck --servers 3 --capacity 10 --arrival-secs 2.5",
+      "workingDirectory": "$(ProjectDir)"
+    }
+  }
+}
