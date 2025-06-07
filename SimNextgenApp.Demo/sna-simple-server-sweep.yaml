@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  generateName: sna-simple-server-job-
+spec:
+  entrypoint: sna-demo
+  templates:
+  - name: sna-demo
+    steps:
+    - - name: run-simulation
+        template: simulation-job
+        arguments:
+          parameters:
+          - name: arrival-secs
+            value: "{{item}}"
+        withItems: ["5", "10", "20"]
+
+  - name: simulation-job
+    inputs:
+      parameters:
+      - name: arrival-secs
+    container:
+      image: chunlindocker/sna-demo:latest
+      command: ["dotnet", "SimNextgenApp.Demo.dll"]
+      args: ["demo", "simple-server", "--arrival-secs", "{{inputs.parameters.arrival-secs}}"]

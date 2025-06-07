@@ -72,13 +72,25 @@ docker run --rm sna-demo demo mmck --servers 3 --capacity 10 --arrival-secs 2.5
 
 The logs and output will appear in our terminal.
 
+### Step 3: (Optional) Publish to Docker Hub
+
+If you want to share the Docker image, you can push it to Docker Hub or any other container registry.
+
+```bash
+docker login
+
+docker tag sna-demo your-dockerhub-username/sna-demo:latest
+
+docker push your-dockerhub-username/sna-demo:latest
+```
+
 ## ☁️ Running the Demo in Kubernetes
 
 If you have a Kubernetes cluster running (e.g., via Minikube or Docker Desktop), you can run the `SimNextgenApp.Demo` demo as a batch job using the built Docker image.
 
 > ✅ This is great for showcasing how our DES simulations can run in the cloud or as part of automated workflows.
 
-## Step 1: Apply the Kubernetes Job
+### Step 1: Apply the Kubernetes Job
 
 Locate the `sna-simple-server-job.yaml` file in the `SimNextgenApp.Demo` folder. 
 This file defines a Kubernetes job that runs the simple server demo.
@@ -87,7 +99,7 @@ This file defines a Kubernetes job that runs the simple server demo.
 kubectl apply -f sna-simple-server-job.yaml
 ```
 
-## Step 2: Check the Job Status
+### Step 2: Check the Job Status
 
 Check if the job has completed:
 
@@ -105,3 +117,46 @@ This example runs a single simulation with `--arrival-secs 5.0`. We can easily m
 `args` section in the YAML to test different parameters or scenarios.
 
 > 💡 Tip: Use unique `metadata.name` if you run multiple jobs, or `kubectl delete job sna-simple-server-5s` to clean up.
+
+## 🔁 Running Batch Simulations with Argo Workflows
+
+We can run multiple simulations with varying parameters (e.g., different arrival times) using Argo Workflows, a powerful tool for orchestrating Kubernetes-native jobs.
+
+### Requirements
+
+We need a Kubernetes cluster with Argo Workflows installed. We can follow the [Argo Workflows installation guide](https://argoproj.github.io/argo-workflows/quick-start/) to set it up.
+
+To verify if Argo is installed, run:
+```bash
+kubectl get crds | grep workflow
+```
+
+If you see `workflows.argoproj.io`, Argo is ready to use.
+
+### Step 1: Create an Argo Workflow YAML
+
+We have a sample workflow file `sna-simple-server-sweep.yaml` that defines multiple runs of the simple server demo with different parameters.
+
+### Step 2: Submit the Workflow
+
+We can submit the workflow using the following command:
+```bash
+kubectl create -f sna-simple-server-sweep.yaml
+```
+
+To monitor the workflow, we can run:
+```bash
+kubectl get workflows
+```
+
+Once a workflow is running, get its pod logs using:
+```bash
+kubectl get pods -l workflows.argoproj.io/workflow=<workflow name here>
+
+kubectl logs <pod name here>
+```
+
+> 💡 Tip: To clean up finished workflows and their pods, you can delete them with:
+> ```bash
+> kubectl delete workflow <workflow name here>
+> ```
