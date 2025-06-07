@@ -1,4 +1,4 @@
-name: .NET Build, Test & Release
+name: .NET Build, Test & Release of Demo Project
 
 on:
   push:
