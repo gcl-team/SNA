@@ -6,9 +6,17 @@ SNA is a lightweight open-source library for building Discrete Event Simulations
 
 It is built from the ground up on the .NET technology. It leverages modern C# features and a clean, extensible architecture for modelling and simulation.
 
-## 🚀 Getting Started (Using the Source)
+## 🚀 Getting Started (NuGet)
 
-This project is in its early stages and is not yet published to NuGet. To use SNA in your own project, you can reference it directly from the source code. It's easy!
+SimNextgen is available on [GitHub Packages - NuGet](https://github.com/gcl-team/SNA/pkgs/nuget/SimNextGenApp). You can install it using the .NET CLI:
+
+```bash
+dotnet add package SimNextgenApp
+```
+
+## 🚀 Getting Started: Development and Local Testing
+
+To use SNA in your own project, you can reference it directly from the source code. It's easy!
 
 ### 1. Clone the Repository
 
