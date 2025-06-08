@@ -48,22 +48,16 @@ For a more detailed example, check out our [SimNextgenApp.Demo project](https://
 
 Understanding these concepts will help you master SimNextgen.
 
-- SimulationEngine ⚙️: The heart of the library. It manages the simulation clock and the event loop.
-- ISimulationModel & Components 🧱: A model is a container for your simulation's components (Generator, Queue, Server). You define the structure and connections of your system here.
-- IRunStrategy 🏁: A strategy object that tells the SimulationEngine when to stop. This decouples the run logic from the engine itself.
-- Statistics 📈: Components have built-in collectors for key metrics like wait times, utilization, and queue length.
+- SimulationEngine ⚙️: The central orchestrator of the simulation. It owns the master clock, the Future Event List (FEL), and executes the main event loop. It acts as the concrete implementation for the core simulation logic.
+- IScheduler ✉️: A focused interface that provides the capability to schedule new events. The `SimulationEngine` gives an `IScheduler` reference to the `ISimulationModel` during initialisation. This decouples our model from the engine, allowing model components to schedule events (e.g., "a customer arrives in 5 minutes") without needing to know how the event list is implemented.
+- IRunContext 🔎: A read-only view of the simulation current state, providing access to the `ClockTime` and `ExecutedEventCount`. The SimulationEngine provides this context to the IRunStrategy, giving it the information needed to decide when the simulation should end.
+- IRunStrategy 🏁: A strategy object that tells the `SimulationEngine` when to stop. Because it operates on the clean `IRunContext`, we can create termination conditions based on simulation time (`DurationRunStrategy`), event counts (`EventCountRunStrategy`), or complex system states (`ConditionalRunStrategy`) without being tightly coupled to the engine.
+- ISimulationModel & Components 🧱: A model is a container for our simulation interconnected components (`Generator`, `Queue`, `Server`). The model is responsible for setting up the initial state and scheduling the first events when its `Initialize` method is called by the engine.
+- AbstractEvent ⚡: The fundamental unit of action in the simulation. Events are simple objects with an `Execute` method. When the `SimulationEngine` processes an event, it advances the simulation clock to the event time and calls its `Execute` method, which in turn modifies the state of our model components and often schedules new future events.
 
 ## 🤝 How to Contribute
 
 Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated.
-
-We are excited to welcome contributors! Whether you are fixing a bug, proposing a new feature, or improving our documentation, we'd love to have your help.
-
-1. Fork the Project
-2. Create your Feature Branch (git checkout -b feature/AmazingFeature)
-3. Commit your Changes (git commit -m 'Add some AmazingFeature')
-4. Push to the Branch (git push origin feature/AmazingFeature)
-5. Open a Pull Request
 
 Bug reports and contributions are welcome at [Project Issues](https://github.com/gcl-team/SNA/issues).
 
