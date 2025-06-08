@@ -16,25 +16,17 @@ dotnet add package SimNextgenApp
 
 ## 🚀 Getting Started: Development and Local Testing
 
-To use SNA in your own project, you can reference it directly from the source code. It's easy!
+To use SNA in your own project, you can reference it directly from the source code. It is easy!
 
-### 1. Clone the Repository
+First, please clone the SNA source code onto your local machine.
 
-First, get the SimNextgenApp source code onto your local machine.
-
-```bash
-git clone https://github.com/<Your GitHub Username>/SimNextgenApp.git
-```
-
-### 2. Reference the Project
-
-There are two common ways to add the project reference to your solution.
+Secondly, reference the `SimNextgenApp` project. There are two common ways to add the project reference to your solution.
 
 **Method A: Using Visual Studio**
 
 1. Open your own solution (.sln) in Visual Studio.
 2. In the Solution Explorer, right-click on your Solution and choose Add -> Existing Project....
-3. Navigate to the cloned SimNextgenApp folder and select SimNextgenApp.csproj.
+3. Navigate to the cloned `SimNextgenApp` folder and select `SimNextgenApp.csproj`.
 4. Now, right-click on your project Dependencies (or References) node and choose Add Project Reference....
 5. Check the box next to SimNextgenApp and click OK.
 
