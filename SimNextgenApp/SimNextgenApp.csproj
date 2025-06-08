@@ -4,10 +4,32 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    
+    <PackageId>SimNextGenApp</PackageId>
+    <Version>1.0.0</Version> <!-- Will override this with Git tag -->
+    <Authors>Goh Chun Lin</Authors>
+    <Company>GCL Team</Company>
+    <Description>A modern, fast, and extensible Discrete Event Simulation (DES) framework for .NET.</Description>
+    <PackageProjectUrl>https://github.com/gcl-team/SNA</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/gcl-team/SNA</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>simulation;dotnet;modelling</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.5" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All"/>
   </ItemGroup>
 
 </Project>
