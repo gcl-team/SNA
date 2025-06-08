@@ -68,4 +68,4 @@ We are excited to welcome contributors! Whether you are fixing a bug, proposing 
 Bug reports and contributions are welcome at [Project Issues](https://github.com/gcl-team/SNA/issues).
 
 ## 📜 License
-Distributed under the MIT License. See [LICENSE](https://github.com/gcl-team/gcl-essenceisocodes/blob/main/LICENSE) for more information.
+Distributed under the MIT License. See [LICENSE](https://github.com/gcl-team/SNA/blob/main/LICENSE) for more information.
