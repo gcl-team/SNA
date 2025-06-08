@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="GitHubPackages" value="https://nuget.pkg.github.com/gcl-team/index.json" />
+  </packageSources>
+  <packageSourceCredentials>
+    <GitHubPackages>
+      <add key="Username" value="YOUR_GITHUB_USERNAME" />
+      <add key="ClearTextPassword" value="YOUR_PERSONAL_ACCESS_TOKEN" />
+    </GitHubPackages>
+  </packageSourceCredentials>
+</configuration>
