@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     
-    <PackageId>SimNextGenApp</PackageId>
+    <PackageId>SimNextgenApp</PackageId>
     <Version>1.0.0</Version> <!-- Will override this with Git tag -->
     <Authors>Goh Chun Lin</Authors>
     <Company>GCL Team</Company>
