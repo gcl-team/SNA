@@ -8,7 +8,7 @@ It is built from the ground up on the .NET technology. It leverages modern C# fe
 
 ## 🚀 Getting Started (NuGet)
 
-SimNextgen is available on [GitHub Packages - NuGet](https://github.com/gcl-team/SNA/pkgs/nuget/SimNextGenApp). You can install it using the .NET CLI:
+SNA is available on [GitHub Packages - NuGet](https://github.com/gcl-team/SNA/pkgs/nuget/SimNextGenApp). We can install it using the .NET CLI:
 
 ```bash
 dotnet add package SimNextgenApp
@@ -23,7 +23,7 @@ To use SNA in your own project, you can reference it directly from the source co
 First, get the SimNextgenApp source code onto your local machine.
 
 ```bash
-git clone https://github.com/[YourGitHubUsername]/SimNextgenApp.git
+git clone https://github.com/<Your GitHub Username>/SimNextgenApp.git
 ```
 
 ### 2. Reference the Project
