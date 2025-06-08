@@ -10,23 +10,46 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: 10.0.x
+        
     - name: Restore dependencies
       run: dotnet restore
+      
     - name: Build
       run: dotnet build --no-restore
+      
     - name: Test
       run: dotnet test --no-build --verbosity normal
+      
+    - name: Pack SimNextGenApp NuGet package
+      run: dotnet pack SimNextGenApp/SimNextGenApp.csproj --no-build --configuration Release -o ./nupkgs
+      
+    - name: Upload SimNextGenApp NuGet package
+      uses: actions/upload-artifact@v4
+      with:
+        name: nuget-package
+        path: ./nupkgs
 
   publish:
     needs: build
     runs-on: ubuntu-latest
     steps:
+    
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Download NuGet package
+      uses: actions/download-artifact@v4
+      with:
+        name: nuget-package
+        path: ./nupkgs
+
+    - name: Publish to GitHub Packages (NuGet)
+      run: dotnet nuget push "./nupkgs/*.nupkg" --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --api-key ${{ secrets.GITHUB_TOKEN }}
 
     - name: Log in to Docker Hub
       uses: docker/login-action@v3
