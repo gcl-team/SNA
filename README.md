@@ -14,6 +14,14 @@ SNA is available on [GitHub Packages - NuGet](https://github.com/gcl-team/SNA/pk
 dotnet add package SimNextgenApp
 ```
 
+This package is hosted on GitHub Packages, which requires authentication. In the root of your project, copy the example config file
+
+```bash
+cp nuget.config.example nuget.config
+```
+
+Then edit `nuget.config` and replace the placeholders with your GitHub username and a [personal access token (PAT)](https://github.com/settings/tokens).
+
 ## 🚀 Getting Started: Development and Local Testing
 
 To use SNA in your own project, you can reference it directly from the source code. It is easy!
