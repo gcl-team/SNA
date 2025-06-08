@@ -42,7 +42,7 @@ That's it! You can now using SNA and start building your simulation.
 
 ### Demo
 
-For a more detailed example, check out our SimNextgenApp.Demo project!
+For a more detailed example, check out our [SimNextgenApp.Demo project](https://github.com/gcl-team/SNA/tree/main/SimNextgenApp.Demo)!
 
 ## 🧠 Core Concepts
 
