@@ -20,7 +20,7 @@ This package is hosted on GitHub Packages, which requires authentication. In the
 cp nuget.config.example nuget.config
 ```
 
-Then edit `nuget.config` and replace the placeholders with your GitHub username and a [personal access token (PAT)](https://github.com/settings/tokens).
+Then edit `nuget.config`. You'll need to put in your GitHub username and a [personal access token (PAT)](https://github.com/settings/tokens). Think of a PAT as a special password that lets your project securely access packages from GitHub.
 
 ## 🚀 Getting Started: Development and Local Testing
 
@@ -56,12 +56,20 @@ For a more detailed example, check out our [SimNextgenApp.Demo project](https://
 
 Understanding these concepts will help you master SimNextgen.
 
-- SimulationEngine ⚙️: The central orchestrator of the simulation. It owns the master clock, the Future Event List (FEL), and executes the main event loop. It acts as the concrete implementation for the core simulation logic.
-- IScheduler ✉️: A focused interface that provides the capability to schedule new events. The `SimulationEngine` gives an `IScheduler` reference to the `ISimulationModel` during initialisation. This decouples our model from the engine, allowing model components to schedule events (e.g., "a customer arrives in 5 minutes") without needing to know how the event list is implemented.
-- IRunContext 🔎: A read-only view of the simulation current state, providing access to the `ClockTime` and `ExecutedEventCount`. The SimulationEngine provides this context to the IRunStrategy, giving it the information needed to decide when the simulation should end.
-- IRunStrategy 🏁: A strategy object that tells the `SimulationEngine` when to stop. Because it operates on the clean `IRunContext`, we can create termination conditions based on simulation time (`DurationRunStrategy`), event counts (`EventCountRunStrategy`), or complex system states (`ConditionalRunStrategy`) without being tightly coupled to the engine.
-- ISimulationModel & Components 🧱: A model is a container for our simulation interconnected components (`Generator`, `Queue`, `Server`). The model is responsible for setting up the initial state and scheduling the first events when its `Initialize` method is called by the engine.
-- AbstractEvent ⚡: The fundamental unit of action in the simulation. Events are simple objects with an `Execute` method. When the `SimulationEngine` processes an event, it advances the simulation clock to the event time and calls its `Execute` method, which in turn modifies the state of our model components and often schedules new future events.
+- SimulationEngine ⚙️: The main manager of the simulation. It keeps track of the simulation time (like a main clock), a list of what's going to happen next (Future Event List or FEL), and runs the simulation step-by-step. This is where the main simulation logic happens.
+- IScheduler ✉️: A tool that lets you schedule new events to happen in the future. The `SimulationEngine` gives an `IScheduler` reference to the `ISimulationModel` when things start up. This means your simulation parts can schedule events (like 'a customer arrives in 5 minutes') without needing to know the nitty-gritty details of how the event list works. It keeps your model tidy and separate from the engine's internal workings.
+- IRunContext 🔎: A way to look at the current status of the simulation (like the current time and how many events have happened) without being able to change anything. The `SimulationEngine` shows this to the `IRunStrategy`, which uses this info to decide when to stop the simulation.
+- IRunStrategy 🏁: A helper that decides when the `SimulationEngine` should end the simulation. Since it just looks at the current status (using `IRunContext`), you can set up rules to stop the simulation based on time (e.g., run for 100 minutes), number of events (e.g., after 1000 events), or more complex conditions, all without getting tangled up with the engine's details.
+- ISimulationModel & Components 🧱: Think of a model as the main blueprint for your simulation, holding all its working parts (which we call components, like `Generator`, `Queue`, `Server`). When the simulation starts, the engine calls the model's `Initialize` method, which sets everything up and schedules the very first events to get things rolling.
+- AbstractEvent ⚡: The basic building block for anything that happens in the simulation. Events are straightforward instructions: they each have an `Execute` method that says what to do. When it's time for an event, the `SimulationEngine` moves the simulation clock to the event's time, runs its `Execute` method. This usually changes something in your model's components and often lines up new events for the future.
+
+## 🎯 Current Focus
+
+**Current Focus:** Building out the core simulation engine features and refining the API.
+
+## ✨ For Our Team
+
+**For Our Team:** Since it's just the two of us for now, let's use this space for any quick notes or reminders. Feel free to add anything relevant here!
 
 ## 🤝 How to Contribute
 
