@@ -63,14 +63,6 @@ Understanding these concepts will help you master SimNextgen.
 - ISimulationModel & Components 🧱: Think of a model as the main blueprint for your simulation, holding all its working parts (which we call components, like `Generator`, `Queue`, `Server`). When the simulation starts, the engine calls the model's `Initialize` method, which sets everything up and schedules the very first events to get things rolling.
 - AbstractEvent ⚡: The basic building block for anything that happens in the simulation. Events are straightforward instructions: they each have an `Execute` method that says what to do. When it's time for an event, the `SimulationEngine` moves the simulation clock to the event's time, runs its `Execute` method. This usually changes something in your model's components and often lines up new events for the future.
 
-## 🎯 Current Focus
-
-**Current Focus:** Building out the core simulation engine features and refining the API.
-
-## ✨ For Our Team
-
-**For Our Team:** Since it's just the two of us for now, let's use this space for any quick notes or reminders. Feel free to add anything relevant here!
-
 ## 🤝 How to Contribute
 
 Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated.
