@@ -20,7 +20,7 @@ This package is hosted on GitHub Packages, which requires authentication. In the
 cp nuget.config.example nuget.config
 ```
 
-Then edit `nuget.config`. You'll need to put in your GitHub username and a [personal access token (PAT)](https://github.com/settings/tokens). Think of a PAT as a special password that lets your project securely access packages from GitHub.
+Then edit `nuget.config`. You'll need to put in your GitHub username and a [personal access token (PAT)](https://github.com/settings/tokens).
 
 ## 🚀 Getting Started: Development and Local Testing
 
