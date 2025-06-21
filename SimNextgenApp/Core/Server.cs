@@ -220,6 +220,19 @@ internal abstract class AbstractServerEvent<TLoad> : AbstractEvent
 {
     internal Server<TLoad> OwningServer { get; }
 
+    /// <inheritdoc/>
+    public override IDictionary<string, object>? GetTraceDetails()
+    {
+        return new Dictionary<string, object>
+        {
+            { "GeneratorName", OwningServer.Name },
+            { "Capacity", OwningServer.Capacity },
+            { "Vacancy", OwningServer.Vacancy },
+            { "NumberInService", OwningServer.NumberInService },
+            { "LoadsCompletedCount", OwningServer.LoadsCompletedCount }
+        };
+    }
+
     protected AbstractServerEvent(Server<TLoad> owner)
     {
         ArgumentNullException.ThrowIfNull(owner);

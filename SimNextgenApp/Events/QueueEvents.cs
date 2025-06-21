@@ -14,6 +14,19 @@ internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
     /// </summary>
     internal Core.Queue<TLoad> OwningQueue { get; }
 
+
+    /// <inheritdoc/>
+    public override IDictionary<string, object>? GetTraceDetails()
+    {
+        return new Dictionary<string, object>
+        {
+            { "GeneratorName", OwningQueue.Name },
+            { "Vacancy", OwningQueue.Vacancy },
+            { "Waiting", OwningQueue.Waiting },
+            { "Capacity", OwningQueue.Capacity }
+        };
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="AbstractQueueEvent{TLoad}"/> class.
     /// </summary>

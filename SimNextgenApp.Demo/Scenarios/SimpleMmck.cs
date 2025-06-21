@@ -1,12 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Demo.CustomModels;
-using SimNextgenApp.Modeling;
 using SimNextgenApp.Statistics;
-using System.Reflection;
-using System.Threading;
 
 namespace SimNextgenApp.Demo.Scenarios;
 

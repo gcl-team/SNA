@@ -11,6 +11,21 @@ internal abstract class AbstractGeneratorEvent<TLoad> : AbstractEvent
 {
     internal Generator<TLoad> OwningGenerator { get; }
 
+    /// <inheritdoc/>
+    public override IDictionary<string, object>? GetTraceDetails()
+    {
+        return new Dictionary<string, object>
+        {
+            { "GeneratorName", OwningGenerator.Name },
+            { "LoadsGeneratedSoFar", OwningGenerator.LoadsGeneratedCount }
+        };
+    }
+
+    /// <summary>
+    /// Initialises a new instance of the <see cref="AbstractGeneratorEvent{TLoad}"/> class with the specified owning
+    /// generator.
+    /// </summary>
+    /// <param name="owner">The generator that owns this event. Cannot be <see langword="null"/>.</param>
     protected AbstractGeneratorEvent(Generator<TLoad> owner)
     {
         ArgumentNullException.ThrowIfNull(owner);
@@ -54,6 +69,7 @@ internal sealed class GeneratorStartEvent<TLoad> : AbstractGeneratorEvent<TLoad>
             }
         }
     }
+
     public override string ToString() => $"{OwningGenerator.Name}_Start#{EventId} @ {ExecutionTime:F4}";
 }
 
@@ -66,10 +82,8 @@ internal sealed class GeneratorStopEvent<TLoad> : AbstractGeneratorEvent<TLoad>
 
     public override void Execute(IRunContext engine)
     {
-        // OwningGenerator.HandleStopLogic(engine);
         if (OwningGenerator.IsActive) // Assuming IsActive has internal get
         {
-            // OwningGenerator.IsActive = false; // Requires internal set
             OwningGenerator.PerformDeactivation(); // New internal method on Generator
         }
     }
@@ -94,8 +108,7 @@ internal sealed class GeneratorArriveEvent<TLoad> : AbstractGeneratorEvent<TLoad
             var random = OwningGenerator.RandomProvider;
 
             TLoad load = config.LoadFactory!(random);
-            // OwningGenerator.LoadsGeneratedCount++; // Requires internal set or method
-            OwningGenerator.IncrementLoadsGenerated(); // New internal method
+            OwningGenerator.IncrementLoadsGenerated();
 
             TimeSpan nextDelay = config.InterArrivalTime!(random);
             engine.Scheduler.Schedule(
