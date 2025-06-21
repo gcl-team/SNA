@@ -1,7 +1,11 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Demo.CustomModels;
+using SimNextgenApp.Modeling;
+using System.Reflection;
+using System.Threading;
 
 namespace SimNextgenApp.Demo.Scenarios;
 
@@ -47,28 +51,33 @@ internal static class SimpleMmck
 
         programLogger.LogInformation($"M/M/c/K System Created: c={mmckSystem.NumberOfServersC}, K={mmckSystem.SystemCapacityK}, Queue Capacity (K-c)={mmckSystem.WaitingLine.Capacity}");
 
-        // 5. Create the SimulationEngine
-        var simulationEngine = new SimulationEngine(
-            baseTimeUnit: SimulationTimeUnit.Seconds,
+        // 5. Create a Run Strategy
+        var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
+
+        // 6. Create the Simulation Profile
+        var simulationProfile = new SimulationProfile(
             model: mmckSystem,
+            runStrategy: runStrategy,
+            "M/M/c/K Profile",
+            SimulationTimeUnit.Seconds,
             loggerFactory: loggerFactory
         );
 
-        // 6. Create a Run Strategy
-        var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
+        // 7. Create the Simulation Engine
+        var simulationEngine = new SimulationEngine(simulationProfile);
 
-        // 7. Run the simulation
+        // 8. Run the simulation
         programLogger.LogInformation($"Starting M/M/c/K simulation run for {runDuration} units, warmup {warmupDuration} units...");
         try
         {
-            simulationEngine.Run(runStrategy);
+            simulationEngine.Run();
         }
         catch (Exception ex)
         {
             programLogger.LogCritical(ex, "Simulation run failed!");
         }
 
-        // 8. Report results
+        // 9. Report results
         programLogger.LogInformation("\n--- Simulation Finished ---");
         programLogger.LogInformation($"Final Simulation Clock Time: {simulationEngine.ClockTime:F2}");
         programLogger.LogInformation($"Total Events Executed: {simulationEngine.ExecutedEventCount}");

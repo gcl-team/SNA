@@ -2,6 +2,7 @@
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Demo.CustomModels;
+using System.Reflection.Emit;
 
 namespace SimNextgenApp.Demo.Scenarios;
 
@@ -42,23 +43,28 @@ internal static class SimpleServerAndGenerator
             serverConfig, 456,
             loggerFactory);
 
-        // 4. Create the SimulationEngine
-        var simulationEngine = new SimulationEngine(
-            baseTimeUnit: SimulationTimeUnit.Seconds,
-            model: simpleSystem,
-            loggerFactory: loggerFactory
-        );
-
-        // 5. Create a Run Strategy
+        // 4. Create a Run Strategy
         double runDuration = 100.0;
         double warmupDuration = 20.0;
         var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
 
-        // 6. Run the simulation
+        // 5. Create the Simulation Profile
+        var simulationProfile = new SimulationProfile(
+            model: simpleSystem,
+            runStrategy: runStrategy,
+            "Simple Server and Generator Profile",
+            SimulationTimeUnit.Seconds,
+            loggerFactory: loggerFactory
+        );
+
+        // 6. Create the Simulation Engine
+        var simulationEngine = new SimulationEngine(simulationProfile);
+
+        // 7. Run the simulation
         programLogger.LogInformation($"Starting simulation run for {runDuration} units, warmup {warmupDuration} units...");
         try
         {
-            simulationEngine.Run(runStrategy);
+            simulationEngine.Run();
         }
         catch (Exception ex)
         {
@@ -132,8 +138,8 @@ internal static class SimpleServerAndGenerator
             var histogram = busyServerMetric.GenerateHistogram(1.0);
             if (histogram.Any())
             {
-                programLogger.LogInformation("  Bin_Lower | Total_Time | Probability | Cumul_Prob");
-                programLogger.LogInformation("  --------------------------------------------------");
+                programLogger.LogInformation("  Bin_Lower | Total_Time | Probability | Cumulative_Probability");
+                programLogger.LogInformation("  -------------------------------------------------------------");
                 foreach (var bin in histogram)
                 {
                     programLogger.LogInformation($"  {bin.CountLowerBound,-9:F1} | {bin.TotalTime,-10:F2} | {bin.Probability,-11:P2} | {bin.CumulativeProbability,-10:P2}");

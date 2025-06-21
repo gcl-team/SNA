@@ -1,3 +1,5 @@
+using SimNextgenApp.Core;
+
 namespace SimNextgenApp.Tests;
 
 public static class TestConstants
@@ -59,4 +61,19 @@ public static class AssertHelpers
 public class DummyLoadType
 {
     
+}
+
+public class TestEvent : AbstractEvent
+{
+    public bool Executed { get; private set; } = false;
+
+    public override void Execute(IRunContext engine) => Executed = true;
+}
+
+public class NamedEvent(string label, List<string> executionList) : AbstractEvent
+{
+    private readonly string _label = label;
+    private readonly List<string> _executionList = executionList;
+
+    public override void Execute(IRunContext engine) => _executionList.Add(_label);
 }
