@@ -2,13 +2,13 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
+using SimNextgenApp.Statistics;
 
 namespace SimNextgenApp.Core;
 
 /// <summary>
 /// Manages the execution of a discrete event simulation run.
-/// Owns the simulation clock and the Future Event List (FEL),
-/// and processes events in chronological order.
+/// Owns the simulation clock and the Future Event List (FEL), and processes events in chronological order.
 /// </summary>
 public class SimulationEngine : IScheduler, IRunContext
 {
@@ -16,8 +16,10 @@ public class SimulationEngine : IScheduler, IRunContext
     private readonly SimulationProfile _profile;
     private readonly long _ticksPerSimulationUnit;
     private readonly PriorityQueue<AbstractEvent, (double Time, long Sequence)> _fel;
+    private double _clockTime = 0.0;
+    private long _executedEventCount = 0;
     private long _eventSequenceCounter = 0;
-    private bool _hasRun = false;
+    private bool _hasSimulationRun = false;
     private bool _warmupCompleteNotified = false; // Flag to ensure WarmedUp is called only once
 
     /// <summary>
@@ -28,14 +30,14 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <summary>
     /// Gets the current simulation clock time in simulation time units (e.g., seconds, minutes).
     /// </summary>
-    public double ClockTime { get; private set; } = 0.0;
+    public double ClockTime => _clockTime;
 
     public IScheduler Scheduler => this; // Engine is the scheduler
 
     /// <summary>
     /// Gets the current number of events that have been executed in the simulation.
     /// </summary>
-    public long ExecutedEventCount { get; private set; } = 0;
+    public long ExecutedEventCount => _executedEventCount;
 
     /// <summary>
     /// Gets a value indicating whether there are any events pending in the Future Event List.
@@ -46,10 +48,6 @@ public class SimulationEngine : IScheduler, IRunContext
     /// Gets the simulation time of the next scheduled event, or positive infinity if no events are scheduled.
     /// </summary>
     public double HeadEventTime => _fel.TryPeek(out _, out var priority) ? priority.Time : double.PositiveInfinity;
-
-    // Property for real run time - maybe useful for performance profiling
-    // Consider making its calculation optional.
-    public TimeSpan? RealTimeDurationForLastRun { get; private set; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SimulationEngine"/> class.
@@ -75,14 +73,18 @@ public class SimulationEngine : IScheduler, IRunContext
     /// </summary>
     /// <exception cref="InvalidOperationException">Thrown if the engine is already running or initialization fails.</exception>
     /// <exception cref="SimulationException">Thrown if an error occurs during simulation execution.</exception>
-    public void Run()
+    public SimulationResult Run()
     {
         var strategy = _profile.RunStrategy;
 
         _logger.LogInformation("Starting simulation run for Model ID {ModelId} with strategy {StrategyName}...", Model.Id, strategy.GetType().Name);
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
-        if (_hasRun)
+        _clockTime = 0.0;
+        _executedEventCount = 0;
+        _warmupCompleteNotified = false;
+
+        if (_hasSimulationRun)
         {
             _logger.LogWarning("This SimulationEngine instance has already executed a simulation run and cannot be reused. Please create a new instance for each simulation.");
             throw new InvalidOperationException("This SimulationEngine instance has already executed a simulation run and cannot be reused.");
@@ -92,7 +94,7 @@ public class SimulationEngine : IScheduler, IRunContext
         {
             _logger.LogDebug("Initializing model...");
             Model.Initialize(this);
-            _hasRun = true;
+            _hasSimulationRun = true;
             _logger.LogDebug("Model initialization complete.");
             _logger.LogInformation(">>> Starting main event loop. FEL count is: {FELCount}", _fel.Count);
         }
@@ -107,7 +109,7 @@ public class SimulationEngine : IScheduler, IRunContext
         {
             while (_fel.TryDequeue(out var currentEvent, out var priority) && strategy.ShouldContinue(this))
             {
-                ExecutedEventCount += 1;
+                _executedEventCount += 1;
 
                 // 1. Advance Clock
                 if (priority.Time < ClockTime)
@@ -116,7 +118,7 @@ public class SimulationEngine : IScheduler, IRunContext
                     throw new SimulationException($"FEL Error: Event {currentEvent.GetType().Name} time {priority.Time} is before ClockTime {ClockTime}. FEL is corrupted.");
                 }
 
-                ClockTime = priority.Time;
+                _clockTime = priority.Time;
 
                 // 2. Check for Warm-up Completion (only if applicable and not yet notified)
                 if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
@@ -130,7 +132,9 @@ public class SimulationEngine : IScheduler, IRunContext
                 _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
                 currentEvent.Execute(this);
 
-                // 4. Check termination condition again (optional, allows events to trigger immediate stop)
+                // 4. Check termination condition again
+                //    To immediately stops the loop from doing any more work. It doesn't
+                //    need to cycle back to the top, perform another dequeue.
                 if (!strategy.ShouldContinue(this)) break;
             }
         }
@@ -140,13 +144,22 @@ public class SimulationEngine : IScheduler, IRunContext
             stopwatch.Stop();
             throw new SimulationException($"Simulation run failed for Model ID {Model.Id}.", ex);
         }
-        // --- End of Loop ---
 
         stopwatch.Stop();
-        RealTimeDurationForLastRun = stopwatch.Elapsed;
+        var realTimeDuration = stopwatch.Elapsed;
 
         _logger.LogInformation("Executed {Count} events during simulation.", ExecutedEventCount);
-        _logger.LogInformation("Simulation run finished for Model ID {ModelId}. SimTime: {SimTime}, RealTime: {RealTime}ms", Model.Id, ClockTime, RealTimeDurationForLastRun.Value.TotalMilliseconds);
+        _logger.LogInformation("Simulation run finished for Model ID {ModelId}. SimTime: {SimTime}, RealTime: {RealTime}ms", Model.Id, ClockTime, realTimeDuration.TotalMilliseconds);
+
+        return new SimulationResult(
+            ProfileRunId: _profile.RunId,
+            ProfileName: _profile.Name,
+            FinalClockTime: _clockTime,
+            ExecutedEventCount: _executedEventCount,
+            RealTimeDuration: realTimeDuration,
+            ModelId: Model.Id,
+            ModelName: Model.Name
+        );
     }
 
     /// <summary>
