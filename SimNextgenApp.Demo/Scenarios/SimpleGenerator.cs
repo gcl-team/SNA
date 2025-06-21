@@ -61,20 +61,25 @@ internal static class SimpleGenerator
             consoleLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime:F2} -> {load} ---");
         });
 
-        // 4. Create the SimulationEngine
-        var simulationEngine = new SimulationEngine(
-            baseTimeUnit: SimulationTimeUnit.Seconds, // Defines what 1.0 in ClockTime means
-            model: myGenerator,                       // The generator is our model
+        // 4. Create a Run Strategy
+        var runStrategy = new DurationRunStrategy(50.0);
+
+        // 5. Create the Simulation Profile
+        var simulationProfile = new SimulationProfile(
+            model: myGenerator,
+            runStrategy: runStrategy,
+            "Simple Generator Profile",
+            SimulationTimeUnit.Seconds,
             loggerFactory: loggerFactory
         );
 
-        // 5. Create a Run Strategy
-        var runStrategy = new DurationRunStrategy(50.0);
+        // 6. Create the Simulation Engine
+        var simulationEngine = new SimulationEngine(simulationProfile);
 
-        // 6. Run the simulation
+        // 7. Run the simulation
         try
         {
-            simulationEngine.Run(runStrategy);
+            simulationEngine.Run();
         }
         catch (Exception ex)
         {
@@ -82,7 +87,7 @@ internal static class SimpleGenerator
             errorLogger.LogCritical(ex, "Simulation run failed!");
         }
 
-        // 7. Report results/stats from the engine or model
+        // 8. Report results/stats from the engine or model
         Console.WriteLine("\nSimulation finished.");
         Console.WriteLine($"Final Simulation Clock Time: {simulationEngine.ClockTime:F2}");
         Console.WriteLine($"Total Events Executed: {simulationEngine.ExecutedEventCount}");

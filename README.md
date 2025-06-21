@@ -6,6 +6,19 @@ SNA is a lightweight open-source library for building Discrete Event Simulations
 
 It is built from the ground up on the .NET technology. It leverages modern C# features and a clean, extensible architecture for modelling and simulation.
 
+## 📐 Modeling Formalism
+
+SNA uses the **event-oriented** DES formalism.
+
+- Simulation progresses by executing **scheduled events in timestamp order**;
+- Events are added to a **Future Event List (FEL)** and executed in a loop;
+- Simulation time advances **only** when the next event is processed.
+
+This makes SNA suitable for:
+- Queuing systems (e.g., banks, networks, logistics);
+- Transaction-based models (e.g., arrivals, service, routing);
+- Simulations where events are sparse in time.
+
 ## 🚀 Getting Started (NuGet)
 
 SNA is available on [GitHub Packages - NuGet](https://github.com/gcl-team/SNA/pkgs/nuget/SimNextGenApp). We can install it using the .NET CLI:
@@ -22,7 +35,7 @@ cp nuget.config.example nuget.config
 
 Then edit `nuget.config`. You'll need to put in your GitHub username and a [personal access token (PAT)](https://github.com/settings/tokens).
 
-## 🚀 Getting Started: Development and Local Testing
+## 🛠️ Development and Local Testing
 
 To use SNA in your own project, you can reference it directly from the source code. It is easy!
 
@@ -56,18 +69,30 @@ For a more detailed example, check out our [SimNextgenApp.Demo project](https://
 
 Understanding these concepts will help you master SimNextgen.
 
-- SimulationEngine ⚙️: The main manager of the simulation. It keeps track of the simulation time (like a main clock), a list of what's going to happen next (Future Event List or FEL), and runs the simulation step-by-step. This is where the main simulation logic happens.
-- IScheduler ✉️: A tool that lets you schedule new events to happen in the future. The `SimulationEngine` gives an `IScheduler` reference to the `ISimulationModel` when things start up. This means your simulation parts can schedule events (like 'a customer arrives in 5 minutes') without needing to know the nitty-gritty details of how the event list works. It keeps your model tidy and separate from the engine's internal workings.
-- IRunContext 🔎: A way to look at the current status of the simulation (like the current time and how many events have happened) without being able to change anything. The `SimulationEngine` shows this to the `IRunStrategy`, which uses this info to decide when to stop the simulation.
-- IRunStrategy 🏁: A helper that decides when the `SimulationEngine` should end the simulation. Since it just looks at the current status (using `IRunContext`), you can set up rules to stop the simulation based on time (e.g., run for 100 minutes), number of events (e.g., after 1000 events), or more complex conditions, all without getting tangled up with the engine's details.
-- ISimulationModel & Components 🧱: Think of a model as the main blueprint for your simulation, holding all its working parts (which we call components, like `Generator`, `Queue`, `Server`). When the simulation starts, the engine calls the model's `Initialize` method, which sets everything up and schedules the very first events to get things rolling.
-- AbstractEvent ⚡: The basic building block for anything that happens in the simulation. Events are straightforward instructions: they each have an `Execute` method that says what to do. When it's time for an event, the `SimulationEngine` moves the simulation clock to the event's time, runs its `Execute` method. This usually changes something in your model's components and often lines up new events for the future.
+- SimulationEngine ⚙️: 
+	- The main manager of the simulation;
+	- Keeps track of the simulation time, FEL, and runs the simulation step-by-step;
+	- This is where the main simulation logic happens.
+- IScheduler ✉️: 
+	- Interface for scheduling future events;
+	- Provided by the engine to simulation models.
+- IRunContext 🔎: 
+	- A way to look at the current status of the simulation (like the current time and how many events have happened);
+	- The `SimulationEngine` shows this to the `IRunStrategy`, which uses this info to decide when to stop the simulation.
+- IRunStrategy 🏁: 
+	- Defines stopping conditions (e.g., run for 100 minutes or until 10,000 events).
+- ISimulationModel & Components 🧱: 
+	- Blueprint for building the simulation;
+	- Initialises and wires up components and events.
+- AbstractEvent ⚡: 
+	- The basic building block for anything that happens in the simulation;
+	- Events are straightforward instructions: they each have an `Execute` method that says what to do;
+	- When it's time for an event, the `SimulationEngine` moves the simulation clock to the event's time, runs its `Execute` method. This usually changes something in the model components and often lines up new events for the future.
 
 ## 🤝 How to Contribute
 
-Contributions are what make the open-source community such an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated.
-
-Bug reports and contributions are welcome at [Project Issues](https://github.com/gcl-team/SNA/issues).
+We welcome your contributions! Bug reports and feature suggestions are encouraged. 
+Open issues or submit pull requests via [Project Issues](https://github.com/gcl-team/SNA/issues).
 
 ## 📜 License
-Distributed under the MIT License. See [LICENSE](https://github.com/gcl-team/SNA/blob/main/LICENSE) for more information.
+This library is distributed under the MIT License. See [LICENSE](https://github.com/gcl-team/SNA/blob/main/LICENSE) for more information.
