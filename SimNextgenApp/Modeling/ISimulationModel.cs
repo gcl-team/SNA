@@ -49,7 +49,7 @@ public interface ISimulationModel
     /// accumulators to ignore the transient warm-up phase.
     /// </summary>
     /// <param name="simulationTime">The current simulation clock time 
-    /// (using simulation time units, e.g., seconds) at the moment the warm-up 
+    /// (using simulation time units) at the moment the warm-up 
     /// period ends.</param>
     void WarmedUp(double simulationTime);
 }
