@@ -13,6 +13,8 @@ namespace SimNextgenApp.Core;
 public class SimulationEngine : IScheduler, IRunContext
 {
     private readonly ILogger<SimulationEngine> _logger;
+    private readonly ISimulationTracer? _tracer;
+
     private readonly SimulationProfile _profile;
     private readonly long _ticksPerSimulationUnit;
     private readonly PriorityQueue<AbstractEvent, (double Time, long Sequence)> _fel;
@@ -59,7 +61,10 @@ public class SimulationEngine : IScheduler, IRunContext
     public SimulationEngine(SimulationProfile profile)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
+
         _logger = _profile.LoggerFactory?.CreateLogger<SimulationEngine>() ?? new NullLogger<SimulationEngine>();
+        _tracer = _profile.Tracer;
+
         _ticksPerSimulationUnit = TimeUnitConverter.GetTicksPerSimulationUnit(_profile.TimeUnit);
         Model = _profile.Model;
 
@@ -128,9 +133,25 @@ public class SimulationEngine : IScheduler, IRunContext
                     _warmupCompleteNotified = true; // Ensure notification only happens once
                 }
 
+                _tracer?.Trace(new TraceRecord(
+                    Point: TracePoint.EventExecuting,
+                    ClockTime: ClockTime,
+                    EventId: currentEvent.EventId,
+                    EventType: currentEvent.GetType().Name,
+                    Details: currentEvent.GetTraceDetails()
+                ));
+
                 // 3. Execute Event
                 _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
                 currentEvent.Execute(this);
+
+                _tracer?.Trace(new TraceRecord(
+                    Point: TracePoint.EventCompleted,
+                    ClockTime: ClockTime,
+                    EventId: currentEvent.EventId,
+                    EventType: currentEvent.GetType().Name,
+                    Details: currentEvent.GetTraceDetails()
+                ));
 
                 // 4. Check termination condition again
                 //    To immediately stops the loop from doing any more work. It doesn't
@@ -181,6 +202,14 @@ public class SimulationEngine : IScheduler, IRunContext
         long sequence = Interlocked.Increment(ref _eventSequenceCounter);
         _fel.Enqueue(ev, (time, sequence));
         _logger.LogTrace("Scheduled event {EventType} for time {ExecutionTime} (Sequence {Sequence})", ev.GetType().Name, time, sequence);
+
+        _tracer?.Trace(new TraceRecord(
+            Point: TracePoint.EventScheduled,
+            ClockTime: ClockTime,
+            EventId: ev.EventId,
+            EventType: ev.GetType().Name,
+            Details: ev.GetTraceDetails()
+        ));
     }
 
     /// <summary>

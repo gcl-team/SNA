@@ -1,5 +1,3 @@
-using System;
-
 namespace SimNextgenApp.Core;
 
 /// <summary>
@@ -35,6 +33,13 @@ public abstract class AbstractEvent
     /// to the current state (ClockTime) and core services like the scheduler (IScheduler).
     /// </param>
     public abstract void Execute(IRunContext engine);
+
+    /// <summary>
+    /// Provides a dictionary of key-value pairs representing the specific details of this event instance.
+    /// Useful for structured tracing and deep debugging.
+    /// </summary>
+    /// <returns>A dictionary of details, or null if there are none.</returns>
+    public virtual IDictionary<string, object>? GetTraceDetails() => null;
 
     /// <summary>
     /// Provides a basic string representation, useful for debugging/logging.

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using SimNextgenApp.Modeling;
+using SimNextgenApp.Statistics;
 
 namespace SimNextgenApp.Core;
 
@@ -14,6 +15,7 @@ public class SimulationProfile(
     string? name = null,
     SimulationTimeUnit timeUnit = SimulationTimeUnit.Seconds,
     ILoggerFactory? loggerFactory = null,
+    ISimulationTracer? tracer = null,
     Guid? runId = null)
 {
     /// <summary>
@@ -35,6 +37,11 @@ public class SimulationProfile(
     /// Optional logging factory.
     /// </summary>
     public ILoggerFactory? LoggerFactory { get; init; } = loggerFactory;
+
+    /// <summary>
+    /// Gets the tracer used to monitor and log simulation events.
+    /// </summary>
+    public ISimulationTracer? Tracer { get; init; } = tracer;
 
     /// <summary>
     /// Identifier to track this simulation profile.

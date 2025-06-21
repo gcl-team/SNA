@@ -3,7 +3,6 @@ using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Statistics;
-using System.Reflection.Emit;
 
 namespace SimNextgenApp.Demo.Scenarios;
 
@@ -35,7 +34,7 @@ internal static class SimpleServerAndGenerator
         // Create ServerStaticConfig using its constructor and then set Capacity if not infinite
         var serverConfig = new ServerStaticConfig<MyLoad>(serviceTimeFunc)
         {
-            Capacity = serverCapacity // Use object initializer to set Capacity
+            Capacity = serverCapacity
         };
 
         // 3. Create the Composite Model
