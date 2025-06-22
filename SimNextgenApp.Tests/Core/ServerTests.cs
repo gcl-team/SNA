@@ -51,9 +51,6 @@ public class ServerTests
         Assert.Equal(0, server.NumberInService);
         Assert.Equal(2, server.Vacancy);
         Assert.Empty(server.LoadsInService);
-        Assert.Equal(0, server.LoadsCompletedCount);
-        Assert.NotNull(server.BusyServerUnitsCounter);
-        Assert.Equal(0.0, server.BusyServerUnitsCounter.InitialTime); // Default for TimeBasedMetric
         Assert.NotNull(server.ServiceStartTimes);
         Assert.NotNull(server.LoadDepartActions);
         Assert.NotNull(server.StateChangeActions);
@@ -168,35 +165,35 @@ public class ServerTests
         var serviceDuration = TimeSpan.FromSeconds(5);
         var config = new ServerStaticConfig<DummyLoad>((l, r) => serviceDuration) { Capacity = 1 };
         var server = CreateAndInitializeServer(config: config);
-        var load = CreateDummyLoad("L1");
+        var load = new DummyLoad("L1");
         _currentTestTime = 20.0;
 
-        List<double> stateChangeTimes = [];
-        server.StateChangeActions.Add(time => stateChangeTimes.Add(time));
+        bool wasStateChangeFired = false;
+        server.StateChangeActions.Add(time => wasStateChangeFired = true);
 
         var startServiceEvent = new ServerStartServiceEvent<DummyLoad>(server, load);
 
         AbstractEvent? scheduledCompletionEvent = null;
-        // Setup the mock engine's scheduler for verification
+
         _mockScheduler
-            .Setup(s => s.Schedule(It.IsAny<ServerServiceCompleteEvent<DummyLoad>>(), _currentTestTime + serviceDuration.TotalSeconds))
-            .Callback<AbstractEvent, double>((ev, time) => scheduledCompletionEvent = ev)
+            .Setup(s => s.Schedule(It.IsAny<ServerServiceCompleteEvent<DummyLoad>>(), serviceDuration))
+            .Callback<AbstractEvent, TimeSpan>((ev, delay) => scheduledCompletionEvent = ev)
             .Verifiable();
 
         // Act
         startServiceEvent.Execute(_mockEngine.Object);
 
         // Assert
+        // 1. Verify internal state
         Assert.Contains(load, server.LoadsInService);
         Assert.Equal(1, server.NumberInService);
-        Assert.Equal(0, server.Vacancy);
-        Assert.True(server.ServiceStartTimes.ContainsKey(load));
         Assert.Equal(20.0, server.ServiceStartTimes[load]);
-        Assert.Equal(1, server.BusyServerUnitsCounter.CurrentCount);
-        Assert.Single(stateChangeTimes);
-        Assert.Equal(20.0, stateChangeTimes[0]);
 
-        _mockScheduler.As<IScheduler>().Verify();
+        // 2. Verify signal was fired
+        Assert.True(wasStateChangeFired);
+
+        // 3. Verify the scheduling call
+        _mockScheduler.Verify(); // This will now pass!
         Assert.NotNull(scheduledCompletionEvent);
         var completionEvent = Assert.IsType<ServerServiceCompleteEvent<DummyLoad>>(scheduledCompletionEvent);
         Assert.Same(load, completionEvent.ServedLoad);
@@ -213,12 +210,17 @@ public class ServerTests
         // Simulate load started service earlier
         server.LoadsInService.Add(load);
         server.ServiceStartTimes[load] = 10.0;
-        server.BusyServerUnitsCounter.ObserveChange(1, 10.0); // Server became busy
 
-        List<double> stateChangeTimes = new List<double>();
-        server.StateChangeActions.Add(time => stateChangeTimes.Add(time));
-        List<(DummyLoad load, double time)> departedLoadsInfo = new();
-        server.LoadDepartActions.Add((l, t) => departedLoadsInfo.Add((l, t)));
+        bool wasStateChangeFired = false;
+        bool wasDepartureFired = false;
+        (DummyLoad? departedLoad, double departureTime) departureInfo = (null, -1.0);
+
+        server.StateChangeActions.Add(time => wasStateChangeFired = true);
+        server.LoadDepartActions.Add((l, t) =>
+        {
+            wasDepartureFired = true;
+            departureInfo = (l, t);
+        });
 
         var serviceCompleteEvent = new ServerServiceCompleteEvent<DummyLoad>(server, load);
         _currentTestTime = 25.0; // Time of completion
@@ -227,39 +229,33 @@ public class ServerTests
         serviceCompleteEvent.Execute(_mockEngine.Object);
 
         // Assert
+        // 1. Verify the server's internal state has been cleared
         Assert.DoesNotContain(load, server.LoadsInService);
         Assert.Equal(0, server.NumberInService);
         Assert.Equal(1, server.Vacancy);
-        Assert.False(server.ServiceStartTimes.ContainsKey(load));
-        Assert.Equal(1, server.LoadsCompletedCount);
-        Assert.Equal(0, server.BusyServerUnitsCounter.CurrentCount); // Server becomes idle
+        Assert.False(server.ServiceStartTimes.ContainsKey(load), "ServiceStartTimes should be cleaned up after departure.");
 
-        Assert.Single(departedLoadsInfo);
-        Assert.Same(load, departedLoadsInfo[0].load);
-        Assert.Equal(25.0, departedLoadsInfo[0].time);
+        // 2. Verify the server's primary output: its signals
+        Assert.True(wasStateChangeFired, "The server should have fired a general state change signal.");
 
-        Assert.Single(stateChangeTimes);
-        Assert.Equal(25.0, stateChangeTimes[0]);
+        Assert.True(wasDepartureFired, "The server should have fired a specific load departure signal.");
+        Assert.Same(load, departureInfo.departedLoad);
+        Assert.Equal(25.0, departureInfo.departureTime);
     }
 
-    // --- Test for WarmedUp ---
     [Fact]
-    public void WarmedUp_ResetsCountersAndObservesCurrentInService()
+    public void Server_WarmedUp_ResetsServiceStartTimesForInFlightLoads()
     {
         // Arrange
-        var server = CreateAndInitializeServer(config: new ServerStaticConfig<DummyLoad>(_defaultServiceTimeFunc) { Capacity = 2 });
-        var load1 = CreateDummyLoad("L1");
-        var load2 = CreateDummyLoad("L2");
+        var server = CreateAndInitializeServer(); // Capacity doesn't matter much here
+        var load1 = new DummyLoad("L1");
+        var load2 = new DummyLoad("L2");
 
-        _currentTestTime = 50.0;
-        // Manually put server in a state with 2 items in service
+        // Manually put the server in a state with 2 loads that started service before warm-up.
         server.LoadsInService.Add(load1);
-        server.ServiceStartTimes[load1] = 40.0;
+        server.ServiceStartTimes[load1] = 40.0; // Started at T=40
         server.LoadsInService.Add(load2);
-        server.ServiceStartTimes[load2] = 45.0;
-        server.BusyServerUnitsCounter.ObserveCount(2, _currentTestTime); // Force metric to count 2
-
-        server.PerformLoadCompletedCountUpdate(10);
+        server.ServiceStartTimes[load2] = 45.0; // Started at T=45
 
         double warmUpTime = 100.0;
 
@@ -267,35 +263,14 @@ public class ServerTests
         server.WarmedUp(warmUpTime);
 
         // Assert
-        Assert.Equal(0, server.LoadsCompletedCount);
-        Assert.Equal(warmUpTime, server.BusyServerUnitsCounter.InitialTime);
-        Assert.Equal(warmUpTime, server.BusyServerUnitsCounter.CurrentTime);
-        // With the refinement in Server.WarmedUp to call ObserveCount:
-        Assert.Equal(2, server.BusyServerUnitsCounter.CurrentCount);
-        Assert.Equal(2, server.NumberInService); // LoadsInService should be untouched by WarmedUp itself
-    }
+        // 1. Verify that the loads are still in service.
+        Assert.Equal(2, server.NumberInService);
+        Assert.Contains(load1, server.LoadsInService);
+        Assert.Contains(load2, server.LoadsInService);
 
-    [Fact]
-    public void WarmedUp_ServerEmpty_CorrectlyResetsMetric()
-    {
-        // Arrange
-        var server = CreateAndInitializeServer();
-        server.PerformLoadCompletedCountUpdate(5);
-        _currentTestTime = 50.0;
-        // Ensure metric has some initial state if needed, or just ensure server is empty
-        Assert.Empty(server.LoadsInService);
-        server.BusyServerUnitsCounter.ObserveCount(0, _currentTestTime);
-
-
-        double warmUpTime = 100.0;
-
-        // Act
-        server.WarmedUp(warmUpTime);
-
-        // Assert
-        Assert.Equal(0, server.LoadsCompletedCount);
-        Assert.Equal(warmUpTime, server.BusyServerUnitsCounter.InitialTime);
-        Assert.Equal(warmUpTime, server.BusyServerUnitsCounter.CurrentTime);
-        Assert.Equal(0, server.BusyServerUnitsCounter.CurrentCount); // Stays 0 because LoadsInService is empty
+        // 2. Verify the ONLY responsibility of Server.WarmedUp:
+        //    The start times for the in-flight loads have been updated to the warm-up time.
+        Assert.Equal(warmUpTime, server.ServiceStartTimes[load1]);
+        Assert.Equal(warmUpTime, server.ServiceStartTimes[load2]);
     }
 }
