@@ -32,11 +32,11 @@ public class SimulationEngine : IScheduler, IRunContext
     public ISimulationModel Model { get; }
 
     /// <summary>
-    /// Gets the current simulation clock time in simulation time units (e.g., seconds, minutes).
+    /// Gets the current simulation clock time in simulation time units.
     /// </summary>
     public double ClockTime => _clockTime;
 
-    public IScheduler Scheduler => this; // Engine is the scheduler
+    public IScheduler Scheduler => this;
 
     /// <summary>
     /// Gets the current number of events that have been executed in the simulation.
@@ -44,14 +44,34 @@ public class SimulationEngine : IScheduler, IRunContext
     public long ExecutedEventCount => _executedEventCount;
 
     /// <summary>
-    /// Gets a value indicating whether there are any events pending in the Future Event List.
+    /// Gets a value indicating whether there are any events pending in the FEL.
+    /// This property is thread-safe.
     /// </summary>
-    public bool HasFutureEvents => _fel.Count > 0;
+    public bool HasFutureEvents
+    {
+        get
+        {
+            lock (_felLock)
+            {
+                return _fel.Count > 0;
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the simulation time of the next scheduled event, or positive infinity if no events are scheduled.
+    /// This property is thread-safe.
     /// </summary>
-    public double HeadEventTime => _fel.TryPeek(out _, out var priority) ? priority.Time : double.PositiveInfinity;
+    public double HeadEventTime
+    {
+        get
+        {
+            lock (_felLock)
+            {
+                return _fel.TryPeek(out _, out var priority) ? priority.Time : double.PositiveInfinity;
+            }
+        }
+    }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SimulationEngine"/> class.
