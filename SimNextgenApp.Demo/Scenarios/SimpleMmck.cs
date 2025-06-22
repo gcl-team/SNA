@@ -51,19 +51,23 @@ internal static class SimpleMmck
         // 5. Create a Run Strategy
         var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
 
-        // 6. Create the Simulation Profile
+        // 6. Create a Memory Tracer to capture simulation events
+        var tracer = new MemoryTracer();
+
+        // 7. Create the Simulation Profile
         var simulationProfile = new SimulationProfile(
             model: mmckSystem,
             runStrategy: runStrategy,
             "M/M/c/K Profile",
             SimulationTimeUnit.Seconds,
-            loggerFactory: loggerFactory
+            loggerFactory: loggerFactory,
+            tracer: tracer
         );
 
-        // 7. Create the Simulation Engine
+        // 8. Create the Simulation Engine
         var simulationEngine = new SimulationEngine(simulationProfile);
 
-        // 8. Run the simulation
+        // 9. Run the simulation
         programLogger.LogInformation($"Starting M/M/c/K simulation run for {runDuration} units, warmup {warmupDuration} units...");
         SimulationResult? simulationResult = null;
         try
@@ -75,7 +79,7 @@ internal static class SimpleMmck
             programLogger.LogCritical(ex, "Simulation run failed!");
         }
 
-        // 9. Report results
+        // 10. Report results
         programLogger.LogInformation($"\n--- Simulation Finished --- {simulationResult}");
 
         programLogger.LogInformation("\n--- Generator Stats (Post-Warmup) ---");
@@ -108,5 +112,8 @@ internal static class SimpleMmck
         programLogger.LogInformation($"Total Loads Completed by All Servers: {totalLoadsCompletedByServers}");
         programLogger.LogInformation($"Average Server Utilization (avg of individuals): {sumOfServerUtilizations / mmckSystem.NumberOfServersC:P2}");
         programLogger.LogInformation($"Overall Average Busy Servers (sum of individuals): {sumOfAvgBusyServerUnits:F3}");
+
+        // 11. Print the Memory Tracer events
+        tracer.PrintToConsole();
     }
 }

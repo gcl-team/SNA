@@ -48,19 +48,23 @@ internal static class SimpleServerAndGenerator
         double warmupDuration = 20.0;
         var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
 
-        // 5. Create the Simulation Profile
+        // 5. Create a Memory Tracer to capture simulation events
+        var tracer = new MemoryTracer();
+
+        // 6. Create the Simulation Profile
         var simulationProfile = new SimulationProfile(
             model: simpleSystem,
             runStrategy: runStrategy,
             "Simple Server and Generator Profile",
             SimulationTimeUnit.Seconds,
-            loggerFactory: loggerFactory
+            loggerFactory: loggerFactory,
+            tracer: tracer
         );
 
-        // 6. Create the Simulation Engine
+        // 7. Create the Simulation Engine
         var simulationEngine = new SimulationEngine(simulationProfile);
 
-        // 7. Run the simulation
+        // 8. Run the simulation
         SimulationResult? simulationResult = null;
         programLogger.LogInformation($"Starting simulation run for {runDuration} units, warmup {warmupDuration} units...");
         try
@@ -72,7 +76,7 @@ internal static class SimpleServerAndGenerator
             programLogger.LogCritical(ex, "Simulation run failed!");
         }
 
-        // 7. Report results
+        // 9. Report results
         programLogger.LogInformation($"\n--- Simulation Finished --- {simulationResult}");
 
         programLogger.LogInformation("\n--- Generator Stats ---");
@@ -98,7 +102,6 @@ internal static class SimpleServerAndGenerator
         programLogger.LogInformation($"\n--- System Stats ---");
         programLogger.LogInformation($"Total Balked Loads (post-warmup): {simpleSystem.BalkedLoadsCount}");
 
-        // Display more TimeBasedMetric stats
         programLogger.LogInformation("\n--- Detailed Server Busy Units Metric (post-warmup) ---");
         programLogger.LogInformation($"Total Increments (servers becoming busy): {busyServerMetric.TotalIncrementObserved}");
         programLogger.LogInformation($"Total Decrements (servers becoming free): {busyServerMetric.TotalDecrementObserved}");
@@ -153,5 +156,8 @@ internal static class SimpleServerAndGenerator
         {
             programLogger.LogError(ex, "Error generating histogram from TimeBasedMetric.");
         }
+
+        // 10. Print the Memory Tracer events
+        tracer.PrintToConsole();
     }
 }
