@@ -7,7 +7,7 @@ namespace SimNextgenApp.Modeling;
 /// This class handles common functionalities such as unique instance identification, naming,
 /// metadata storage, and defines the core lifecycle methods that concrete models must implement.
 /// </summary>
-public abstract class AbstractSimulationModel : ISimulationModel
+public abstract class AbstractSimulationModel : ISimulationModel, IWarmupAware
 {
     private static long _instanceCounter = 0;
 
@@ -17,8 +17,15 @@ public abstract class AbstractSimulationModel : ISimulationModel
     /// <inheritdoc/>
     public string Name { get; }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// Gets a collection of metadata associated with the current object.
+    /// </summary>
+    /// <remarks>The metadata can be used to store additional information about the object, such as custom
+    /// attributes  or contextual data. The dictionary is read-only and cannot be modified directly.</remarks>
     public IDictionary<string, object> Metadata { get; }
+
+    /// <inheritdoc/>
+    IReadOnlyDictionary<string, object> ISimulationModel.Metadata => (IReadOnlyDictionary<string, object>)Metadata;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AbstractSimulationModel"/> class.
@@ -50,7 +57,11 @@ public abstract class AbstractSimulationModel : ISimulationModel
     /// to define actions needed after the warm-up period (e.g., resetting statistics).
     /// If no warm-up specific action is needed, provide an empty implementation.
     /// </remarks>
-    public abstract void WarmedUp(double simulationTime);
+    public virtual void WarmedUp(double simulationTime) 
+    {
+        // Default implementation does nothing.
+        // Derived classes can override this to perform actions after warm-up.
+    }
 
     /// <summary>
     /// Returns a string representation of the simulation model instance.

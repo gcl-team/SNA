@@ -150,8 +150,12 @@ public class SimulationEngine : IScheduler, IRunContext
                 // 2. Check for Warm-up Completion (only if applicable and not yet notified)
                 if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
                 {
-                    _logger.LogInformation("Warm-up period complete at simulation time {WarmupEndTime}.", ClockTime);
-                    Model.WarmedUp(ClockTime); // Notify model
+                    if (Model is IWarmupAware warmupAwareModel)
+                    {
+                        _logger.LogInformation("Warm-up period complete at simulation time {WarmupEndTime}.", ClockTime);
+                        warmupAwareModel.WarmedUp(ClockTime); // Notify model
+                    }
+
                     _warmupCompleteNotified = true; // Ensure notification only happens once
                 }
 
