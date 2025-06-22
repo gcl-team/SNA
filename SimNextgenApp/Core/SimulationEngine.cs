@@ -66,7 +66,7 @@ public class SimulationEngine : IScheduler, IRunContext
     {
         get
         {
-            lock (_felLock) // It's clean and correct!
+            lock (_felLock)
             {
                 return _fel.TryPeek(out _, out var priority) ? priority.Time : double.PositiveInfinity;
             }
