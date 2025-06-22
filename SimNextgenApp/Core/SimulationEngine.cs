@@ -19,6 +19,7 @@ public class SimulationEngine : IScheduler, IRunContext
     private readonly SimulationProfile _profile;
     private readonly long _ticksPerSimulationUnit;
     private readonly PriorityQueue<AbstractEvent, (double Time, long Sequence)> _fel;
+    private readonly Lock _felLock = new();
     private double _clockTime = 0.0;
     private long _executedEventCount = 0;
     private long _eventSequenceCounter = 0;
@@ -81,6 +82,12 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <exception cref="SimulationException">Thrown if an error occurs during simulation execution.</exception>
     public SimulationResult Run()
     {
+        if (_hasSimulationRun)
+        {
+            _logger.LogWarning("This SimulationEngine instance has already executed a simulation run and cannot be reused. Please create a new instance for each simulation.");
+            throw new InvalidOperationException("This SimulationEngine instance has already executed a simulation run and cannot be reused.");
+        }
+
         var strategy = _profile.RunStrategy;
 
         _logger.LogInformation("Starting simulation run for Model ID {ModelId} with strategy {StrategyName}...", Model.Id, strategy.GetType().Name);
@@ -89,12 +96,6 @@ public class SimulationEngine : IScheduler, IRunContext
         _clockTime = 0.0;
         _executedEventCount = 0;
         _warmupCompleteNotified = false;
-
-        if (_hasSimulationRun)
-        {
-            _logger.LogWarning("This SimulationEngine instance has already executed a simulation run and cannot be reused. Please create a new instance for each simulation.");
-            throw new InvalidOperationException("This SimulationEngine instance has already executed a simulation run and cannot be reused.");
-        }
 
         try
         {
@@ -113,7 +114,7 @@ public class SimulationEngine : IScheduler, IRunContext
 
         try
         {
-            while (_fel.TryDequeue(out var currentEvent, out var priority) && strategy.ShouldContinue(this))
+            while (strategy.ShouldContinue(this) && _fel.TryDequeue(out var currentEvent, out var priority))
             {
                 _executedEventCount += 1;
 
@@ -153,11 +154,6 @@ public class SimulationEngine : IScheduler, IRunContext
                     EventType: currentEvent.GetType().Name,
                     Details: currentEvent.GetTraceDetails()
                 ));
-
-                // 4. Check termination condition again
-                //    To immediately stops the loop from doing any more work. It doesn't
-                //    need to cycle back to the top, perform another dequeue.
-                if (!strategy.ShouldContinue(this)) break;
             }
         }
         catch (Exception ex)
@@ -201,7 +197,11 @@ public class SimulationEngine : IScheduler, IRunContext
         ev.ExecutionTime = time;
 
         long sequence = Interlocked.Increment(ref _eventSequenceCounter);
-        _fel.Enqueue(ev, (time, sequence));
+        lock (_felLock)
+        {
+            _fel.Enqueue(ev, (time, sequence));
+        }
+        
         _logger.LogTrace("Scheduled event {EventType} for time {ExecutionTime} (Sequence {Sequence})", ev.GetType().Name, time, sequence);
 
         _tracer?.Trace(new TraceRecord(

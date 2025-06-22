@@ -142,16 +142,8 @@ public class SimulationEngineTests
             });
 
         var strategyMock = new Mock<IRunStrategy>();
-        strategyMock.SetupSequence(s => s.ShouldContinue(It.IsAny<IRunContext>()))
-            .Returns(true)   // while check for A
-            .Returns(true)   // if check for A
-            .Returns(true)   // while check for B
-            .Returns(true)   // if check for B
-            .Returns(true)   // while check for C
-            .Returns(false); // if check for C
-        // Take note that the reason we have 6 calls here is because
-        // for each event, the strategy checks if it should continue
-        // before and after executing the event.
+        strategyMock.Setup(s => s.ShouldContinue(It.IsAny<IRunContext>()))
+            .Returns(true);
 
         var profile = CreateTestProfile(modelMock.Object, strategyMock.Object);
         var engine = new SimulationEngine(profile);
