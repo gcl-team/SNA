@@ -53,7 +53,7 @@ simpleServerCommand.SetHandler((double meanArrivalSeconds) =>
     SimpleServerAndGenerator.RunDemo(loggerFactory, meanArrivalSeconds);
 }, meanArrivalSecondsOption);
 
-// ---- Demo: mmck ----
+// ---- Demo: M/M/c/K ----
 var mmckCommand = new Command("mmck", "Run the SimpleMmck demo");
 
 // Define options
