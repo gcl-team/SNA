@@ -58,6 +58,7 @@ public class SimulationEngineTests
     {
         // Arrange
         var modelMock = new Mock<ISimulationModel>();
+        var warmupAwareMock = modelMock.As<IWarmupAware>();
         var strategyMock = new Mock<IRunStrategy>();
 
         var warmupTime = 5.0;
@@ -68,8 +69,8 @@ public class SimulationEngineTests
 
         strategyMock.SetupGet(s => s.WarmupEndTime).Returns(warmupTime);
         strategyMock.SetupSequence(s => s.ShouldContinue(It.IsAny<IRunContext>()))
-                    .Returns(true)
-                    .Returns(false);
+                    .Returns(true)          // Continue to process the event
+                    .Returns(false);        // Stop after the event
 
         var profile = CreateTestProfile(modelMock.Object, strategyMock.Object);
         var engine = new SimulationEngine(profile);
@@ -79,7 +80,7 @@ public class SimulationEngineTests
 
         // Assert
         Assert.True(testEvent.Executed);
-        modelMock.Verify(m => m.WarmedUp(warmupTime), Times.Once);
+        warmupAwareMock.Verify(m => m.WarmedUp(warmupTime), Times.Once);
     }
 
     [Fact]

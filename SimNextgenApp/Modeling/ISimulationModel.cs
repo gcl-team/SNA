@@ -30,7 +30,7 @@ public interface ISimulationModel
     /// Metadata["Description"] = "Baseline model for system X";
     /// Metadata["Version"] = "1.2";
     /// </example>
-    IDictionary<string, object> Metadata { get; }
+    IReadOnlyDictionary<string, object> Metadata { get; }
 
     /// <summary>
     /// Called by the SimulationEngine BEFORE the main simulation run loop begins.
@@ -41,14 +41,4 @@ public interface ISimulationModel
     /// <param name="scheduler">An interface provided by the engine, allowing the model
     /// to schedule events without directly accessing the FEL.</param>
     void Initialize(IScheduler scheduler);
-
-    /// <summary>
-    /// Called by the SimulationEngine AFTER a defined warm-up period has completed,
-    /// but BEFORE the simulation run fully ends (if applicable).
-    /// Implementations can use this to perform actions like resetting statistics
-    /// accumulators to ignore the transient warm-up phase.
-    /// </summary>
-    /// <param name="simulationTime">The current simulation clock time 
-    /// (using simulation time units) at the moment the warm-up period ends.</param>
-    void WarmedUp(double simulationTime);
 }
