@@ -1,8 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using SimNextgenApp.Core;
-using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using SimNextgenApp.Core;
 
 namespace SimNextgenApp.Events;
 
@@ -19,11 +15,10 @@ internal abstract class AbstractServerEvent<TLoad> : AbstractEvent
     {
         return new Dictionary<string, object>
         {
-            { "GeneratorName", OwningServer.Name },
+            { "ServerName", OwningServer.Name },
             { "Capacity", OwningServer.Capacity },
             { "Vacancy", OwningServer.Vacancy },
-            { "NumberInService", OwningServer.NumberInService },
-            { "LoadsCompletedCount", OwningServer.LoadsCompletedCount }
+            { "NumberInService", OwningServer.NumberInService }
         };
     }
 

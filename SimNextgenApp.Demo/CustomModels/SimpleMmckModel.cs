@@ -2,6 +2,7 @@
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Modeling;
+using SimNextgenApp.Statistics;
 
 namespace SimNextgenApp.Demo.CustomModels;
 
@@ -10,6 +11,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
     public Generator<MyLoad> LoadGenerator { get; }
     public Core.Queue<MyLoad> WaitingLine { get; }
     public List<Server<MyLoad>> ServiceChannels { get; }
+    public List<ServerObserver<MyLoad>> ServiceChannelObservers { get; }
 
     private readonly ILogger<SimpleMmckModel> _modelLogger;
     private IRunContext? _runContext;
@@ -47,8 +49,9 @@ internal class SimpleMmckModel : AbstractSimulationModel
         var actualQueueConfig = queueConfig with { Capacity = SystemCapacityK - numberOfServers };
         WaitingLine = new Core.Queue<MyLoad>(actualQueueConfig, $"{name}_Queue", loggerFactory);
 
-        // 3. Create Servers
+        // 3. Create Servers and Server Observers
         ServiceChannels = [];
+        ServiceChannelObservers = [];
         for (int i = 0; i < numberOfServers; i++)
         {
             // Each server uses the same config template but can have a different seed
@@ -56,8 +59,10 @@ internal class SimpleMmckModel : AbstractSimulationModel
                 serverConfigTemplate,
                 serverSeedBase + i, // Different seed for each server
                 $"{name}_Server{i + 1}"
-            // Add loggerFactory to Server constructor if Server class supports it
             ));
+
+            // Create an observer for each server
+            ServiceChannelObservers.Add(new ServerObserver<MyLoad>(ServiceChannels[i]));
         }
 
         foreach (var server in ServiceChannels)
@@ -68,8 +73,6 @@ internal class SimpleMmckModel : AbstractSimulationModel
                 if (_runContext != null && WaitingLine.ToDequeue && WaitingLine.Occupancy > 0)
                 {
                     _modelLogger.LogInformation($"      Server '{server.Name}' is free, queue has items. Triggering dequeue attempt.");
-                    // This will schedule a DequeueEvent. The OnDequeueAction (defined in Initialize)
-                    // will then try to find *any* idle server (which should include this one).
                     WaitingLine.TriggerDequeueAttempt(_runContext);
                 }
             });
@@ -261,6 +264,10 @@ internal class SimpleMmckModel : AbstractSimulationModel
         foreach (var server in ServiceChannels)
         {
             server.WarmedUp(simulationTime);
+        }
+        foreach (var serverObserver in ServiceChannelObservers)
+        {
+            serverObserver.WarmedUp(simulationTime);
         }
         BalkedLoadsCount = 0;
         TotalLoadsEnteredSystem = 0;

@@ -1,14 +1,13 @@
 ﻿using SimNextgenApp.Configurations;
 using SimNextgenApp.Events;
+using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Statistics;
 
 namespace SimNextgenApp.Core;
 
 /// <summary>
-/// Represents a server in a discrete event simulation that processes loads.
-/// It can hold a certain number of loads simultaneously (capacity) and takes
-/// a defined service time to process each load.
+/// Represents a server in a DES that processes loads. This component acts as a pure state machine,
+/// managing its capacity and processing loads. It emits events via action hooks for external observers to track statistics.
 /// </summary>
 /// <typeparam name="TLoad">The type of load that this server processes.</typeparam>
 public class Server<TLoad> : AbstractSimulationModel
@@ -37,25 +36,6 @@ public class Server<TLoad> : AbstractSimulationModel
     /// </summary>
     public int Vacancy => _config.Capacity - NumberInService;
 
-    // Statistics
-    /// <summary>
-    /// Tracks the number of busy server units over time.
-    /// Used to calculate utilization.
-    /// </summary>
-    public TimeBasedMetric BusyServerUnitsCounter { get; }
-
-    /// <summary>
-    /// Gets the total number of loads that have completed service.
-    /// </summary>
-    public int LoadsCompletedCount { get; private set; }
-
-    /// <summary>
-    /// Gets the average server utilization (number of busy units / capacity).
-    /// Requires <see cref="TimeBasedMetric.SetTimeFrame"/> to be called on <see cref="BusyServerUnitsCounter"/>
-    /// after the simulation run (or relevant period) to calculate averages.
-    /// </summary>
-    public double Utilization => _config.Capacity > 0 ? BusyServerUnitsCounter.AverageCount / _config.Capacity : 0.0;
-
     /// <summary>
     /// Stores the simulation time at which each load started service.
     /// Key: Load, Value: Start service time (double).
@@ -76,34 +56,29 @@ public class Server<TLoad> : AbstractSimulationModel
     /// </summary>
     public List<Action<double>> StateChangeActions { get; }
 
-
     /// <summary>
-    /// Initializes a new instance of the <see cref="Server{TLoad}"/> class.
+    /// Initialises a new instance of the <see cref="Server{TLoad}"/> class.
     /// </summary>
     /// <param name="config">The static configuration for this server.</param>
     /// <param name="seed">The seed for the random number stream used by this server.</param>
     /// <param name="instanceName">A unique name for this server instance (e.g., "CheckoutCounter1").</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> is null.</exception>
     /// <exception cref="ArgumentException">Thrown if essential configuration like ServiceTime is missing.</exception>
-    public Server(ServerStaticConfig<TLoad> config, int seed, string instanceName)
-        : base(instanceName)
+    public Server(ServerStaticConfig<TLoad> config, int seed, string instanceName) : base(instanceName)
     {
         ArgumentNullException.ThrowIfNull(config);
         
-        if (config.Capacity <= 0 && config.Capacity != int.MaxValue) // Allow int.MaxValue for "infinite"
+        if (config.Capacity <= 0 && config.Capacity != int.MaxValue)
             throw new ArgumentOutOfRangeException(nameof(config), "Server capacity must be positive or int.MaxValue.");
 
         _config = config;
         _random = new Random(seed);
 
-        LoadsInService = new HashSet<TLoad>();
-        ServiceStartTimes = new Dictionary<TLoad, double>();
+        LoadsInService = [];
+        ServiceStartTimes = [];
 
-        BusyServerUnitsCounter = new TimeBasedMetric();
-        LoadsCompletedCount = 0;
-
-        LoadDepartActions = new List<Action<TLoad, double>>();
-        StateChangeActions = new List<Action<double>>();
+        LoadDepartActions = [];
+        StateChangeActions = [];
     }
 
     /// <summary>
@@ -139,15 +114,12 @@ public class Server<TLoad> : AbstractSimulationModel
     /// <inheritdoc/>
     public override void WarmedUp(double simulationTime)
     {
-        // Reset statistics at the end of warm-up
-        BusyServerUnitsCounter.WarmedUp(simulationTime);
-        LoadsCompletedCount = 0;
-        // Loads currently in service might continue, or be cleared depending on model logic.
-        // For simplicity, let's assume they continue, and their stats before warmup are ignored by WarmedUp.
-        // ServiceStartTimes for ongoing loads might need adjustment if flow time stats are critical across warmup.
-        if (NumberInService > 0)
+        // For any loads currently being served, reset their start time
+        // so that their flow time (Time of Departure - Time of Arrival) is measured from this point forward.
+        var inServiceLoads = LoadsInService.ToList();
+        foreach (var load in inServiceLoads)
         {
-            BusyServerUnitsCounter.ObserveCount(NumberInService, simulationTime);
+            ServiceStartTimes[load] = simulationTime;
         }
     }
 
@@ -157,59 +129,39 @@ public class Server<TLoad> : AbstractSimulationModel
             throw new InvalidOperationException($"Server '{Name}' has not been initialized with a scheduler.");
     }
 
-    internal void PerformLoadCompletedCountUpdate(int loadCompletedCount)
-    {
-        LoadsCompletedCount = loadCompletedCount;
-    }
-
     internal void HandleLoadArrivalForService(TLoad load, double currentTime)
     {
         if (Vacancy <= 0)
         {
-            // This should ideally be caught by TryStartService or queueing logic before this point.
-            // If it happens, it's an unexpected state, potentially throw.
-            // For now, let's assume TryStartService prevents this.
-            // Or, if a queue feeds this server, the queue handles full capacity.
-            // If no queue, and an attempt is made to push to a full server, it's a model design issue.
             throw new InvalidOperationException($"Server '{Name}' cannot start service for load. No vacancy. This should be handled by upstream logic.");
         }
 
         LoadsInService.Add(load);
         ServiceStartTimes[load] = currentTime;
 
-        BusyServerUnitsCounter.ObserveChange(1, currentTime);
-        InvokeStateChangeActions(currentTime);
-
         TimeSpan serviceDuration = _config.ServiceTime(load, _random);
-        _scheduler!.Schedule(
-            new ServerServiceCompleteEvent<TLoad>(this, load),
-            currentTime + serviceDuration.TotalSeconds // Adjust TotalSeconds if clock units differ
-        );
+        _scheduler!.Schedule(new ServerServiceCompleteEvent<TLoad>(this, load), serviceDuration);
+
+        foreach (var action in StateChangeActions)
+        {
+            action(currentTime);
+        }
     }
 
     internal void HandleServiceCompletion(TLoad load, double currentTime)
     {
         if (!LoadsInService.Remove(load))
         {
-            // Load was not in service, which is unexpected.
-            // Log warning or throw, depending on strictness.
-            // For now, proceed assuming it was removed.
+            throw new SimulationException($"Attempted to complete service for load '{load}' which was not in service at Server '{Name}'. The simulation state is inconsistent.");
         }
 
-        ServiceStartTimes.Remove(load); // Clean up start time record
-        LoadsCompletedCount++;
-        BusyServerUnitsCounter.ObserveChange(-1, currentTime);
+        ServiceStartTimes.Remove(load);
 
-        // Invoke departure actions
         foreach (var action in LoadDepartActions)
         {
             action(load, currentTime);
         }
-        InvokeStateChangeActions(currentTime);
-    }
 
-    private void InvokeStateChangeActions(double currentTime)
-    {
         foreach (var action in StateChangeActions)
         {
             action(currentTime);

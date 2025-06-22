@@ -98,20 +98,15 @@ internal static class SimpleMmck
 
 
         programLogger.LogInformation("\n--- Server Stats (Aggregated for {NumServers} Servers, Post-Warmup) ---", mmckSystem.NumberOfServersC);
-        int totalLoadsCompletedByServers = 0;
-        double sumOfServerUtilizations = 0;
-        double sumOfAvgBusyServerUnits = 0; // Should equal sum of utilizations if capacity 1
 
-        foreach (var server in mmckSystem.ServiceChannels)
+        for (int s = 0; s < mmckSystem.ServiceChannels.Count; s++)
         {
-            totalLoadsCompletedByServers += server.LoadsCompletedCount;
-            sumOfServerUtilizations += server.Utilization; // Assumes Server.Utilization uses its own TimeBasedMetric correctly
-            sumOfAvgBusyServerUnits += server.BusyServerUnitsCounter.AverageCount;
-            programLogger.LogInformation($"  Server '{server.Name}': Completed={server.LoadsCompletedCount}, AvgBusy={server.BusyServerUnitsCounter.AverageCount:F3} (Util: {server.Utilization:P2})");
+            var serverReporter = new ServerConsoleReporter<MyLoad>(
+                mmckSystem.ServiceChannels[s],
+                mmckSystem.ServiceChannelObservers[s],
+                programLogger);
+            serverReporter.Report();
         }
-        programLogger.LogInformation($"Total Loads Completed by All Servers: {totalLoadsCompletedByServers}");
-        programLogger.LogInformation($"Average Server Utilization (avg of individuals): {sumOfServerUtilizations / mmckSystem.NumberOfServersC:P2}");
-        programLogger.LogInformation($"Overall Average Busy Servers (sum of individuals): {sumOfAvgBusyServerUnits:F3}");
 
         // 11. Print the Memory Tracer events
         tracer.PrintToConsole();

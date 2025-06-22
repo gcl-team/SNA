@@ -2,6 +2,7 @@
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Modeling;
+using SimNextgenApp.Statistics;
 
 namespace SimNextgenApp.Demo.CustomModels;
 
@@ -14,10 +15,11 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
 {
     public Generator<MyLoad> LoadGenerator { get; }
     public Server<MyLoad> ServicePoint { get; }
-    private readonly ILogger<GeneratorAndServerModel> _modelLogger;
-    private IRunContext? _runContext; // To pass to TryStartService
-
+    public ServerObserver<MyLoad> ServicePointObserver { get; }
     public int BalkedLoadsCount { get; private set; } = 0;
+
+    private readonly ILogger<GeneratorAndServerModel> _modelLogger;
+    private IRunContext? _runContext;
 
     public GeneratorAndServerModel(
         GeneratorStaticConfig<MyLoad> genConfig, int genSeed,
@@ -33,12 +35,14 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         // Connect Generator to Server
         LoadGenerator.LoadGeneratedActions.Add(HandleLoadGenerated);
 
-        // (Optional) Log when server sends a load away
+        // Log when server sends a load away
         ServicePoint.LoadDepartActions.Add((load, departureTime) =>
         {
             load.ServiceEndTime = departureTime;
             _modelLogger.LogInformation($"--- [LOAD DEPARTED] SimTime: {departureTime:F2} -> {load}. Service time: {load.ServiceEndTime - load.ServiceStartTime:F2} ---");
         });
+
+        ServicePointObserver = new ServerObserver<MyLoad>(this.ServicePoint);
     }
 
     private void HandleLoadGenerated(MyLoad load, double generationTime)
@@ -92,6 +96,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
     {
         LoadGenerator.WarmedUp(simulationTime);
         ServicePoint.WarmedUp(simulationTime);
+        ServicePointObserver.WarmedUp(simulationTime);
         BalkedLoadsCount = 0; // Reset balk count after warm-up
         _modelLogger.LogInformation("--- System Warmed Up at {WarmupTime}. Statistics reset. ---", simulationTime);
     }

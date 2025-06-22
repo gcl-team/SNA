@@ -39,7 +39,7 @@ public interface ISimulationModel
     /// initial state setup events).
     /// </summary>
     /// <param name="scheduler">An interface provided by the engine, allowing the model
-    /// to schedule events without directly accessing the engine's internal FEL.</param>
+    /// to schedule events without directly accessing the FEL.</param>
     void Initialize(IScheduler scheduler);
 
     /// <summary>
@@ -49,7 +49,6 @@ public interface ISimulationModel
     /// accumulators to ignore the transient warm-up phase.
     /// </summary>
     /// <param name="simulationTime">The current simulation clock time 
-    /// (using simulation time units) at the moment the warm-up 
-    /// period ends.</param>
+    /// (using simulation time units) at the moment the warm-up period ends.</param>
     void WarmedUp(double simulationTime);
 }
