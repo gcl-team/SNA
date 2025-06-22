@@ -1,3 +1,5 @@
+using SimNextgenApp.Events;
+
 namespace SimNextgenApp.Core;
 
 /// <summary>

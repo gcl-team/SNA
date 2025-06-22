@@ -1,4 +1,8 @@
-namespace SimNextgenApp.Core;
+using SimNextgenApp.Core;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("SimNextgenApp.Tests")] // Allow unit tests to access internal members
+namespace SimNextgenApp.Events;
 
 /// <summary>
 /// Abstract base class for all discrete events in the simulation.
