@@ -1,6 +1,7 @@
 ﻿using Moq;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
+using SimNextgenApp.Events;
 
 namespace SimNextgenApp.Tests.Core;
 
