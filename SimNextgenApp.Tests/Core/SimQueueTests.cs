@@ -45,20 +45,17 @@ public class SimQueueTests
         var queue = CreateQueue(config: _defaultInfiniteConfig, name: "InfiniteQ");
 
         // Assert
+        // --- Core Properties ---
         Assert.Equal("InfiniteQ", queue.Name);
         Assert.Equal(0, queue.Occupancy);
-        Assert.Equal(int.MaxValue, queue.Vacancy); // From config
+        Assert.Equal(int.MaxValue, queue.Vacancy);
+        Assert.Equal(int.MaxValue, queue.Capacity);
         Assert.True(queue.ToDequeue);
+        Assert.Empty(queue.WaitingItems);
+
+        // --- Statistics ---
         Assert.NotNull(queue.TimeBasedMetric);
         Assert.Equal(0, queue.TimeBasedMetric.CurrentCount);
-        Assert.NotNull(queue.OnEnqueueActions);
-        Assert.Empty(queue.OnEnqueueActions);
-        Assert.NotNull(queue.OnDequeueActions);
-        Assert.Empty(queue.OnDequeueActions);
-        Assert.NotNull(queue.OnBalkActions);
-        Assert.Empty(queue.OnBalkActions);
-        Assert.NotNull(queue.OnStateChangeActions);
-        Assert.Empty(queue.OnStateChangeActions);
     }
 
     [Fact]
@@ -70,7 +67,7 @@ public class SimQueueTests
         // Assert
         Assert.Equal("FiniteQ_Cap2", queue.Name);
         Assert.Equal(0, queue.Occupancy);
-        Assert.Equal(2, queue.Vacancy); // From config
+        Assert.Equal(2, queue.Vacancy);
         Assert.True(queue.ToDequeue);
     }
 
@@ -116,15 +113,12 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue();
-        _currentTestTime = 0.0; // Ensure metric observes at 0
+        _currentTestTime = 0.0;
 
         // Act
         queue.Initialize(_mockScheduler.Object);
 
         // Assert
-        // Check internal _scheduler (hard to assert directly without exposing it,
-        // but EnsureSchedulerInitialized in other methods will test it indirectly)
-        // We can verify TimeBasedMetric was initialized correctly.
         Assert.Equal(0, queue.TimeBasedMetric.CurrentCount);
         Assert.Equal(0.0, queue.TimeBasedMetric.CurrentTime);
         Assert.Equal(0.0, queue.TimeBasedMetric.InitialTime);
@@ -146,11 +140,15 @@ public class SimQueueTests
         // Arrange
         var queue = CreateQueue();
         queue.Initialize(_mockScheduler.Object);
+
         // Simulate some activity before warmup
+        _currentTestTime = 5.0;
+        queue.HandleEnqueue(new DummyLoad("L1"), _currentTestTime);
         _currentTestTime = 10.0;
-        queue.Waiting.Add(new DummyLoad()); // Manually add to simulate pre-warmup state
-        queue.Waiting.Add(new DummyLoad());
-        queue.TimeBasedMetric.ObserveCount(2, _currentTestTime); // Simulate metric update
+        queue.HandleEnqueue(new DummyLoad("L2"), _currentTestTime);
+
+        // Sanity check the pre-warmup state
+        Assert.Equal(2, queue.Occupancy);
 
         double warmupTime = 20.0;
         _currentTestTime = warmupTime;
@@ -163,6 +161,7 @@ public class SimQueueTests
         Assert.Equal(warmupTime, queue.TimeBasedMetric.CurrentTime);
         Assert.Equal(2, queue.TimeBasedMetric.CurrentCount); // Should observe the 2 items
         Assert.Equal(2, queue.Occupancy); // Occupancy should remain
+        Assert.Equal(2, queue.WaitingItems.Count());
     }
 
     [Fact]
@@ -191,48 +190,62 @@ public class SimQueueTests
         // Arrange
         var queue = CreateQueue(config: _defaultInfiniteConfig);
         queue.Initialize(_mockScheduler.Object);
-        queue.Waiting.Add(new DummyLoad()); // Add some items
-        queue.Waiting.Add(new DummyLoad());
-        var load = new DummyLoad();
         _currentTestTime = 5.0;
 
+        queue.HandleEnqueue(new DummyLoad("L1"), 1.0);
+        queue.HandleEnqueue(new DummyLoad("L2"), 2.0);
+
+        var loadToEnqueue = new DummyLoad("L3");
+
         // Act
-        bool result = queue.TryScheduleEnqueue(load, _mockEngineContext.Object);
+        bool result = queue.TryScheduleEnqueue(loadToEnqueue, _mockEngineContext.Object);
 
         // Assert
+        // The method should report success.
         Assert.True(result);
+
+        // It should have scheduled exactly one EnqueueEvent with the correct details.
         _mockScheduler.Verify(s => s.Schedule(
-            It.Is<EnqueueEvent<DummyLoad>>(e => e.LoadToEnqueue == load && e.OwningQueue == queue),
+            It.Is<EnqueueEvent<DummyLoad>>(e => e.LoadToEnqueue == loadToEnqueue && e.OwningQueue == queue),
             _currentTestTime),
             Times.Once);
     }
 
     [Fact]
-    public void TryScheduleEnqueue_WhenFiniteQueueIsFull_BalksAndReturnsFalse_DoesNotSchedule()
+    public void TryScheduleEnqueue_WhenFiniteQueueIsFull_BalksAndReturnsFalse_AndFiresEvent()
     {
         // Arrange
-        var queue = CreateQueue(config: _defaultFiniteConfig); // Capacity 2
+        var queue = CreateQueue(config: _defaultFiniteConfig);
         queue.Initialize(_mockScheduler.Object);
-        queue.Waiting.Add(new DummyLoad("L1")); // Fill the queue
-        queue.Waiting.Add(new DummyLoad("L2"));
-        Assert.Equal(0, queue.Vacancy); // Verify it's full
+        _currentTestTime = 5.0;
+
+        // 1. Arrange State: Fill the queue to capacity using its internal handler.
+        queue.HandleEnqueue(new DummyLoad("L1"), 1.0);
+        queue.HandleEnqueue(new DummyLoad("L2"), 2.0);
+        Assert.Equal(0, queue.Vacancy); // Verify our setup is correct: the queue is full.
 
         var loadToBalk = new DummyLoad("L3");
-        _currentTestTime = 5.0;
-        bool balkActionCalled = false;
-        queue.OnBalkActions.Add((balkedLoad, time) => {
-            Assert.Same(loadToBalk, balkedLoad);
-            Assert.Equal(_currentTestTime, time);
-            balkActionCalled = true;
-        });
 
+        // 2. Subscribe to Event: Set up a handler to listen for the balk event.
+        bool eventFired = false;
+        queue.LoadBalked += (balkedLoad, balkTime) =>
+        {
+            eventFired = true;
+            Assert.Same(loadToBalk, balkedLoad); // Check if the correct load was reported
+            Assert.Equal(_currentTestTime, balkTime); // Check if it happened at the correct time
+        };
 
         // Act
         bool result = queue.TryScheduleEnqueue(loadToBalk, _mockEngineContext.Object);
 
         // Assert
+        // 1. The method should report failure (balking).
         Assert.False(result);
-        Assert.True(balkActionCalled, "OnBalkAction was not called.");
+
+        // 2. The LoadBalked event must have been fired.
+        Assert.True(eventFired, "The LoadBalked event was not fired.");
+
+        // 3. No EnqueueEvent should have been scheduled with the scheduler.
         _mockScheduler.Verify(s => s.Schedule(It.IsAny<EnqueueEvent<DummyLoad>>(), It.IsAny<double>()), Times.Never);
     }
 
