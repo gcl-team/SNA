@@ -9,7 +9,7 @@ namespace SimNextgenApp.Demo.CustomModels;
 internal class SimpleMmckModel : AbstractSimulationModel
 {
     public Generator<MyLoad> LoadGenerator { get; }
-    public Core.Queue<MyLoad> WaitingLine { get; }
+    public SimQueue<MyLoad> WaitingLine { get; }
     public List<Server<MyLoad>> ServiceChannels { get; }
     public List<ServerObserver<MyLoad>> ServiceChannelObservers { get; }
 
@@ -47,7 +47,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
         // Queue capacity is K - c (waiting spots)
         // If K == c, queue capacity is 0 (no waiting room - loss system if servers are busy)
         var actualQueueConfig = queueConfig with { Capacity = SystemCapacityK - numberOfServers };
-        WaitingLine = new Core.Queue<MyLoad>(actualQueueConfig, $"{name}_Queue", loggerFactory);
+        WaitingLine = new SimQueue<MyLoad>(actualQueueConfig, $"{name}_Queue", loggerFactory);
 
         // 3. Create Servers and Server Observers
         ServiceChannels = [];

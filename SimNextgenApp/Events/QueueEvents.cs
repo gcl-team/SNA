@@ -4,7 +4,7 @@ using SimNextgenApp.Core;
 namespace SimNextgenApp.Events;
 
 /// <summary>
-/// Base class for events specific to the internal operations of a <see cref="Core.Queue{TLoad}"/>.
+/// Base class for events specific to the internal operations of a <see cref="Core.SimQueue{TLoad}"/>.
 /// </summary>
 /// <typeparam name="TLoad">The type of load managed by the queue.</typeparam>
 internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
@@ -12,7 +12,7 @@ internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
     /// <summary>
     /// Gets the queue instance that this event pertains to.
     /// </summary>
-    internal Core.Queue<TLoad> OwningQueue { get; }
+    internal Core.SimQueue<TLoad> OwningQueue { get; }
 
 
     /// <inheritdoc/>
@@ -32,7 +32,7 @@ internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
     /// </summary>
     /// <param name="owner">The queue that owns this event.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> is null.</exception>
-    protected AbstractQueueEvent(Core.Queue<TLoad> owner)
+    protected AbstractQueueEvent(Core.SimQueue<TLoad> owner)
     {
         ArgumentNullException.ThrowIfNull(owner);
         OwningQueue = owner;
@@ -56,7 +56,7 @@ internal sealed class EnqueueEvent<TLoad> : AbstractQueueEvent<TLoad>
     /// <param name="owner">The queue that will receive the load.</param>
     /// <param name="loadToEnqueue">The load to be enqueued.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> or <paramref name="loadToEnqueue"/> is null.</exception>
-    public EnqueueEvent(Core.Queue<TLoad> owner, TLoad loadToEnqueue) : base(owner)
+    public EnqueueEvent(Core.SimQueue<TLoad> owner, TLoad loadToEnqueue) : base(owner)
     {
         ArgumentNullException.ThrowIfNull(loadToEnqueue, nameof(loadToEnqueue));
         LoadToEnqueue = loadToEnqueue;
@@ -111,7 +111,7 @@ internal sealed class UpdateToDequeueEvent<TLoad> : AbstractQueueEvent<TLoad>
     /// <param name="owner">The queue whose dequeue state is to be updated.</param>
     /// <param name="newToDequeueState">The new dequeue permission state.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> is null.</exception>
-    public UpdateToDequeueEvent(Core.Queue<TLoad> owner, bool newToDequeueState) : base(owner)
+    public UpdateToDequeueEvent(Core.SimQueue<TLoad> owner, bool newToDequeueState) : base(owner)
     {
         NewToDequeueState = newToDequeueState;
     }
@@ -148,7 +148,7 @@ internal sealed class DequeueEvent<TLoad> : AbstractQueueEvent<TLoad>
     /// </summary>
     /// <param name="owner">The queue from which a load will be dequeued.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> is null.</exception>
-    public DequeueEvent(Core.Queue<TLoad> owner) : base(owner) { }
+    public DequeueEvent(Core.SimQueue<TLoad> owner) : base(owner) { }
 
     /// <summary>
     /// Removes a load from the queue, updates statistics, invokes actions, and may trigger further dequeues.

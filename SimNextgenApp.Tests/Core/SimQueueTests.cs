@@ -4,22 +4,21 @@ using Moq;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
-using SimCore = SimNextgenApp.Core;
 
 namespace SimNextgenApp.Tests.Core;
 
-public class QueueTests
+public class SimQueueTests
 {
     private const string DefaultQueueName = "TestQueue";
     private readonly Mock<IScheduler> _mockScheduler;
-    private readonly Mock<IRunContext> _mockEngineContext; // Renamed for clarity vs. SimulationEngine
+    private readonly Mock<IRunContext> _mockEngineContext;
     private readonly ILoggerFactory _nullLoggerFactory;
+    private readonly QueueStaticConfig<DummyLoad> _defaultInfiniteConfig;
+    private readonly QueueStaticConfig<DummyLoad> _defaultFiniteConfig;
 
-    private QueueStaticConfig<DummyLoad> _defaultInfiniteConfig;
-    private QueueStaticConfig<DummyLoad> _defaultFiniteConfig;
     private double _currentTestTime = 0.0;
 
-    public QueueTests()
+    public SimQueueTests()
     {
         _nullLoggerFactory = NullLoggerFactory.Instance;
         _mockScheduler = new Mock<IScheduler>();
@@ -32,14 +31,13 @@ public class QueueTests
         _defaultFiniteConfig = new QueueStaticConfig<DummyLoad> { Capacity = 2 };
     }
 
-    private SimCore.Queue<DummyLoad> CreateQueue(
+    private SimQueue<DummyLoad> CreateQueue(
         QueueStaticConfig<DummyLoad>? config = null,
         string name = DefaultQueueName)
     {
-        return new SimCore.Queue<DummyLoad>(config ?? _defaultInfiniteConfig, name, _nullLoggerFactory);
+        return new SimQueue<DummyLoad>(config ?? _defaultInfiniteConfig, name, _nullLoggerFactory);
     }
 
-    // --- Constructor Tests ---
     [Fact]
     public void Constructor_WithValidInfiniteConfig_InitializesCorrectly()
     {
@@ -84,7 +82,7 @@ public class QueueTests
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentNullException>(() =>
-            new SimCore.Queue<DummyLoad>(nullConfig, DefaultQueueName, _nullLoggerFactory)
+            new SimQueue<DummyLoad>(nullConfig, DefaultQueueName, _nullLoggerFactory)
         );
         Assert.Equal("config", ex.ParamName);
     }
@@ -93,7 +91,7 @@ public class QueueTests
     public void Constructor_NullLoggerFactory_ThrowsArgumentNullException()
     {
         var ex = Assert.Throws<ArgumentNullException>(() =>
-            new SimCore.Queue<DummyLoad>(_defaultInfiniteConfig, DefaultQueueName, null!)
+            new SimQueue<DummyLoad>(_defaultInfiniteConfig, DefaultQueueName, null!)
         );
         Assert.Equal("loggerFactory", ex.ParamName);
     }
@@ -108,12 +106,11 @@ public class QueueTests
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
-            new SimCore.Queue<DummyLoad>(invalidConfig, DefaultQueueName, _nullLoggerFactory)
+            new SimQueue<DummyLoad>(invalidConfig, DefaultQueueName, _nullLoggerFactory)
         );
         Assert.Equal("config", ex.ParamName); // The constructor checks config.Capacity
     }
 
-    // --- Initialize Method Tests ---
     [Fact]
     public void Initialize_WithValidScheduler_SetsSchedulerAndInitializesMetric()
     {
@@ -143,7 +140,6 @@ public class QueueTests
         Assert.Throws<ArgumentNullException>(() => queue.Initialize(null!));
     }
 
-    // --- WarmedUp Method Tests ---
     [Fact]
     public void WarmedUp_ResetsMetricAndObservesCurrentOccupancy()
     {
@@ -169,7 +165,6 @@ public class QueueTests
         Assert.Equal(2, queue.Occupancy); // Occupancy should remain
     }
 
-    // --- TryScheduleEnqueue Method Tests ---
     [Fact]
     public void TryScheduleEnqueue_WhenQueueHasVacancy_SchedulesEnqueueEventAndReturnsTrue()
     {
@@ -273,8 +268,6 @@ public class QueueTests
         Assert.Throws<InvalidOperationException>(() => queue.TryScheduleEnqueue(new DummyLoad(), _mockEngineContext.Object));
     }
 
-
-    // --- ScheduleUpdateToDequeue Method Tests ---
     [Fact]
     public void ScheduleUpdateToDequeue_SchedulesUpdateEvent()
     {
@@ -315,7 +308,6 @@ public class QueueTests
         Assert.Throws<InvalidOperationException>(() => queue.ScheduleUpdateToDequeue(false, _mockEngineContext.Object));
     }
 
-    // --- Property Tests (brief examples, Occupancy/Vacancy covered by constructor/enqueue tests) ---
     [Fact]
     public void ToDequeue_DefaultIsTrue()
     {

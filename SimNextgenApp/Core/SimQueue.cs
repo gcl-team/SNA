@@ -11,11 +11,11 @@ namespace SimNextgenApp.Core;
 /// according to a specified capacity and (implicitly) a First-In, First-Out (FIFO) discipline.
 /// </summary>
 /// <typeparam name="TLoad">The type of load (entity) managed by this queue.</typeparam>
-public class Queue<TLoad> : AbstractSimulationModel
+public class SimQueue<TLoad> : AbstractSimulationModel
 {
     private readonly QueueStaticConfig<TLoad> _config;
     private IScheduler? _scheduler;
-    internal ILogger<Queue<TLoad>> Logger { get; }
+    internal ILogger<SimQueue<TLoad>> Logger { get; }
 
     /// <summary>
     /// Gets the list of loads currently waiting in the queue.
@@ -37,9 +37,12 @@ public class Queue<TLoad> : AbstractSimulationModel
     /// </summary>
     public int Vacancy => (_config.Capacity == int.MaxValue) ? int.MaxValue : _config.Capacity - Occupancy;
 
-    // Expose configuration if needed, e.g., for events or external checks
+    // 
+    /// <summary>
+    /// Gets the configuration settings for the queue.
+    /// </summary>
+    /// <remarks>Expose configuration if needed, e.g., for events or external checks</remarks>
     internal QueueStaticConfig<TLoad> Configuration => _config;
-
 
     private bool _toDequeue = true;
 
@@ -78,7 +81,6 @@ public class Queue<TLoad> : AbstractSimulationModel
     /// </summary>
     public List<Action<TLoad, double>> OnBalkActions { get; } = new List<Action<TLoad, double>>();
 
-
     /// <summary>
     /// Actions to perform when the queue's state changes significantly (e.g., occupancy change, ToDequeue status change).
     /// Takes the current simulation time.
@@ -86,14 +88,14 @@ public class Queue<TLoad> : AbstractSimulationModel
     public List<Action<double>> OnStateChangeActions { get; } = [];
 
     /// <summary>
-    /// Initialises a new instance of the <see cref="Queue{TLoad}"/> class.
+    /// Initialises a new instance of the <see cref="SimQueue{TLoad}"/> class.
     /// </summary>
     /// <param name="config">The static configuration settings for this queue.</param>
     /// <param name="instanceName">A descriptive name for this queue instance (e.g., "BufferQueue1").</param>
     /// <param name="loggerFactory">The factory used to create loggers for this queue instance.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> or <paramref name="loggerFactory"/> is <c>null</c>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="config.Capacity"/> is not positive and not <see cref="int.MaxValue"/>.</exception>
-    public Queue(QueueStaticConfig<TLoad> config, string instanceName, ILoggerFactory loggerFactory)
+    public SimQueue(QueueStaticConfig<TLoad> config, string instanceName, ILoggerFactory loggerFactory)
         : base(instanceName)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -103,7 +105,7 @@ public class Queue<TLoad> : AbstractSimulationModel
             throw new ArgumentOutOfRangeException(nameof(config), "Queue capacity must be positive or int.MaxValue.");
 
         _config = config;
-        Logger = loggerFactory.CreateLogger<Queue<TLoad>>();
+        Logger = loggerFactory.CreateLogger<SimQueue<TLoad>>();
         TimeBasedMetric = new TimeBasedMetric(enableHistory: false); // Or pass initial time from engine if needed
         Logger.LogInformation("Queue '{QueueName}' created with capacity {Capacity}.", Name, _config.Capacity == int.MaxValue ? "Infinite" : _config.Capacity.ToString());
     }
@@ -134,10 +136,17 @@ public class Queue<TLoad> : AbstractSimulationModel
         return true;
     }
 
+    /// <summary>
+    /// Triggers an attempt to dequeue an item from the queue if certain conditions are met.
+    /// </summary>
+    /// <remarks>This method schedules a dequeue event if the queue is marked for dequeuing (<see  cref="ToDequeue"/> is <see langword="true"/>) 
+    /// and the queue has at least one item.
+    /// The event is scheduled using the provided execution context's scheduler at the current clock time.</remarks>
+    /// <param name="engineContext">The context of the current execution, providing access to the scheduler and clock time.</param>
     public void TriggerDequeueAttempt(IRunContext engineContext)
     {
         EnsureSchedulerInitialized();
-        if (this.ToDequeue && this.Occupancy > 0)
+        if (ToDequeue && Occupancy > 0)
         {
             Logger.LogTrace("Dequeue attempt triggered for {QueueName} at {Time} by external signal.", Name, engineContext.ClockTime);
             engineContext.Scheduler.Schedule(new DequeueEvent<TLoad>(this), engineContext.ClockTime);
@@ -156,7 +165,10 @@ public class Queue<TLoad> : AbstractSimulationModel
         engineContext.Scheduler.Schedule(new UpdateToDequeueEvent<TLoad>(this, toDequeue), engineContext.ClockTime);
     }
 
-
+    /// <summary>
+    /// Initialises the queue with the specified scheduler.
+    /// </summary>
+    /// <param name="scheduler">The scheduler to be used for managing queue operations. Cannot be <see langword="null"/>.</param>
     public override void Initialize(IScheduler scheduler)
     {
         ArgumentNullException.ThrowIfNull(scheduler);
@@ -186,7 +198,12 @@ public class Queue<TLoad> : AbstractSimulationModel
             throw new InvalidOperationException($"Queue '{Name}' has not been initialized with a scheduler. Call Initialize first.");
     }
 
-    // Internal method for UpdateToDequeueEvent to call, keeping public ToDequeue readonly
+    /// <summary>
+    /// Sets the internal state indicating whether the item is marked for dequeuing.
+    /// Internal method for UpdateToDequeueEvent to call, keeping public ToDequeue readonly.
+    /// </summary>
+    /// <param name="newState">A value indicating the new state. <see langword="true"/> marks the item for dequeuing; <see langword="false"/>
+    /// clears the dequeuing state.</param>
     internal void SetToDequeueState(bool newState)
     {
         _toDequeue = newState;
