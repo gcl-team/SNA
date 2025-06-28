@@ -13,7 +13,7 @@ namespace SimNextgenApp.Core;
 /// managing its capacity and processing loads. It emits events via action hooks for external observers to track statistics.
 /// </summary>
 /// <typeparam name="TLoad">The type of load that this server processes.</typeparam>
-public class Server<TLoad> : AbstractSimulationModel where TLoad : notnull
+public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IServiceCompleter<TLoad> where TLoad : notnull
 {
     private readonly ServerStaticConfig<TLoad> _config;
     private readonly Random _random;
@@ -22,24 +22,16 @@ public class Server<TLoad> : AbstractSimulationModel where TLoad : notnull
     internal readonly HashSet<TLoad> _loadsInService;
     internal readonly Dictionary<TLoad, double> _serviceStartTimes;
 
-    /// <summary>
-    /// Gets the set of loads currently being processed (in service) by the server.
-    /// </summary>
+    /// <inheritdoc/>
     public IReadOnlySet<TLoad> LoadsInService => _loadsInService;
 
-    /// <summary>
-    /// Gets the number of loads currently being processed by the server.
-    /// </summary>
+    /// <inheritdoc/>
     public int NumberInService => _loadsInService.Count;
 
-    /// <summary>
-    /// Gets the configured capacity of the server.
-    /// </summary>
+    /// <inheritdoc/>
     public int Capacity => _config.Capacity;
 
-    /// <summary>
-    /// Gets the number of available slots for new loads, based on the server's capacity.
-    /// </summary>
+    /// <inheritdoc/>
     public int Vacancy => _config.Capacity - NumberInService;
 
     /// <summary>
@@ -49,18 +41,10 @@ public class Server<TLoad> : AbstractSimulationModel where TLoad : notnull
     /// </summary>
     public IReadOnlyDictionary<TLoad, double> ServiceStartTimes => new ReadOnlyDictionary<TLoad, double>(_serviceStartTimes);
 
-
-    // --- Event Hooks (Idiomatic C# Events) ---
-    /// <summary>
-    /// Actions to execute when a load departs from the server after completing service.
-    /// Provides the departed load and its service completion time.
-    /// </summary>
+    /// <inheritdoc/>
     public event Action<TLoad, double>? LoadDeparted;
 
-    /// <summary>
-    /// Actions to execute when the server's state changes (e.g., becomes busy, becomes idle, load departs).
-    /// Provides the current simulation time.
-    /// </summary>
+    /// <inheritdoc/>
     public event Action<double>? StateChanged;
 
     /// <summary>
@@ -83,14 +67,7 @@ public class Server<TLoad> : AbstractSimulationModel where TLoad : notnull
         _serviceStartTimes = [];
     }
 
-    /// <summary>
-    /// Attempts to start serving the given load if capacity is available.
-    /// If successful, the server's state is updated and a service completion event is scheduled.
-    /// </summary>
-    /// <param name="loadToServe">The load to start serving.</param>
-    /// <returns><c>true</c> if the load could be accepted (i.e., vacancy > 0 and event scheduled); <c>false</c> otherwise.</returns>
-    /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
-    /// <exception cref="ArgumentNullException">Thrown if engine or loadToServe is null.</exception>
+    /// <inheritdoc/>
     public bool TryStartService(TLoad loadToServe)
     {
         ArgumentNullException.ThrowIfNull(loadToServe);
@@ -159,6 +136,11 @@ public class Server<TLoad> : AbstractSimulationModel where TLoad : notnull
         // Notify observers
         OnLoadDeparted(load, currentTime);
         OnStateChanged(currentTime);
+    }
+
+    void IServiceCompleter<TLoad>.HandleServiceCompletion(TLoad load, double currentTime)
+    {
+        HandleServiceCompletion(load, currentTime);
     }
 
     private void OnLoadDeparted(TLoad load, double time) => LoadDeparted?.Invoke(load, time);
