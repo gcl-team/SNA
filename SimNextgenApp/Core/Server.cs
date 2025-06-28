@@ -13,7 +13,7 @@ namespace SimNextgenApp.Core;
 /// managing its capacity and processing loads. It emits events via action hooks for external observers to track statistics.
 /// </summary>
 /// <typeparam name="TLoad">The type of load that this server processes.</typeparam>
-public class Server<TLoad> : AbstractSimulationModel
+public class Server<TLoad> : AbstractSimulationModel where TLoad : notnull
 {
     private readonly ServerStaticConfig<TLoad> _config;
     private readonly Random _random;
