@@ -36,11 +36,11 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         LoadGenerator.LoadGeneratedActions.Add(HandleLoadGenerated);
 
         // Log when server sends a load away
-        ServicePoint.LoadDepartActions.Add((load, departureTime) =>
+        ServicePoint.LoadDeparted += (load, departureTime) =>
         {
             load.ServiceEndTime = departureTime;
             _modelLogger.LogInformation($"--- [LOAD DEPARTED] SimTime: {departureTime:F2} -> {load}. Service time: {load.ServiceEndTime - load.ServiceStartTime:F2} ---");
-        });
+        };
 
         ServicePointObserver = new ServerObserver<MyLoad>(this.ServicePoint);
     }
@@ -50,14 +50,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         load.CreationTime = generationTime;
         _modelLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime:F2} -> {load}. Attempting service...");
 
-        // We need IRunContext here. Store it during Initialize.
-        if (_runContext == null)
-        {
-            _modelLogger.LogError("RunContext not available for HandleLoadGenerated. Model not properly initialized for this action.");
-            return;
-        }
-
-        bool accepted = ServicePoint.TryStartService(_runContext, load);
+        bool accepted = ServicePoint.TryStartService(load);
         if (accepted)
         {
             load.ServiceStartTime = generationTime; // Or actual service start time if ServerStartServiceEvent passes it back

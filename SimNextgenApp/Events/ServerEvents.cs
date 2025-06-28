@@ -30,27 +30,6 @@ internal abstract class AbstractServerEvent<TLoad> : AbstractEvent
 }
 
 /// <summary>
-/// Event representing a load starting service at the server.
-/// </summary>
-internal sealed class ServerStartServiceEvent<TLoad> : AbstractServerEvent<TLoad>
-{
-    public TLoad LoadToServe { get; }
-
-    public ServerStartServiceEvent(Server<TLoad> owner, TLoad loadToServe) : base(owner)
-    {
-        ArgumentNullException.ThrowIfNull(loadToServe);
-        LoadToServe = loadToServe;
-    }
-
-    public override void Execute(IRunContext engine)
-    {
-        OwningServer.HandleLoadArrivalForService(LoadToServe, engine.ClockTime);
-    }
-
-    public override string ToString() => $"{OwningServer.Name}_StartService({LoadToServe})#{EventId} @ {ExecutionTime:F4}";
-}
-
-/// <summary>
 /// Event representing a load completing service at the server.
 /// </summary>
 internal sealed class ServerServiceCompleteEvent<TLoad> : AbstractServerEvent<TLoad>

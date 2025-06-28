@@ -10,6 +10,12 @@ namespace SimNextgenApp.Core;
 public interface IScheduler
 {
     /// <summary>
+    /// Gets the current simulation time in simulation time units.
+    /// This is the time of the event currently being processed.
+    /// </summary>
+    double ClockTime { get; }
+
+    /// <summary>
     /// Schedules a simulation event to occur at a specific future simulation time.
     /// </summary>
     /// <param name="ev">The event object to schedule.</param>

@@ -11,7 +11,7 @@ namespace SimNextgenApp.Core;
 public interface IRunContext
 {
     /// <summary>
-    /// Gets the current simulation time in simulation time units (e.g., seconds, minutes).
+    /// Gets the current simulation time in simulation time units.
     /// </summary>
     double ClockTime { get; }
 
@@ -20,5 +20,8 @@ public interface IRunContext
     /// </summary>
     long ExecutedEventCount { get; }
 
+    /// <summary>
+    /// Gets the scheduler used to manage and execute tasks.
+    /// </summary>
     IScheduler Scheduler { get; }
 }

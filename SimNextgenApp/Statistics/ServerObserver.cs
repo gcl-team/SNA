@@ -40,8 +40,8 @@ public class ServerObserver<TLoad>
         _loadsCompletedCount = 0;
 
         // Subscribe to the server's events
-        _server.StateChangeActions.Add(OnServerStateChange);
-        _server.LoadDepartActions.Add(OnLoadDepart);
+        _server.StateChanged += OnServerStateChange;
+        _server.LoadDeparted += OnLoadDepart;
     }
 
     /// <summary>
