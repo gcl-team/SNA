@@ -114,14 +114,12 @@ internal class SimpleMmckModel : AbstractSimulationModel
             currentTotalInSystem += server.NumberInService;
         }
 
-        if (currentTotalInSystem >= SystemCapacityK)
-        {
+        WaitingLine.TryScheduleEnqueue(load, _runContext);
+
+        WaitingLine.LoadBalked += (balkedLoad, balkTime) => {
             BalkedLoadsCount++;
-            _modelLogger.LogWarning($"      Load {load.Id} BALKED. System is full (InSystem: {currentTotalInSystem}/{SystemCapacityK}).");
-            // Invoke balk actions on the queue if appropriate, or system-level balk actions
-            WaitingLine.OnBalkActions.InvokeForAll(la => la(load, generationTime)); // Assuming extension method
-            return;
-        }
+            _modelLogger.LogInformation($"      M/M/c/K model noted that Load {balkedLoad.Id} balked at time {balkTime}.");
+        };
 
         TotalLoadsEnteredSystem++;
         _modelLogger.LogTrace($"      Load {load.Id} enters system. Total in system before this load: {currentTotalInSystem - WaitingLine.Occupancy - ServiceChannels.Sum(s => s.NumberInService)} (Pre-check) -> now {currentTotalInSystem} (Post-check, pre-placement).");
@@ -234,12 +232,15 @@ internal class SimpleMmckModel : AbstractSimulationModel
         }
 
         // Setup the action for when an item is dequeued from the WaitingLine
-        WaitingLine.OnDequeueActions.Add((dequeuedLoad, dequeueTime) => {
+        WaitingLine.LoadDequeued += (dequeuedLoad, dequeueTime) => {
             if (_runContext == null) return;
+
+            // This is the core logic connecting your queue to your servers.
+            // It's a perfect example of what an event handler should do.
             Server<MyLoad>? idleServer = ServiceChannels.FirstOrDefault(s => s.Vacancy > 0);
             if (idleServer != null)
             {
-                _modelLogger.LogInformation($"      Load {dequeuedLoad.Id} dequeued, Server '{idleServer.Name}' attempting to serve.");
+                _modelLogger.LogInformation($"      Load {dequeuedLoad.Id} dequeued at {dequeueTime}, Server '{idleServer.Name}' attempting to serve.");
                 idleServer.TryStartService(dequeuedLoad);
             }
             else
@@ -253,7 +254,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
                 // Re-queuing immediately could cause a loop if not careful.
                 // A better model might be that the DequeueEvent checks for an idle server *before* fully dequeuing.
             }
-        });
+        };
     }
 
     public override void WarmedUp(double simulationTime)

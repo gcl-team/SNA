@@ -1,10 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
-using SimNextgenApp.Core;
+﻿using SimNextgenApp.Core;
 
 namespace SimNextgenApp.Events;
 
 /// <summary>
-/// Base class for events specific to the internal operations of a <see cref="Core.SimQueue{TLoad}"/>.
+/// Base class for events specific to the internal operations of a <see cref="SimQueue{TLoad}"/>.
 /// </summary>
 /// <typeparam name="TLoad">The type of load managed by the queue.</typeparam>
 internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
@@ -12,7 +11,7 @@ internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
     /// <summary>
     /// Gets the queue instance that this event pertains to.
     /// </summary>
-    internal Core.SimQueue<TLoad> OwningQueue { get; }
+    internal SimQueue<TLoad> OwningQueue { get; }
 
 
     /// <inheritdoc/>
@@ -22,7 +21,7 @@ internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
         {
             { "GeneratorName", OwningQueue.Name },
             { "Vacancy", OwningQueue.Vacancy },
-            { "Waiting", OwningQueue.Waiting },
+            { "Occupancy", OwningQueue.Occupancy },
             { "Capacity", OwningQueue.Capacity }
         };
     }
@@ -32,7 +31,7 @@ internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
     /// </summary>
     /// <param name="owner">The queue that owns this event.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> is null.</exception>
-    protected AbstractQueueEvent(Core.SimQueue<TLoad> owner)
+    protected AbstractQueueEvent(SimQueue<TLoad> owner)
     {
         ArgumentNullException.ThrowIfNull(owner);
         OwningQueue = owner;
@@ -56,42 +55,49 @@ internal sealed class EnqueueEvent<TLoad> : AbstractQueueEvent<TLoad>
     /// <param name="owner">The queue that will receive the load.</param>
     /// <param name="loadToEnqueue">The load to be enqueued.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> or <paramref name="loadToEnqueue"/> is null.</exception>
-    public EnqueueEvent(Core.SimQueue<TLoad> owner, TLoad loadToEnqueue) : base(owner)
+    public EnqueueEvent(SimQueue<TLoad> owner, TLoad loadToEnqueue) : base(owner)
     {
         ArgumentNullException.ThrowIfNull(loadToEnqueue, nameof(loadToEnqueue));
         LoadToEnqueue = loadToEnqueue;
     }
 
     /// <summary>
-    /// Adds the load to the queue, updates statistics, and may trigger a dequeue attempt.
+    /// Executes the enqueue operation by delegating to the owning queue handler method.
     /// </summary>
     /// <param name="engine">The simulation run context.</param>
     public override void Execute(IRunContext engine)
     {
-        // Safeguard: Check if the queue is unexpectedly full for finite queues.
-        if (OwningQueue.Vacancy <= 0 && OwningQueue.Configuration.Capacity != int.MaxValue)
-        {
-            OwningQueue.Logger.LogError("EnqueueEvent for {QueueName} (Capacity: {Capacity}) found queue full upon execution. Load {Load} will be dropped.",
-                OwningQueue.Name, OwningQueue.Configuration.Capacity, LoadToEnqueue);
-            // OwningQueue.InvokeBalkActions(LoadToEnqueue, engine.ClockTime); // If such a method exists
-            return;
-        }
-
-        double currentTime = engine.ClockTime;
-
-        OwningQueue.Waiting.Add(LoadToEnqueue);
-        OwningQueue.TimeBasedMetric.ObserveChange(1, currentTime); // Update based on actual count change
-        OwningQueue.Logger.LogTrace("Enqueued {Load} into {QueueName} at {Time}. New Occupancy: {Occupancy}",
-            LoadToEnqueue, OwningQueue.Name, currentTime, OwningQueue.Occupancy);
-
-        foreach (var action in OwningQueue.OnStateChangeActions)
-        {
-            action(currentTime);
-        }
+        OwningQueue.HandleEnqueue(LoadToEnqueue, engine.ClockTime);
     }
 
     /// <inheritdoc/>
-    public override string ToString() => $"{OwningQueue.Name}_Enqueue({LoadToEnqueue})";
+    public override string ToString() => $"{OwningQueue.Name}_Enqueue({LoadToEnqueue})#{EventId} @ {ExecutionTime:F4}";
+}
+
+/// <summary>
+/// Event that handles removing a <typeparamref name="TLoad"/> entity from the head of the <see cref="AbstractQueueEvent{TLoad}.OwningQueue"/>.
+/// </summary>
+/// <typeparam name="TLoad">The type of load being dequeued.</typeparam>
+internal sealed class DequeueEvent<TLoad> : AbstractQueueEvent<TLoad>
+{
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DequeueEvent{TLoad}"/> class.
+    /// </summary>
+    /// <param name="owner">The queue from which a load will be dequeued.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> is null.</exception>
+    public DequeueEvent(SimQueue<TLoad> owner) : base(owner) { }
+
+    /// <summary>
+    /// Executes the dequeue operation by delegating to the owning queue handler method.
+    /// </summary>
+    /// <param name="engine">The simulation run context.</param>
+    public override void Execute(IRunContext engine)
+    {
+        OwningQueue.HandleDequeue(engine.ClockTime);
+    }
+
+    /// <inheritdoc/>
+    public override string ToString() => $"{OwningQueue.Name}_Dequeue#{EventId} @ {ExecutionTime:F4}";
 }
 
 /// <summary>
@@ -111,81 +117,20 @@ internal sealed class UpdateToDequeueEvent<TLoad> : AbstractQueueEvent<TLoad>
     /// <param name="owner">The queue whose dequeue state is to be updated.</param>
     /// <param name="newToDequeueState">The new dequeue permission state.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> is null.</exception>
-    public UpdateToDequeueEvent(Core.SimQueue<TLoad> owner, bool newToDequeueState) : base(owner)
+    public UpdateToDequeueEvent(SimQueue<TLoad> owner, bool newToDequeueState) : base(owner)
     {
         NewToDequeueState = newToDequeueState;
     }
 
     /// <summary>
-    /// Sets the queue's dequeue permission and may trigger a dequeue attempt if now permitted.
+    /// Executes the dequeue permission update operation by delegating to the owning queue handler method.
     /// </summary>
     /// <param name="engine">The simulation run context.</param>
     public override void Execute(IRunContext engine)
     {
-        bool oldState = OwningQueue.ToDequeue;
-        OwningQueue.SetToDequeueState(NewToDequeueState); // Uses the internal setter in Queue
-        OwningQueue.Logger.LogTrace("UpdateToDequeueEvent for {QueueName}: ToDequeue changed from {OldState} to {NewState} at {Time}",
-            OwningQueue.Name, oldState, NewToDequeueState, engine.ClockTime);
-
-        if (OwningQueue.ToDequeue && OwningQueue.Occupancy > 0)
-        {
-            engine.Scheduler.Schedule(new DequeueEvent<TLoad>(OwningQueue), engine.ClockTime);
-        }
+        OwningQueue.HandleUpdateToDequeue(NewToDequeueState, engine.ClockTime);
     }
 
     /// <inheritdoc/>
     public override string ToString() => $"{OwningQueue.Name}_UpdateToDequeue({NewToDequeueState})";
-}
-
-/// <summary>
-/// Event that handles removing a <typeparamref name="TLoad"/> entity from the head of the <see cref="AbstractQueueEvent{TLoad}.OwningQueue"/>.
-/// </summary>
-/// <typeparam name="TLoad">The type of load being dequeued.</typeparam>
-internal sealed class DequeueEvent<TLoad> : AbstractQueueEvent<TLoad>
-{
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DequeueEvent{TLoad}"/> class.
-    /// </summary>
-    /// <param name="owner">The queue from which a load will be dequeued.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="owner"/> is null.</exception>
-    public DequeueEvent(Core.SimQueue<TLoad> owner) : base(owner) { }
-
-    /// <summary>
-    /// Removes a load from the queue, updates statistics, invokes actions, and may trigger further dequeues.
-    /// </summary>
-    /// <param name="engine">The simulation run context.</param>
-    public override void Execute(IRunContext engine)
-    {
-        if (OwningQueue.Occupancy == 0)
-        {
-            OwningQueue.Logger.LogTrace("DequeueEvent for {QueueName}: Queue is empty. No action.", OwningQueue.Name);
-            return;
-        }
-        if (!OwningQueue.ToDequeue)
-        {
-            OwningQueue.Logger.LogTrace("DequeueEvent for {QueueName}: Queue is not set to ToDequeue. No action.", OwningQueue.Name);
-            return;
-        }
-
-        TLoad load = OwningQueue.Waiting[0];
-        OwningQueue.Waiting.RemoveAt(0);
-
-        double currentTime = engine.ClockTime;
-        OwningQueue.TimeBasedMetric.ObserveChange(-1, currentTime); // Update based on actual count change
-        OwningQueue.Logger.LogTrace("Dequeued {Load} from {QueueName} at {Time}. New Occupancy: {Occupancy}",
-            load, OwningQueue.Name, currentTime, OwningQueue.Occupancy);
-
-        foreach (var action in OwningQueue.OnDequeueActions)
-        {
-            action(load, currentTime);
-        }
-
-        foreach (var action in OwningQueue.OnStateChangeActions)
-        {
-            action(currentTime);
-        }
-    }
-
-    /// <inheritdoc/>
-    public override string ToString() => $"{OwningQueue.Name}_Dequeue";
 }

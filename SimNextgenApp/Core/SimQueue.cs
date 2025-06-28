@@ -8,33 +8,38 @@ namespace SimNextgenApp.Core;
 
 /// <summary>
 /// Represents a queueing component that holds entities of type <typeparamref name="TLoad"/>
-/// according to a specified capacity and (implicitly) a First-In, First-Out (FIFO) discipline.
+/// based on a FIFO discipline and a specified capacity.
 /// </summary>
 /// <typeparam name="TLoad">The type of load (entity) managed by this queue.</typeparam>
 public class SimQueue<TLoad> : AbstractSimulationModel
 {
     private readonly QueueStaticConfig<TLoad> _config;
     private IScheduler? _scheduler;
+    private readonly Queue<TLoad> _waitingItems = new();
+
     internal ILogger<SimQueue<TLoad>> Logger { get; }
 
     /// <summary>
-    /// Gets the list of loads currently waiting in the queue.
+    /// Gets a read-only collection of loads currently waiting in the queue.
     /// </summary>
-    public List<TLoad> Waiting { get; private set; } = [];
+    public IReadOnlyCollection<TLoad> WaitingItems => _waitingItems;
 
     /// <summary>
     /// Gets the current number of loads (entities) waiting in the queue.
     /// </summary>
-    public int Occupancy => Waiting.Count;
+    /// <value>The number of items currently in the queue.</value>
+    public int Occupancy => _waitingItems.Count;
 
     /// <summary>
     /// Gets the configured capacity of the queue.
     /// </summary>
+    /// <value>The capacity of the queue.</value>
     public int Capacity => _config.Capacity;
 
     /// <summary>
     /// Gets the number of available spaces remaining in the queue before it reaches its configured capacity.
     /// </summary>
+    /// <value>The number of available spaces remaining in the queue.</value>
     public int Vacancy => (_config.Capacity == int.MaxValue) ? int.MaxValue : _config.Capacity - Occupancy;
 
     // 
@@ -64,28 +69,24 @@ public class SimQueue<TLoad> : AbstractSimulationModel
     public TimeBasedMetric TimeBasedMetric { get; private set; }
 
     /// <summary>
-    /// Actions to perform when an item is successfully enqueued.
-    /// Takes the enqueued load and the simulation time.
+    /// Occurs when a load has been successfully enqueued.
     /// </summary>
-    public List<Action<TLoad, double>> OnEnqueueActions { get; } = new List<Action<TLoad, double>>();
+    public event Action<TLoad, double>? LoadEnqueued;
 
     /// <summary>
-    /// Actions to perform when an item is dequeued.
-    /// Takes the dequeued load and the simulation time.
+    /// Occurs when a load has been successfully dequeued.
     /// </summary>
-    public List<Action<TLoad, double>> OnDequeueActions { get; } = new List<Action<TLoad, double>>();
+    public event Action<TLoad, double>? LoadDequeued;
 
     /// <summary>
-    /// Actions to perform when an item attempts to enqueue but is balked due to full capacity.
-    /// Takes the balked load and the simulation time.
+    /// Occurs when an item attempts to enqueue but is balked due to a full queue.
     /// </summary>
-    public List<Action<TLoad, double>> OnBalkActions { get; } = new List<Action<TLoad, double>>();
+    public event Action<TLoad, double>? LoadBalked;
 
     /// <summary>
-    /// Actions to perform when the queue's state changes significantly (e.g., occupancy change, ToDequeue status change).
-    /// Takes the current simulation time.
+    /// Occurs when the queue state changes, such as occupancy or its ToDequeue status.
     /// </summary>
-    public List<Action<double>> OnStateChangeActions { get; } = [];
+    public event Action<double>? StateChanged;
 
     /// <summary>
     /// Initialises a new instance of the <see cref="SimQueue{TLoad}"/> class.
@@ -116,20 +117,24 @@ public class SimQueue<TLoad> : AbstractSimulationModel
     /// </summary>
     /// <param name="load">The item to enqueue.</param>
     /// <param name="engineContext">The current run context (provides time and scheduler).</param>
-    /// <returns>True if an enqueue attempt was scheduled, false if immediate balking occurred (e.g. no scheduler).</returns>
+    /// <returns>
+    /// <c>true</c> if an enqueue event was successfully scheduled; 
+    /// <c>false</c> if the queue is already at full capacity and the load balked.
+    /// </returns>
     public bool TryScheduleEnqueue(TLoad load, IRunContext engineContext)
     {
         ArgumentNullException.ThrowIfNull(load);
         ArgumentNullException.ThrowIfNull(engineContext);
-        EnsureSchedulerInitialized(); // Ensure _scheduler is set via Initialize
+        EnsureSchedulerInitialized();
 
-        // Pre-check for obvious balking if the queue is finite and definitely full.
-        // The EnqueueEvent itself might have more robust logic if state can change between now and event execution.
-        if (Vacancy <= 0 && _config.Capacity != int.MaxValue)
+       if (Vacancy <= 0 && _config.Capacity != int.MaxValue)
         {
-            Logger.LogWarning("Queue '{QueueName}' is full. Load {Load} balked immediately at {Time}.", Name, load, engineContext.ClockTime);
-            foreach (var action in OnBalkActions) action(load, engineContext.ClockTime);
-            return false; // Balk immediately
+            Logger.LogWarning("Attempted to enqueue {Load} into full queue {QueueName} at {Time}. BALKING.",
+                load, Name, engineContext.ClockTime);
+
+            OnLoadBalked(load, engineContext.ClockTime);
+
+            return false; // Balk immediately - Do not enqueue
         }
 
         engineContext.Scheduler.Schedule(new EnqueueEvent<TLoad>(this, load), engineContext.ClockTime);
@@ -208,4 +213,65 @@ public class SimQueue<TLoad> : AbstractSimulationModel
     {
         _toDequeue = newState;
     }
+
+    internal void HandleEnqueue(TLoad load, double currentTime)
+    {
+        if (Vacancy <= 0 && Configuration.Capacity != int.MaxValue)
+        {
+            Logger.LogError("EnqueueEvent for {QueueName} (Capacity: {Capacity}) found queue full upon execution. Load {Load} will be dropped.",
+                Name, Configuration.Capacity, load);
+            return;
+        }
+
+        _waitingItems.Enqueue(load);
+        TimeBasedMetric.ObserveChange(Occupancy, currentTime);
+        Logger.LogTrace("Enqueued {Load} into {QueueName} at {Time}. New Occupancy: {Occupancy}",
+            load, Name, currentTime, Occupancy);
+
+        // Notify observers
+        OnLoadEnqueued(load,currentTime);
+        OnStateChanged(currentTime);
+    }
+
+    internal void HandleDequeue(double currentTime)
+    {
+        if (Occupancy == 0)
+        {
+            Logger.LogTrace("DequeueEvent for {QueueName}: Queue is empty. No action.", Name);
+            return;
+        }
+
+        if (!ToDequeue)
+        {
+            Logger.LogTrace("DequeueEvent for {QueueName}: Queue is not set to ToDequeue. No action.", Name);
+            return;
+        }
+
+        var load = _waitingItems.Dequeue();
+        TimeBasedMetric.ObserveChange(Occupancy, currentTime);
+        Logger.LogTrace("Dequeued {Load} from {QueueName} at {Time}. New Occupancy: {Occupancy}",
+            load, Name, currentTime, Occupancy);
+
+        // Notify observers
+        OnLoadDequeued(load, currentTime);
+        OnStateChanged(currentTime);
+    }
+
+    internal void HandleUpdateToDequeue(bool toDequeue, double currentTime)
+    {
+        if (_toDequeue == toDequeue) return;
+
+        Logger.LogTrace("UpdateToDequeueEvent for {QueueName}: ToDequeue changed from {OldState} to {NewState} at {Time}",
+            Name, _toDequeue, toDequeue, currentTime);
+        
+        _toDequeue = toDequeue;
+
+        // Notify observers
+        OnStateChanged(currentTime);
+    }
+
+    private void OnLoadEnqueued(TLoad load, double time) => LoadEnqueued?.Invoke(load, time);
+    private void OnLoadDequeued(TLoad load, double time) => LoadDequeued?.Invoke(load, time);
+    private void OnLoadBalked(TLoad load, double time) => LoadBalked?.Invoke(load, time);
+    private void OnStateChanged(double time) => StateChanged?.Invoke(time);
 }
