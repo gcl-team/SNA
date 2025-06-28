@@ -67,7 +67,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
 
         foreach (var server in ServiceChannels)
         {
-            server.LoadDepartActions.Add((departedLoad, departureTime) =>
+            server.LoadDeparted += (departedLoad, departureTime) =>
             {
                 _modelLogger.LogInformation($"--- [SERVER {server.Name} FREE] SimTime: {departureTime:F2} after serving {departedLoad}.");
                 if (_runContext != null && WaitingLine.ToDequeue && WaitingLine.Occupancy > 0)
@@ -75,7 +75,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
                     _modelLogger.LogInformation($"      Server '{server.Name}' is free, queue has items. Triggering dequeue attempt.");
                     WaitingLine.TriggerDequeueAttempt(_runContext);
                 }
-            });
+            };
         }
 
         // --- Wire components together ---
@@ -88,11 +88,11 @@ internal class SimpleMmckModel : AbstractSimulationModel
         // OR (more common) C. When a server becomes free, it tries to pull from the queue:
         foreach (var server in ServiceChannels)
         {
-            server.LoadDepartActions.Add((departedLoad, departureTime) =>
+            server.LoadDeparted += (departedLoad, departureTime) =>
             {
                 // server has just become free (or one of its units has)
                 TryServeNextFromQueue(server, departureTime); // Pass server that just finished
-            });
+            };
         }
     }
 
@@ -126,13 +126,12 @@ internal class SimpleMmckModel : AbstractSimulationModel
         TotalLoadsEnteredSystem++;
         _modelLogger.LogTrace($"      Load {load.Id} enters system. Total in system before this load: {currentTotalInSystem - WaitingLine.Occupancy - ServiceChannels.Sum(s => s.NumberInService)} (Pre-check) -> now {currentTotalInSystem} (Post-check, pre-placement).");
 
-
         // Try to send to an idle server directly
         Server<MyLoad>? idleServer = ServiceChannels.FirstOrDefault(s => s.Vacancy > 0);
         if (idleServer != null)
         {
             _modelLogger.LogInformation($"      Load {load.Id} goes directly to idle Server '{idleServer.Name}'.");
-            bool accepted = idleServer.TryStartService(_runContext, load);
+            bool accepted = idleServer.TryStartService(load);
             if (!accepted)
             {
                 // This should not happen if Vacancy > 0 was true unless there's a race or an issue
@@ -241,7 +240,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
             if (idleServer != null)
             {
                 _modelLogger.LogInformation($"      Load {dequeuedLoad.Id} dequeued, Server '{idleServer.Name}' attempting to serve.");
-                idleServer.TryStartService(_runContext, dequeuedLoad);
+                idleServer.TryStartService(dequeuedLoad);
             }
             else
             {

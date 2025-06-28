@@ -2,7 +2,10 @@
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
+using System.Collections.ObjectModel;
+using System.Runtime.CompilerServices;
 
+[assembly: InternalsVisibleTo("SimNextgenApp.Tests")]
 namespace SimNextgenApp.Core;
 
 /// <summary>
@@ -16,15 +19,18 @@ public class Server<TLoad> : AbstractSimulationModel
     private readonly Random _random;
     private IScheduler? _scheduler;
 
+    internal readonly HashSet<TLoad> _loadsInService;
+    internal readonly Dictionary<TLoad, double> _serviceStartTimes;
+
     /// <summary>
     /// Gets the set of loads currently being processed (in service) by the server.
     /// </summary>
-    public HashSet<TLoad> LoadsInService { get; }
+    public IReadOnlySet<TLoad> LoadsInService => _loadsInService;
 
     /// <summary>
     /// Gets the number of loads currently being processed by the server.
     /// </summary>
-    public int NumberInService => LoadsInService.Count;
+    public int NumberInService => _loadsInService.Count;
 
     /// <summary>
     /// Gets the configured capacity of the server.
@@ -41,20 +47,21 @@ public class Server<TLoad> : AbstractSimulationModel
     /// Key: Load, Value: Start service time (double).
     /// Cleared for a load once it departs and its metrics (like flow time) are potentially recorded.
     /// </summary>
-    public Dictionary<TLoad, double> ServiceStartTimes { get; }
+    public IReadOnlyDictionary<TLoad, double> ServiceStartTimes => new ReadOnlyDictionary<TLoad, double>(_serviceStartTimes);
 
-    // Event Hooks
+
+    // --- Event Hooks (Idiomatic C# Events) ---
     /// <summary>
     /// Actions to execute when a load departs from the server after completing service.
-    /// Takes the departed load and its service completion time.
+    /// Provides the departed load and its service completion time.
     /// </summary>
-    public List<Action<TLoad, double>> LoadDepartActions { get; }
+    public event Action<TLoad, double>? LoadDeparted;
 
     /// <summary>
     /// Actions to execute when the server's state changes (e.g., becomes busy, becomes idle, load departs).
-    /// Takes the current simulation time.
+    /// Provides the current simulation time.
     /// </summary>
-    public List<Action<double>> StateChangeActions { get; }
+    public event Action<double>? StateChanged;
 
     /// <summary>
     /// Initialises a new instance of the <see cref="Server{TLoad}"/> class.
@@ -66,42 +73,51 @@ public class Server<TLoad> : AbstractSimulationModel
     /// <exception cref="ArgumentException">Thrown if essential configuration like ServiceTime is missing.</exception>
     public Server(ServerStaticConfig<TLoad> config, int seed, string instanceName) : base(instanceName)
     {
-        ArgumentNullException.ThrowIfNull(config);
-        
+        _config = config ?? throw new ArgumentNullException(nameof(config));
+
         if (config.Capacity <= 0 && config.Capacity != int.MaxValue)
             throw new ArgumentOutOfRangeException(nameof(config), "Server capacity must be positive or int.MaxValue.");
 
-        _config = config;
         _random = new Random(seed);
-
-        LoadsInService = [];
-        ServiceStartTimes = [];
-
-        LoadDepartActions = [];
-        StateChangeActions = [];
+        _loadsInService = [];
+        _serviceStartTimes = [];
     }
 
     /// <summary>
     /// Attempts to start serving the given load if capacity is available.
-    /// Schedules a <see cref="ServerStartServiceEvent{TLoad}"/> for the current simulation time.
+    /// If successful, the server's state is updated and a service completion event is scheduled.
     /// </summary>
-    /// <param name="engine">The simulation engine instance.</param>
     /// <param name="loadToServe">The load to start serving.</param>
     /// <returns><c>true</c> if the load could be accepted (i.e., vacancy > 0 and event scheduled); <c>false</c> otherwise.</returns>
     /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
     /// <exception cref="ArgumentNullException">Thrown if engine or loadToServe is null.</exception>
-    public bool TryStartService(IRunContext engine, TLoad loadToServe)
+    public bool TryStartService(TLoad loadToServe)
     {
-        ArgumentNullException.ThrowIfNull(engine);
         ArgumentNullException.ThrowIfNull(loadToServe);
-        EnsureSchedulerInitialized();
 
-        if (Vacancy > 0)
+        if (_scheduler == null)
         {
-            _scheduler!.Schedule(new ServerStartServiceEvent<TLoad>(this, loadToServe), engine.ClockTime);
-            return true;
+            throw new InvalidOperationException($"Server '{Name}' has not been initialized with a scheduler.");
         }
-        return false;
+
+        if (Vacancy <= 0)
+        {
+            return false;
+        }
+
+        // 1. Update state
+        _loadsInService.Add(loadToServe);
+        double currentTime = _scheduler!.ClockTime;
+        _serviceStartTimes[loadToServe] = currentTime;
+
+        // 2. Schedule completion
+        TimeSpan serviceDuration = _config.ServiceTime(loadToServe, _random);
+        _scheduler.Schedule(new ServerServiceCompleteEvent<TLoad>(this, loadToServe), serviceDuration);
+
+        // 3. Notify observers
+        OnStateChanged(currentTime);
+
+        return true;
     }
 
     /// <inheritdoc/>
@@ -116,55 +132,35 @@ public class Server<TLoad> : AbstractSimulationModel
     {
         // For any loads currently being served, reset their start time
         // so that their flow time (Time of Departure - Time of Arrival) is measured from this point forward.
-        var inServiceLoads = LoadsInService.ToList();
+        var inServiceLoads = _loadsInService.ToList();
         foreach (var load in inServiceLoads)
         {
-            ServiceStartTimes[load] = simulationTime;
+            _serviceStartTimes[load] = simulationTime;
         }
     }
 
-    private void EnsureSchedulerInitialized()
-    {
-        if (_scheduler == null)
-            throw new InvalidOperationException($"Server '{Name}' has not been initialized with a scheduler.");
-    }
-
-    internal void HandleLoadArrivalForService(TLoad load, double currentTime)
-    {
-        if (Vacancy <= 0)
-        {
-            throw new InvalidOperationException($"Server '{Name}' cannot start service for load. No vacancy. This should be handled by upstream logic.");
-        }
-
-        LoadsInService.Add(load);
-        ServiceStartTimes[load] = currentTime;
-
-        TimeSpan serviceDuration = _config.ServiceTime(load, _random);
-        _scheduler!.Schedule(new ServerServiceCompleteEvent<TLoad>(this, load), serviceDuration);
-
-        foreach (var action in StateChangeActions)
-        {
-            action(currentTime);
-        }
-    }
-
+    /// <summary>
+    /// Handles the completion of service for a specified load at the current server.
+    /// </summary>
+    /// <remarks>This method removes the specified load from the server's active service list, updates
+    /// internal state, and notifies observers of the load's departure and the server's state change.</remarks>
+    /// <param name="load">The load for which the service is being completed. Must be currently in service.</param>
+    /// <param name="currentTime">The current simulation time at which the service completion occurs.</param>
+    /// <exception cref="SimulationException">Thrown if the specified <paramref name="load"/> is not currently in service at the server.</exception>
     internal void HandleServiceCompletion(TLoad load, double currentTime)
     {
-        if (!LoadsInService.Remove(load))
+        if (!_loadsInService.Remove(load))
         {
             throw new SimulationException($"Attempted to complete service for load '{load}' which was not in service at Server '{Name}'. The simulation state is inconsistent.");
         }
 
-        ServiceStartTimes.Remove(load);
+        _serviceStartTimes.Remove(load);
 
-        foreach (var action in LoadDepartActions)
-        {
-            action(load, currentTime);
-        }
-
-        foreach (var action in StateChangeActions)
-        {
-            action(currentTime);
-        }
+        // Notify observers
+        OnLoadDeparted(load, currentTime);
+        OnStateChanged(currentTime);
     }
+
+    private void OnLoadDeparted(TLoad load, double time) => LoadDeparted?.Invoke(load, time);
+    private void OnStateChanged(double time) => StateChanged?.Invoke(time);
 }

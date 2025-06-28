@@ -11,21 +11,16 @@ public class ServerTests
     private const int DefaultSeed = 456;
 
     private Mock<IScheduler> _mockScheduler;
-    private Mock<IRunContext> _mockEngine;
-
     private double _currentTestTime;
 
-    private ServerStaticConfig<DummyLoad> _defaultConfig;
-    private Func<DummyLoad, Random, TimeSpan> _defaultServiceTimeFunc = (load, rnd) => TimeSpan.FromSeconds(10);
+    private readonly ServerStaticConfig<DummyLoad> _defaultConfig;
+    private readonly Func<DummyLoad, Random, TimeSpan> _defaultServiceTimeFunc = (load, rnd) => TimeSpan.FromSeconds(10);
 
     public ServerTests()
     {
         _mockScheduler = new Mock<IScheduler>();
 
-        _mockEngine = new Mock<IRunContext>();
-        _mockEngine.As<IScheduler>().Setup(s => s.Schedule(It.IsAny<AbstractEvent>(), It.IsAny<double>()));
-        _mockEngine.SetupGet(e => e.ClockTime).Returns(() => _currentTestTime);
-        _mockEngine.Setup(e => e.Scheduler).Returns(_mockScheduler.Object);
+        _mockScheduler.SetupGet(s => s.ClockTime).Returns(() => _currentTestTime);
 
         _defaultConfig = new ServerStaticConfig<DummyLoad>(_defaultServiceTimeFunc) { Capacity = 1 };
     }
@@ -40,7 +35,7 @@ public class ServerTests
         return server;
     }
 
-    private DummyLoad CreateDummyLoad(string? tag = null) => new DummyLoad(tag);
+    private DummyLoad CreateDummyLoad(string? tag = null) => new(tag);
 
     [Fact]
     public void Constructor_WithValidConfig_ShouldInitializeProperly()
@@ -52,8 +47,6 @@ public class ServerTests
         Assert.Equal(2, server.Vacancy);
         Assert.Empty(server.LoadsInService);
         Assert.NotNull(server.ServiceStartTimes);
-        Assert.NotNull(server.LoadDepartActions);
-        Assert.NotNull(server.StateChangeActions);
     }
 
     [Fact]
@@ -81,28 +74,10 @@ public class ServerTests
     }
 
     [Fact]
-    public void Initialize_SetsScheduler()
-    {
-        var server = CreateAndInitializeServer(); // Initialize is called inside
-                                                  // Indirect assertion: TryStartService should now use the initialized scheduler
-        _currentTestTime = 0;
-        Assert.True(server.TryStartService(_mockEngine.Object, CreateDummyLoad()));
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<ServerStartServiceEvent<DummyLoad>>(), 0.0), Times.Once);
-    }
-
-    // --- Tests for TryStartService ---
-    [Fact]
     public void TryStartService_BeforeInitialize_ThrowsInvalidOperationException()
     {
-        var server = new Server<DummyLoad>(_defaultConfig, DefaultSeed, DefaultServerName); // Not initialized
-        Assert.Throws<InvalidOperationException>(() => server.TryStartService(_mockEngine.Object, CreateDummyLoad()));
-    }
-
-    [Fact]
-    public void TryStartService_NullEngine_ThrowsArgumentNullException()
-    {
-        var server = CreateAndInitializeServer();
-        Assert.Throws<ArgumentNullException>(() => server.TryStartService(null!, CreateDummyLoad()));
+        var server = new Server<DummyLoad>(_defaultConfig, DefaultSeed, DefaultServerName); // Not initialized yet
+        Assert.Throws<InvalidOperationException>(() => server.TryStartService(CreateDummyLoad()));
     }
 
     [Fact]
@@ -110,26 +85,40 @@ public class ServerTests
     {
         var server = CreateAndInitializeServer();
         _currentTestTime = 0.0;
-        Assert.Throws<ArgumentNullException>(() => server.TryStartService(_mockEngine.Object, null!));
+        Assert.Throws<ArgumentNullException>(() => server.TryStartService(null!));
     }
 
     [Fact]
     public void TryStartService_WithVacancy_ReturnsTrueAndSchedulesStartServiceEvent()
     {
         // Arrange
-        var server = CreateAndInitializeServer(config: new ServerStaticConfig<DummyLoad>(_defaultServiceTimeFunc) { Capacity = 1 });
+        var serviceDuration = TimeSpan.FromSeconds(5);
+        var config = new ServerStaticConfig<DummyLoad>((l, r) => serviceDuration) { Capacity = 1 };
+        var server = CreateAndInitializeServer(config: config);
         var load = CreateDummyLoad();
         _currentTestTime = 10.0;
 
+        bool wasStateChangedFired = false;
+        server.StateChanged += time => wasStateChangedFired = true;
+
         // Act
-        bool result = server.TryStartService(_mockEngine.Object, load);
+        bool result = server.TryStartService(load);
 
         // Assert
         Assert.True(result);
-        // Verify that the scheduler provided during Initialize was used
+
+        // 1. Verify internal state change
+        Assert.Contains(load, server.LoadsInService);
+        Assert.Equal(1, server.NumberInService);
+        Assert.Equal(10.0, server.ServiceStartTimes[load]);
+
+        // 2. Verify scheduling of the correct future event
         _mockScheduler.Verify(s => s.Schedule(
-            It.Is<ServerStartServiceEvent<DummyLoad>>(ev => ev.LoadToServe == load && ev.OwningServer == server),
-            10.0), Times.Once);
+            It.Is<ServerServiceCompleteEvent<DummyLoad>>(ev => ev.ServedLoad == load),
+            serviceDuration), Times.Once);
+
+        // 3. Verify event hook was fired
+        Assert.True(wasStateChangedFired);
     }
 
     [Fact]
@@ -139,123 +128,84 @@ public class ServerTests
         var server = CreateAndInitializeServer(config: new ServerStaticConfig<DummyLoad>(_defaultServiceTimeFunc) { Capacity = 1 });
         var load1 = CreateDummyLoad("L1");
         _currentTestTime = 10.0;
-        server.TryStartService(_mockEngine.Object, load1);
+        server.TryStartService(load1); // Fill the one slot of capacity
 
-        var startEvent = new ServerStartServiceEvent<DummyLoad>(server, load1);
-        startEvent.Execute(_mockEngine.Object);
-        _mockScheduler.ResetCalls(); // Reset calls after filling capacity
+        // Reset mocks and event listeners to ensure we only test the second call.
+        _mockScheduler.Invocations.Clear();
+        bool wasStateChangedFired = false;
+        server.StateChanged += time => wasStateChangedFired = true;
 
         var load2 = CreateDummyLoad("L2");
         _currentTestTime = 11.0;
 
-
         // Act
-        bool result = server.TryStartService(_mockEngine.Object, load2);
+        bool result = server.TryStartService(load2);
 
         // Assert
         Assert.False(result);
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<AbstractEvent>(), It.IsAny<double>()), Times.Never);
-    }
-
-    // --- Tests for Event Execution Logic ---
-    [Fact]
-    public void ServerStartServiceEvent_Execute_UpdatesStateAndSchedulesCompletion()
-    {
-        // Arrange
-        var serviceDuration = TimeSpan.FromSeconds(5);
-        var config = new ServerStaticConfig<DummyLoad>((l, r) => serviceDuration) { Capacity = 1 };
-        var server = CreateAndInitializeServer(config: config);
-        var load = new DummyLoad("L1");
-        _currentTestTime = 20.0;
-
-        bool wasStateChangeFired = false;
-        server.StateChangeActions.Add(time => wasStateChangeFired = true);
-
-        var startServiceEvent = new ServerStartServiceEvent<DummyLoad>(server, load);
-
-        AbstractEvent? scheduledCompletionEvent = null;
-
-        _mockScheduler
-            .Setup(s => s.Schedule(It.IsAny<ServerServiceCompleteEvent<DummyLoad>>(), serviceDuration))
-            .Callback<AbstractEvent, TimeSpan>((ev, delay) => scheduledCompletionEvent = ev)
-            .Verifiable();
-
-        // Act
-        startServiceEvent.Execute(_mockEngine.Object);
-
-        // Assert
-        // 1. Verify internal state
-        Assert.Contains(load, server.LoadsInService);
-        Assert.Equal(1, server.NumberInService);
-        Assert.Equal(20.0, server.ServiceStartTimes[load]);
-
-        // 2. Verify signal was fired
-        Assert.True(wasStateChangeFired);
-
-        // 3. Verify the scheduling call
-        _mockScheduler.Verify(); // This will now pass!
-        Assert.NotNull(scheduledCompletionEvent);
-        var completionEvent = Assert.IsType<ServerServiceCompleteEvent<DummyLoad>>(scheduledCompletionEvent);
-        Assert.Same(load, completionEvent.ServedLoad);
+        Assert.DoesNotContain(load2, server.LoadsInService); // State should be unchanged
+        _mockScheduler.Verify(s => s.Schedule(It.IsAny<AbstractEvent>(), It.IsAny<TimeSpan>()), Times.Never); // No events scheduled
+        Assert.False(wasStateChangedFired); // No state change event fired
     }
 
     [Fact]
-    public void ServerServiceCompleteEvent_Execute_UpdatesStateAndInvokesDepartureActions()
+    public void HandleServiceCompletion_UpdatesStateAndInvokesDepartureEvents()
     {
         // Arrange
         var server = CreateAndInitializeServer(); // Capacity 1
         var load = CreateDummyLoad("L1");
-        _currentTestTime = 20.0;
 
-        // Simulate load started service earlier
-        server.LoadsInService.Add(load);
-        server.ServiceStartTimes[load] = 10.0;
+        // Manually put the server in a state as if a load was being served.
+        // We do this because we are testing the internal HandleServiceCompletion method,
+        // which is called by the ServerServiceCompleteEvent.
+        server._loadsInService.Add(load);
+        server._serviceStartTimes[load] = 10.0;
 
-        bool wasStateChangeFired = false;
+        bool wasStateChangedFired = false;
         bool wasDepartureFired = false;
         (DummyLoad? departedLoad, double departureTime) departureInfo = (null, -1.0);
 
-        server.StateChangeActions.Add(time => wasStateChangeFired = true);
-        server.LoadDepartActions.Add((l, t) =>
+        // REFACTOR: Subscribing to C# events
+        server.StateChanged += time => wasStateChangedFired = true;
+        server.LoadDeparted += (l, t) =>
         {
             wasDepartureFired = true;
             departureInfo = (l, t);
-        });
+        };
 
-        var serviceCompleteEvent = new ServerServiceCompleteEvent<DummyLoad>(server, load);
         _currentTestTime = 25.0; // Time of completion
 
         // Act
-        serviceCompleteEvent.Execute(_mockEngine.Object);
+        // We directly invoke the internal method to unit test its logic in isolation.
+        server.HandleServiceCompletion(load, _currentTestTime);
 
         // Assert
-        // 1. Verify the server's internal state has been cleared
+        // 1. Verify internal state is cleared
         Assert.DoesNotContain(load, server.LoadsInService);
         Assert.Equal(0, server.NumberInService);
         Assert.Equal(1, server.Vacancy);
-        Assert.False(server.ServiceStartTimes.ContainsKey(load), "ServiceStartTimes should be cleaned up after departure.");
+        Assert.False(server.ServiceStartTimes.ContainsKey(load));
 
-        // 2. Verify the server's primary output: its signals
-        Assert.True(wasStateChangeFired, "The server should have fired a general state change signal.");
-
-        Assert.True(wasDepartureFired, "The server should have fired a specific load departure signal.");
+        // 2. Verify events were fired
+        Assert.True(wasStateChangedFired);
+        Assert.True(wasDepartureFired);
         Assert.Same(load, departureInfo.departedLoad);
         Assert.Equal(25.0, departureInfo.departureTime);
     }
 
     [Fact]
-    public void Server_WarmedUp_ResetsServiceStartTimesForInFlightLoads()
+    public void WarmedUp_ResetsServiceStartTimesForInFlightLoads()
     {
         // Arrange
-        var server = CreateAndInitializeServer(); // Capacity doesn't matter much here
+        var server = CreateAndInitializeServer();
         var load1 = new DummyLoad("L1");
         var load2 = new DummyLoad("L2");
 
         // Manually put the server in a state with 2 loads that started service before warm-up.
-        server.LoadsInService.Add(load1);
-        server.ServiceStartTimes[load1] = 40.0; // Started at T=40
-        server.LoadsInService.Add(load2);
-        server.ServiceStartTimes[load2] = 45.0; // Started at T=45
+        server._loadsInService.Add(load1);
+        server._loadsInService.Add(load2);
+        server._serviceStartTimes[load1] = 40.0;
+        server._serviceStartTimes[load2] = 45.0;
 
         double warmUpTime = 100.0;
 
@@ -263,13 +213,7 @@ public class ServerTests
         server.WarmedUp(warmUpTime);
 
         // Assert
-        // 1. Verify that the loads are still in service.
         Assert.Equal(2, server.NumberInService);
-        Assert.Contains(load1, server.LoadsInService);
-        Assert.Contains(load2, server.LoadsInService);
-
-        // 2. Verify the ONLY responsibility of Server.WarmedUp:
-        //    The start times for the in-flight loads have been updated to the warm-up time.
         Assert.Equal(warmUpTime, server.ServiceStartTimes[load1]);
         Assert.Equal(warmUpTime, server.ServiceStartTimes[load2]);
     }
