@@ -33,7 +33,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         ServicePoint = new Server<MyLoad>(serverConfig, serverSeed, "Processor"); // Server constructor doesn't take loggerFactory yet
 
         // Connect Generator to Server
-        LoadGenerator.LoadGeneratedActions.Add(HandleLoadGenerated);
+        LoadGenerator.LoadGenerated += HandleLoadGenerated;
 
         // Log when server sends a load away
         ServicePoint.LoadDeparted += (load, departureTime) =>

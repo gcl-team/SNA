@@ -53,7 +53,7 @@ internal static class SimpleGenerator
 
         // 3. (CRUCIAL FOR GENERATOR) Tell the Generator what to do when a load is generated.
         //    This connects the generator's output.
-        myGenerator.LoadGeneratedActions.Add((load, generationTime) =>
+        myGenerator.LoadGenerated += (load, generationTime) =>
         {
             load.CreationTime = generationTime; // Set the actual creation time
                                                 // In a real model, you'd send this load to a queue, a server, etc.
@@ -61,7 +61,7 @@ internal static class SimpleGenerator
                                                 // Note: This lambda might capture 'loggerFactory' or a specific logger if needed.
             var consoleLogger = loggerFactory.CreateLogger("LoadHandler");
             consoleLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime:F2} -> {load} ---");
-        });
+        };
 
         // 4. Create a Run Strategy
         var runStrategy = new DurationRunStrategy(50.0);

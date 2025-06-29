@@ -63,8 +63,6 @@ public class GeneratorTests
         Assert.False(generator.IsActive);
         Assert.Equal(0, generator.LoadsGeneratedCount);
         Assert.Null(generator.StartTime);
-        Assert.NotNull(generator.LoadGeneratedActions);
-        Assert.Empty(generator.LoadGeneratedActions);
     }
 
     [Fact]
@@ -103,7 +101,7 @@ public class GeneratorTests
         generator.Initialize(_mockScheduler.Object);
 
         // Assert
-        generator.StartGenerating(_mockEngine.Object);
+        generator.ScheduleStartGenerating(_mockEngine.Object);
         _mockScheduler.Verify(s => s.Schedule(It.IsAny<AbstractEvent>(), It.IsAny<double>()), Times.AtLeastOnce);
     }
 
@@ -115,7 +113,7 @@ public class GeneratorTests
         _currentTestTime = 0.0;
 
         // Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() => generator.StartGenerating(_mockEngine.Object));
+        var ex = Assert.Throws<InvalidOperationException>(() => generator.ScheduleStartGenerating(_mockEngine.Object));
         Assert.Contains("has not been initialized", ex.Message);
     }
 
@@ -127,7 +125,7 @@ public class GeneratorTests
         generator.Initialize(_mockScheduler.Object);
          
         // Act & Assert
-        var ex = Assert.Throws<ArgumentNullException>(() => generator.StartGenerating(null!));
+        var ex = Assert.Throws<ArgumentNullException>(() => generator.ScheduleStartGenerating(null!));
         Assert.Equal("engine", ex.ParamName);
     }
 
@@ -140,7 +138,7 @@ public class GeneratorTests
         _currentTestTime = 10.0;
 
         // Act
-        generator.StartGenerating(_mockEngine.Object);
+        generator.ScheduleStartGenerating(_mockEngine.Object);
 
         // Assert
         _mockScheduler.Verify(s => s.Schedule(
@@ -175,7 +173,7 @@ public class GeneratorTests
         generator.Initialize(_mockScheduler.Object);
         _currentTestTime = 10.0;
 
-        var startEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.StartGenerating(eng));
+        var startEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.ScheduleStartGenerating(eng));
 
         // Act
         startEvent.Execute(_mockEngine.Object);
@@ -199,7 +197,7 @@ public class GeneratorTests
         generator.Initialize(_mockScheduler.Object);
         _currentTestTime = 10.0;
 
-        var startEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.StartGenerating(eng));
+        var startEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.ScheduleStartGenerating(eng));
 
         // Act
         startEvent.Execute(_mockEngine.Object);
@@ -222,7 +220,7 @@ public class GeneratorTests
         _currentTestTime = 10.0;
 
         // First start and execution
-        var firstStartEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.StartGenerating(eng));
+        var firstStartEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.ScheduleStartGenerating(eng));
         firstStartEvent.Execute(_mockEngine.Object);
         _mockScheduler.ResetCalls(); // Reset calls after first execution
 
@@ -232,7 +230,7 @@ public class GeneratorTests
 
         // Act: Schedule and execute another StartEvent
         _currentTestTime = 12.0; // Advance time slightly
-        var secondStartEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.StartGenerating(eng));
+        var secondStartEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.ScheduleStartGenerating(eng));
         secondStartEvent.Execute(_mockEngine.Object);
 
 
@@ -253,7 +251,7 @@ public class GeneratorTests
         generator.Initialize(_mockScheduler.Object);
         // Make it active
         _currentTestTime = 10.0;
-        var startEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.StartGenerating(eng));
+        var startEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.ScheduleStartGenerating(eng));
         startEvent.Execute(_mockEngine.Object);
         Assert.True(generator.IsActive);
         _mockScheduler.ResetCalls();
@@ -261,7 +259,7 @@ public class GeneratorTests
         _currentTestTime = 20.0; // Advance time
 
         // Act
-        generator.StopGenerating(_mockEngine.Object);
+        generator.ScheduleStopGenerating(_mockEngine.Object);
 
         // Assert
         _mockScheduler.Verify(s => s.Schedule(
@@ -277,13 +275,13 @@ public class GeneratorTests
         generator.Initialize(_mockScheduler.Object);
         // Make it active
         _currentTestTime = 10.0;
-        var startEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.StartGenerating(eng));
+        var startEvent = CaptureScheduledEvent<GeneratorStartEvent<DummyLoad>>(eng => generator.ScheduleStartGenerating(eng));
         startEvent.Execute(_mockEngine.Object);
         Assert.True(generator.IsActive);
 
         // Capture the StopEvent
         _currentTestTime = 20.0;
-        var stopEvent = CaptureScheduledEvent<GeneratorStopEvent<DummyLoad>>(eng => generator.StopGenerating(eng));
+        var stopEvent = CaptureScheduledEvent<GeneratorStopEvent<DummyLoad>>(eng => generator.ScheduleStopGenerating(eng));
 
         // Act
         stopEvent.Execute(_mockEngine.Object);
@@ -293,50 +291,53 @@ public class GeneratorTests
     }
 
     [Fact]
-    public void GeneratorArriveEvent_Execute_WhenActive_GeneratesLoad_IncrementsCount_SchedulesNext_InvokesActions()
+    public void HandleLoadGeneration_WhenActive_GeneratesLoad_RaisesEvent_And_SchedulesNextArrival()
     {
         // Arrange
         var interArrivalTime = TimeSpan.FromSeconds(7);
         int createdLoadValue = 42;
         var config = new GeneratorStaticConfig<DummyLoad>(
             (r) => interArrivalTime,
-            (r) => { _loadFactoryCallCount++; return new DummyLoad { Value = createdLoadValue }; } // Assuming DummyLoad has a Value property
+            (r) => new DummyLoad { Value = createdLoadValue }
         );
-        var generator = CreateGenerator(config: config);
-        generator.Initialize(_mockScheduler.Object);
+        // Note: We use a mock scheduler here
+        var mockScheduler = new Mock<IScheduler>();
+        var generator = new Generator<DummyLoad>(config, 123, "TestGen", new NullLoggerFactory());
+        generator.Initialize(mockScheduler.Object);
+
+        // Reset the mock to ignore the Schedule call from Initialize()
+        mockScheduler.Reset();
 
         int actionCallCount = 0;
         DummyLoad? loadFromAction = null;
         double timeFromAction = 0.0;
-        generator.LoadGeneratedActions.Add((load, time) =>
+        generator.LoadGenerated += (load, time) =>
         {
             actionCallCount++;
             loadFromAction = load;
             timeFromAction = time;
-        });
+        };
 
-        // Make generator active and set current time
-        _currentTestTime = 30.0;
-        generator.PerformActivation(_currentTestTime);
-
-        // Create and execute an ArriveEvent directly for this test
-        // (In reality, it would be scheduled by StartEvent or a previous ArriveEvent)
-        var arriveEvent = new GeneratorArriveEvent<DummyLoad>(generator); // Assuming events are accessible
+        // Manually activate the generator for the test scenario
+        // (This will schedule the first arrival, which we can ignore or verify if needed)
+        generator.HandleActivation(30.0);
+        mockScheduler.Reset(); // Reset again to ONLY focus on the HandleLoadGeneration call
 
         // Act
-        arriveEvent.Execute(_mockEngine.Object);
+        generator.HandleLoadGeneration(30.0);
 
         // Assert
         Assert.Equal(1, generator.LoadsGeneratedCount);
-        Assert.Equal(1, _loadFactoryCallCount); // Verify factory was called
         Assert.Equal(1, actionCallCount);
         Assert.NotNull(loadFromAction);
         Assert.Equal(createdLoadValue, loadFromAction!.Value);
         Assert.Equal(30.0, timeFromAction);
 
-        _mockScheduler.Verify(s => s.Schedule(
+        // Verify that HandleLoadGeneration scheduled the NEXT arrival
+        mockScheduler.Verify(s => s.Schedule(
             It.Is<GeneratorArriveEvent<DummyLoad>>(ev => ev.OwningGenerator == generator),
-            30.0 + interArrivalTime.TotalSeconds), Times.Once);
+            30.0 + interArrivalTime.TotalSeconds),
+            Times.Once);
     }
 
     [Fact]
@@ -349,7 +350,7 @@ public class GeneratorTests
         // Reset the mock to forget the call made by Initialize
         _mockScheduler.Invocations.Clear(); // Clear invocations but keep setups.
 
-        generator.PerformDeactivation();
+        generator.HandleDeactivation();
         _currentTestTime = 30.0;
         var arriveEvent = new GeneratorArriveEvent<DummyLoad>(generator);
 
@@ -368,7 +369,7 @@ public class GeneratorTests
         // Arrange
         var generator = CreateGenerator();
         generator.Initialize(_mockScheduler.Object);
-        generator.PerformActivation(10.0);
+        generator.HandleActivation(10.0);
 
         // Act
         generator.WarmedUp(simulationTime: 100.0);

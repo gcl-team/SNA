@@ -6,7 +6,7 @@ namespace SimNextgenApp.Events;
 /// <summary>
 /// Base for internal events specific to the Generator.
 /// </summary>
-internal abstract class AbstractGeneratorEvent<TLoad> : AbstractEvent
+internal abstract class AbstractGeneratorEvent<TLoad> : AbstractEvent where TLoad : notnull
 {
     internal Generator<TLoad> OwningGenerator { get; }
 
@@ -35,38 +35,13 @@ internal abstract class AbstractGeneratorEvent<TLoad> : AbstractEvent
 /// <summary>
 /// Event that initiates the load generation process for a specific Generator.
 /// </summary>
-internal sealed class GeneratorStartEvent<TLoad> : AbstractGeneratorEvent<TLoad>
+internal sealed class GeneratorStartEvent<TLoad> : AbstractGeneratorEvent<TLoad> where TLoad : notnull
 {
     public GeneratorStartEvent(Generator<TLoad> owner) : base(owner) { }
 
     public override void Execute(IRunContext engine)
     {
-        double currentTime = engine.ClockTime;
-
-        if (!OwningGenerator.IsActive)
-        {
-            OwningGenerator.PerformActivation(currentTime); // New internal method on Generator
-
-            // Access config and random via internal properties on OwningGenerator
-            var config = OwningGenerator.Configuration; // Assuming internal property Configuration
-            var random = OwningGenerator.RandomProvider;  // Assuming internal property RandomProvider
-
-            if (config.IsSkippingFirst)
-            {
-                TimeSpan delay = config.InterArrivalTime!(random);
-                engine.Scheduler.Schedule(
-                    new GeneratorArriveEvent<TLoad>(OwningGenerator),
-                    currentTime + delay.TotalSeconds
-                );
-            }
-            else
-            {
-                engine.Scheduler.Schedule(
-                    new GeneratorArriveEvent<TLoad>(OwningGenerator),
-                    currentTime
-                );
-            }
-        }
+        OwningGenerator.HandleActivation(engine.ClockTime);
     }
 
     public override string ToString() => $"{OwningGenerator.Name}_Start#{EventId} @ {ExecutionTime:F4}";
@@ -75,16 +50,13 @@ internal sealed class GeneratorStartEvent<TLoad> : AbstractGeneratorEvent<TLoad>
 /// <summary>
 /// Event that halts the load generation process for a specific Generator.
 /// </summary>
-internal sealed class GeneratorStopEvent<TLoad> : AbstractGeneratorEvent<TLoad>
+internal sealed class GeneratorStopEvent<TLoad> : AbstractGeneratorEvent<TLoad> where TLoad : notnull
 {
     public GeneratorStopEvent(Generator<TLoad> owner) : base(owner) { }
 
     public override void Execute(IRunContext engine)
     {
-        if (OwningGenerator.IsActive) // Assuming IsActive has internal get
-        {
-            OwningGenerator.PerformDeactivation(); // New internal method on Generator
-        }
+        OwningGenerator.HandleDeactivation();
     }
     public override string ToString() => $"{OwningGenerator.Name}_Stop#{EventId} @ {ExecutionTime:F4}";
 }
@@ -92,34 +64,13 @@ internal sealed class GeneratorStopEvent<TLoad> : AbstractGeneratorEvent<TLoad>
 /// <summary>
 /// Event representing the arrival (creation) of a new load by a specific Generator.
 /// </summary>
-internal sealed class GeneratorArriveEvent<TLoad> : AbstractGeneratorEvent<TLoad>
+internal sealed class GeneratorArriveEvent<TLoad> : AbstractGeneratorEvent<TLoad> where TLoad : notnull
 {
     public GeneratorArriveEvent(Generator<TLoad> owner) : base(owner) { }
 
     public override void Execute(IRunContext engine)
     {
-        // OwningGenerator.HandleArriveLogic(engine);
-        double currentTime = engine.ClockTime;
-
-        if (OwningGenerator.IsActive)
-        {
-            var config = OwningGenerator.Configuration;
-            var random = OwningGenerator.RandomProvider;
-
-            TLoad load = config.LoadFactory!(random);
-            OwningGenerator.IncrementLoadsGenerated();
-
-            TimeSpan nextDelay = config.InterArrivalTime!(random);
-            engine.Scheduler.Schedule(
-                new GeneratorArriveEvent<TLoad>(OwningGenerator),
-                currentTime + nextDelay.TotalSeconds
-            );
-
-            foreach (var action in OwningGenerator.LoadGeneratedActions)
-            {
-                action(load, currentTime);
-            }
-        }
+        OwningGenerator.HandleLoadGeneration(engine.ClockTime);
     }
     public override string ToString() => $"{OwningGenerator.Name}_Arrive#{EventId} (Gen: {OwningGenerator.LoadsGeneratedCount}) @ {ExecutionTime:F4}";
 }

@@ -81,7 +81,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
         // --- Wire components together ---
 
         // A. When a load is generated:
-        LoadGenerator.LoadGeneratedActions.Add(HandleLoadGeneratedByGenerator);
+        LoadGenerator.LoadGenerated += HandleLoadGeneratedByGenerator;
 
         // B. When a load is dequeued from the queue (if queue manages pushing to server):
         // WaitingLine.OnDequeueActions.Add(HandleLoadDequeuedFromWaitingLine);
