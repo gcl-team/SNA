@@ -4,7 +4,7 @@ namespace SimNextgenApp.Modeling;
 
 public interface IServer<TLoad> : IWarmupAware
 {
-    // <summary>
+    /// <summary>
     /// Gets the unique identifier assigned to this simulation model instance.
     /// Typically assigned during instantiation.
     /// </summary>
@@ -46,7 +46,6 @@ public interface IServer<TLoad> : IWarmupAware
     /// <exception cref="ArgumentNullException">Thrown if engine or loadToServe is null.</exception>
     bool TryStartService(TLoad loadToServe);
 
-    // --- Event Hooks (events for observation) ---
     /// <summary>
     /// Actions to execute when a load departs from the server after completing service.
     /// Provides the departed load and its service completion time.
