@@ -18,6 +18,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     private IScheduler? _scheduler;
     private readonly Queue<TLoad> _waitingItems = new();
     private bool _toDequeue = true;
+    private readonly ILogger<SimQueue<TLoad>> _logger;
 
     public event Action<TLoad, double>? LoadEnqueued;
     public event Action<TLoad, double>? LoadDequeued;
@@ -35,7 +36,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// </summary>
     public TimeBasedMetric TimeBasedMetric { get; private set; }
 
-    internal ILogger<SimQueue<TLoad>> Logger { get; }
+    
 
     /// <summary>
     /// Gets the configuration settings for the queue.
@@ -61,9 +62,9 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
             throw new ArgumentOutOfRangeException(nameof(config), "Queue capacity must be positive or int.MaxValue.");
 
         _config = config;
-        Logger = loggerFactory.CreateLogger<SimQueue<TLoad>>();
-        TimeBasedMetric = new TimeBasedMetric(enableHistory: false); // Or pass initial time from engine if needed
-        Logger.LogInformation("Queue '{QueueName}' created with capacity {Capacity}.", Name, _config.Capacity == int.MaxValue ? "Infinite" : _config.Capacity.ToString());
+        _logger = loggerFactory.CreateLogger<SimQueue<TLoad>>();
+        TimeBasedMetric = new TimeBasedMetric(enableHistory: false);
+        _logger.LogInformation("Queue '{QueueName}' created with capacity {Capacity}.", Name, _config.Capacity == int.MaxValue ? "Infinite" : _config.Capacity.ToString());
     }
 
     /// <summary>
@@ -84,7 +85,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
 
        if (Vacancy <= 0 && _config.Capacity != int.MaxValue)
         {
-            Logger.LogWarning("Attempted to enqueue {Load} into full queue {QueueName} at {Time}. BALKING.",
+            _logger.LogWarning("Attempted to enqueue {Load} into full queue {QueueName} at {Time}. BALKING.",
                 load, Name, engineContext.ClockTime);
 
             OnLoadBalked(load, engineContext.ClockTime);
@@ -108,7 +109,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         EnsureSchedulerInitialized();
         if (ToDequeue && Occupancy > 0)
         {
-            Logger.LogTrace("Dequeue attempt triggered for {QueueName} at {Time} by external signal.", Name, engineContext.ClockTime);
+            _logger.LogTrace("Dequeue attempt triggered for {QueueName} at {Time} by external signal.", Name, engineContext.ClockTime);
             engineContext.Scheduler.Schedule(new DequeueEvent<TLoad>(this), engineContext.ClockTime);
         }
     }
@@ -134,7 +135,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         ArgumentNullException.ThrowIfNull(scheduler);
         _scheduler = scheduler;
         TimeBasedMetric.ObserveCount(0, 0); // Initialize metric at time 0 with 0 count
-        Logger.LogInformation("Queue '{QueueName}' initialized.", Name);
+        _logger.LogInformation("Queue '{QueueName}' initialized.", Name);
     }
 
     /// <inheritdoc/>
@@ -149,7 +150,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         // After metric is warmed up (its count is 0, time is simulationTime),
         // observe the actual queue length at this moment.
         TimeBasedMetric.ObserveCount(Occupancy, simulationTime);
-        Logger.LogInformation("Queue '{QueueName}' warmed up at {Time}. Current occupancy: {Occupancy}", Name, simulationTime, Occupancy);
+        _logger.LogInformation("Queue '{QueueName}' warmed up at {Time}. Current occupancy: {Occupancy}", Name, simulationTime, Occupancy);
     }
 
     /// <summary>
@@ -161,14 +162,14 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     {
         if (Vacancy <= 0 && Configuration.Capacity != int.MaxValue)
         {
-            Logger.LogError("EnqueueEvent for {QueueName} (Capacity: {Capacity}) found queue full upon execution. Load {Load} will be dropped.",
+            _logger.LogError("EnqueueEvent for {QueueName} (Capacity: {Capacity}) found queue full upon execution. Load {Load} will be dropped.",
                 Name, Configuration.Capacity, load);
             return;
         }
 
         _waitingItems.Enqueue(load);
         TimeBasedMetric.ObserveChange(Occupancy, currentTime);
-        Logger.LogTrace("Enqueued {Load} into {QueueName} at {Time}. New Occupancy: {Occupancy}",
+        _logger.LogTrace("Enqueued {Load} into {QueueName} at {Time}. New Occupancy: {Occupancy}",
             load, Name, currentTime, Occupancy);
 
         // Notify observers
@@ -184,19 +185,19 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     {
         if (Occupancy == 0)
         {
-            Logger.LogTrace("DequeueEvent for {QueueName}: Queue is empty. No action.", Name);
+            _logger.LogTrace("DequeueEvent for {QueueName}: Queue is empty. No action.", Name);
             return;
         }
 
         if (!ToDequeue)
         {
-            Logger.LogTrace("DequeueEvent for {QueueName}: Queue is not set to ToDequeue. No action.", Name);
+            _logger.LogTrace("DequeueEvent for {QueueName}: Queue is not set to ToDequeue. No action.", Name);
             return;
         }
 
         var load = _waitingItems.Dequeue();
         TimeBasedMetric.ObserveChange(Occupancy, currentTime);
-        Logger.LogTrace("Dequeued {Load} from {QueueName} at {Time}. New Occupancy: {Occupancy}",
+        _logger.LogTrace("Dequeued {Load} from {QueueName} at {Time}. New Occupancy: {Occupancy}",
             load, Name, currentTime, Occupancy);
 
         // Notify observers
@@ -214,7 +215,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     {
         if (_toDequeue == toDequeue) return;
 
-        Logger.LogTrace("UpdateToDequeueEvent for {QueueName}: ToDequeue changed from {OldState} to {NewState} at {Time}",
+        _logger.LogTrace("UpdateToDequeueEvent for {QueueName}: ToDequeue changed from {OldState} to {NewState} at {Time}",
             Name, _toDequeue, toDequeue, currentTime);
         
         _toDequeue = toDequeue;
