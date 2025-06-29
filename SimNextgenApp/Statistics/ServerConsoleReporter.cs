@@ -1,5 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
-using SimNextgenApp.Core;
+using SimNextgenApp.Modeling;
 
 namespace SimNextgenApp.Statistics;
 

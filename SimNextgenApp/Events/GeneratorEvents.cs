@@ -1,4 +1,5 @@
 ﻿using SimNextgenApp.Core;
+using SimNextgenApp.Modeling;
 
 namespace SimNextgenApp.Events;
 

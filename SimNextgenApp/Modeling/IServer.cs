@@ -1,6 +1,4 @@
-﻿using SimNextgenApp.Core;
-
-namespace SimNextgenApp.Modeling;
+﻿namespace SimNextgenApp.Modeling;
 
 public interface IServer<TLoad> : IWarmupAware
 {

@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Logging;
 using SimNextgenApp.Configurations;
+using SimNextgenApp.Core;
 using SimNextgenApp.Events;
-using SimNextgenApp.Modeling;
 
-namespace SimNextgenApp.Core;
+namespace SimNextgenApp.Modeling;
 
 /// <summary>
 /// Represents a component that generates loads (entities) of type <typeparamref name="TLoad"/>

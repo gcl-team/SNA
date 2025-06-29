@@ -2,6 +2,7 @@
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Demo.CustomModels;
+using SimNextgenApp.Modeling;
 using SimNextgenApp.Statistics;
 
 namespace SimNextgenApp.Demo.Scenarios;

@@ -1,12 +1,12 @@
 ﻿using SimNextgenApp.Configurations;
+using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
-using SimNextgenApp.Modeling;
 using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("SimNextgenApp.Tests")]
-namespace SimNextgenApp.Core;
+namespace SimNextgenApp.Modeling;
 
 /// <summary>
 /// Represents a server in a DES that processes loads. This component acts as a pure state machine,

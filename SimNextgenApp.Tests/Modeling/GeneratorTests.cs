@@ -3,8 +3,9 @@ using Moq;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
+using SimNextgenApp.Modeling;
 
-namespace SimNextgenApp.Tests.Core;
+namespace SimNextgenApp.Tests.Modeling;
 
 public class GeneratorTests
 {
