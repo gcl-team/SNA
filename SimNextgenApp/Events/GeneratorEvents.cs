@@ -8,7 +8,10 @@ namespace SimNextgenApp.Events;
 /// </summary>
 internal abstract class AbstractGeneratorEvent<TLoad> : AbstractEvent where TLoad : notnull
 {
-    internal Generator<TLoad> OwningGenerator { get; }
+    /// <summary>
+    /// Gets the generator that owns the current instance.
+    /// </summary>
+    internal IGenerator<TLoad> OwningGenerator { get; }
 
     /// <inheritdoc/>
     public override IDictionary<string, object>? GetTraceDetails()
@@ -41,7 +44,14 @@ internal sealed class GeneratorStartEvent<TLoad> : AbstractGeneratorEvent<TLoad>
 
     public override void Execute(IRunContext engine)
     {
-        OwningGenerator.HandleActivation(engine.ClockTime);
+        if (OwningGenerator is IOperatableGenerator<TLoad> operatableGenerator)
+        {
+            operatableGenerator.HandleActivation(engine.ClockTime);
+        }
+        else
+        {
+            throw new InvalidOperationException($"The generator '{OwningGenerator.Name}' does not implement IOperatableGenerator and cannot handle this event.");
+        }
     }
 
     public override string ToString() => $"{OwningGenerator.Name}_Start#{EventId} @ {ExecutionTime:F4}";
@@ -56,8 +66,16 @@ internal sealed class GeneratorStopEvent<TLoad> : AbstractGeneratorEvent<TLoad> 
 
     public override void Execute(IRunContext engine)
     {
-        OwningGenerator.HandleDeactivation();
+        if (OwningGenerator is IOperatableGenerator<TLoad> operatableGenerator)
+        {
+            operatableGenerator.HandleDeactivation();
+        }
+        else
+        {
+            throw new InvalidOperationException($"The generator '{OwningGenerator.Name}' does not implement IOperatableGenerator and cannot handle this event.");
+        }
     }
+
     public override string ToString() => $"{OwningGenerator.Name}_Stop#{EventId} @ {ExecutionTime:F4}";
 }
 
@@ -70,7 +88,15 @@ internal sealed class GeneratorArriveEvent<TLoad> : AbstractGeneratorEvent<TLoad
 
     public override void Execute(IRunContext engine)
     {
-        OwningGenerator.HandleLoadGeneration(engine.ClockTime);
+        if (OwningGenerator is IOperatableGenerator<TLoad> operatableGenerator)
+        {
+            operatableGenerator.HandleLoadGeneration(engine.ClockTime);
+        }
+        else
+        {
+            throw new InvalidOperationException($"The generator '{OwningGenerator.Name}' does not implement IOperatableGenerator and cannot handle this event.");
+        }
     }
+
     public override string ToString() => $"{OwningGenerator.Name}_Arrive#{EventId} (Gen: {OwningGenerator.LoadsGeneratedCount}) @ {ExecutionTime:F4}";
 }

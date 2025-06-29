@@ -6,11 +6,12 @@ using SimNextgenApp.Events;
 namespace SimNextgenApp.Modeling;
 
 /// <summary>
-/// Represents a component that generates loads (entities) of type <typeparamref name="TLoad"/>
-/// at specified intervals, based on its configuration.
-/// </summary>
+/// Represents a source component in a simulation model that generates entities (loads) of type <typeparamref name="TLoad"/>.
+/// It is typically used to model arrivals into a system, such as customers arriving at a store or data packets arriving at a router.
+/// The generation is driven by a configured inter-arrival time distribution.
+/// </summary
 /// <typeparam name="TLoad">The type of load (entity) produced by this generator.</typeparam>
-public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad> where TLoad : notnull
+public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOperatableGenerator<TLoad> where TLoad : notnull
 {
     private readonly GeneratorStaticConfig<TLoad> _config;
     private readonly Random _random;
@@ -38,8 +39,8 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad> where
     /// </summary>
     /// <param name="config">The static configuration settings for this generator.</param>
     /// <param name="seed">The seed for the random number stream used by this generator.</param>
-    /// <param name="instanceName">A unique name for this generator instance (e.g., "CustomerArrivals").
-    /// This will be used as the base name for the simulation model.</param>
+    /// <param name="instanceName">A descriptive name for this generator instance (e.g., "CustomerArrivals").
+    /// This name is used in logging and tracing output to uniquely identify this component.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> is <c>null</c>.</exception>
     public Generator(GeneratorStaticConfig<TLoad> config, int seed, string instanceName, ILoggerFactory loggerFactory)
         : base(instanceName)
@@ -57,11 +58,10 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad> where
     }
 
     /// <summary>
-    /// Schedules an event to start the load generation process.
-    /// The start will occur at the simulation time when the calling event is processed.
-    /// Must be called after <see cref="Initialize"/> has been called.
+    /// Schedules the generator to start producing loads at the current simulation time.
+    /// If the generator is already active, this action may be ignored.
     /// </summary>
-    /// <param name="engine">The simulation engine instance, used to get current time for scheduling.</param>
+    /// <param name="engine">The simulation run context, used to get the current simulation time.</param>
     /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="engine"/> is null.</exception>
     public void ScheduleStartGenerating(IRunContext engine)
@@ -98,12 +98,23 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad> where
     }
 
     /// <inheritdoc/>
+    /// <remarks>
+    /// For the generator, this resets the <see cref="LoadsGeneratedCount"/> to zero and sets the <see cref="LastActivationTime"/>.
+    /// This ensures that statistics are only collected for the post-warm-up period.
+    /// </remarks>
     public override void WarmedUp(double simulationTime)
     {
         StartTime = simulationTime;
         LoadsGeneratedCount = 0;
     }
 
+    /// <summary>
+    /// Activates the generator at the specified time, scheduling the first load arrival event if applicable.
+    /// </summary>
+    /// <remarks>If the generator is not already active, this method marks it as active, sets the activation
+    /// time, and initialises the load generation count. Depending on the configuration, it schedules the first load
+    /// arrival event either immediately or after a delay determined by the inter-arrival time function.</remarks>
+    /// <param name="currentTime">The current simulation time, in seconds, at which the generator is being activated.</param>
     internal void HandleActivation(double currentTime)
     {
         if (!IsActive)
@@ -128,6 +139,9 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad> where
         }
     }
 
+    /// <summary>
+    /// Handles the deactivation of the generator by updating its state and logging relevant information.
+    /// </summary>
     internal void HandleDeactivation()
     {
         if (IsActive)
@@ -139,6 +153,10 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad> where
         }
     }
 
+    /// <summary>
+    /// Handles the generation of a new load and schedules the next load generation event.
+    /// </summary>
+    /// <param name="currentTime">The current simulation time, in seconds, used to schedule the next load generation event.</param>
     internal void HandleLoadGeneration(double currentTime)
     {
         if (IsActive)
@@ -153,6 +171,10 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad> where
             OnLoadGenerated(load, currentTime);
         }
     }
+
+    void IOperatableGenerator<TLoad>.HandleActivation(double currentTime) => HandleActivation(currentTime);
+    void IOperatableGenerator<TLoad>.HandleDeactivation() => HandleDeactivation();
+    void IOperatableGenerator<TLoad>.HandleLoadGeneration(double currentTime) => HandleLoadGeneration(currentTime);
 
     private void EnsureSchedulerInitialized()
     {
