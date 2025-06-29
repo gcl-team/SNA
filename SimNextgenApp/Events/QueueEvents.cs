@@ -1,4 +1,5 @@
 ﻿using SimNextgenApp.Core;
+using SimNextgenApp.Modeling;
 
 namespace SimNextgenApp.Events;
 
@@ -11,10 +12,8 @@ internal abstract class AbstractQueueEvent<TLoad> : AbstractEvent
     /// <summary>
     /// Gets the queue instance that this event pertains to.
     /// </summary>
-    internal SimQueue<TLoad> OwningQueue { get; }
+    internal ISimQueue<TLoad> OwningQueue { get; }
 
-
-    /// <inheritdoc/>
     public override IDictionary<string, object>? GetTraceDetails()
     {
         return new Dictionary<string, object>
@@ -67,10 +66,16 @@ internal sealed class EnqueueEvent<TLoad> : AbstractQueueEvent<TLoad>
     /// <param name="engine">The simulation run context.</param>
     public override void Execute(IRunContext engine)
     {
-        OwningQueue.HandleEnqueue(LoadToEnqueue, engine.ClockTime);
+        if (OwningQueue is IOperatableQueue<TLoad> operatableQueue)
+        {
+            operatableQueue.HandleEnqueue(LoadToEnqueue, engine.ClockTime);
+        }
+        else
+        {
+            throw new InvalidOperationException($"The queue '{OwningQueue.Name}' does not implement IOperatableQueue and cannot handle this event.");
+        }
     }
 
-    /// <inheritdoc/>
     public override string ToString() => $"{OwningQueue.Name}_Enqueue({LoadToEnqueue})#{EventId} @ {ExecutionTime:F4}";
 }
 
@@ -93,10 +98,16 @@ internal sealed class DequeueEvent<TLoad> : AbstractQueueEvent<TLoad>
     /// <param name="engine">The simulation run context.</param>
     public override void Execute(IRunContext engine)
     {
-        OwningQueue.HandleDequeue(engine.ClockTime);
+        if (OwningQueue is IOperatableQueue<TLoad> operatableQueue)
+        {
+            operatableQueue.HandleDequeue(engine.ClockTime);
+        }
+        else
+        {
+            throw new InvalidOperationException($"The queue '{OwningQueue.Name}' does not implement IOperatableQueue and cannot handle this event.");
+        }
     }
 
-    /// <inheritdoc/>
     public override string ToString() => $"{OwningQueue.Name}_Dequeue#{EventId} @ {ExecutionTime:F4}";
 }
 
@@ -128,9 +139,15 @@ internal sealed class UpdateToDequeueEvent<TLoad> : AbstractQueueEvent<TLoad>
     /// <param name="engine">The simulation run context.</param>
     public override void Execute(IRunContext engine)
     {
-        OwningQueue.HandleUpdateToDequeue(NewToDequeueState, engine.ClockTime);
+        if (OwningQueue is IOperatableQueue<TLoad> operatableQueue)
+        {
+            operatableQueue.HandleUpdateToDequeue(NewToDequeueState, engine.ClockTime);
+        }
+        else
+        {
+            throw new InvalidOperationException($"The queue '{OwningQueue.Name}' does not implement IOperatableQueue and cannot handle this event.");
+        }
     }
 
-    /// <inheritdoc/>
     public override string ToString() => $"{OwningQueue.Name}_UpdateToDequeue({NewToDequeueState})";
 }

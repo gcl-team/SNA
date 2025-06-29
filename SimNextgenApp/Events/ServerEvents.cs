@@ -54,13 +54,13 @@ internal sealed class ServerServiceCompleteEvent<TLoad> : AbstractServerEvent<TL
     /// <inheritdoc/>
     public override void Execute(IRunContext engine)
     {
-        if (OwningServer is IServiceCompleter<TLoad> completer)
+        if (OwningServer is IOperatableServer<TLoad> completer)
         {
             completer.HandleServiceCompletion(ServedLoad, engine.ClockTime);
         }
         else
         {
-            throw new InvalidOperationException($"The server '{OwningServer.Name}' does not implement IServiceCompleter and cannot handle this event.");
+            throw new InvalidOperationException($"The server '{OwningServer.Name}' does not implement IOperatableServer and cannot handle this event.");
         }
     }
 

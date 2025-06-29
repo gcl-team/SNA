@@ -11,56 +11,23 @@ namespace SimNextgenApp.Core;
 /// based on a FIFO discipline and a specified capacity.
 /// </summary>
 /// <typeparam name="TLoad">The type of load (entity) managed by this queue.</typeparam>
-public class SimQueue<TLoad> : AbstractSimulationModel
+public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOperatableQueue<TLoad>
+    where TLoad : notnull
 {
     private readonly QueueStaticConfig<TLoad> _config;
     private IScheduler? _scheduler;
     private readonly Queue<TLoad> _waitingItems = new();
-
-    internal ILogger<SimQueue<TLoad>> Logger { get; }
-
-    /// <summary>
-    /// Gets a read-only collection of loads currently waiting in the queue.
-    /// </summary>
-    public IReadOnlyCollection<TLoad> WaitingItems => _waitingItems;
-
-    /// <summary>
-    /// Gets the current number of loads (entities) waiting in the queue.
-    /// </summary>
-    /// <value>The number of items currently in the queue.</value>
-    public int Occupancy => _waitingItems.Count;
-
-    /// <summary>
-    /// Gets the configured capacity of the queue.
-    /// </summary>
-    /// <value>The capacity of the queue.</value>
-    public int Capacity => _config.Capacity;
-
-    /// <summary>
-    /// Gets the number of available spaces remaining in the queue before it reaches its configured capacity.
-    /// </summary>
-    /// <value>The number of available spaces remaining in the queue.</value>
-    public int Vacancy => (_config.Capacity == int.MaxValue) ? int.MaxValue : _config.Capacity - Occupancy;
-
-    // 
-    /// <summary>
-    /// Gets the configuration settings for the queue.
-    /// </summary>
-    /// <remarks>Expose configuration if needed, e.g., for events or external checks</remarks>
-    internal QueueStaticConfig<TLoad> Configuration => _config;
-
     private bool _toDequeue = true;
 
-    /// <summary>
-    /// Gets a value indicating whether the queue is currently permitted to dequeue loads.
-    /// </summary>
-    /// <value>
-    /// <c>true</c> if the queue will attempt to dequeue loads when items are available and
-    /// dequeue operations are triggered; <c>false</c> otherwise.
-    /// </value>
-    /// <remarks>
-    /// This state can be changed using <see cref="ScheduleUpdateToDequeue"/>.
-    /// </remarks>
+    public event Action<TLoad, double>? LoadEnqueued;
+    public event Action<TLoad, double>? LoadDequeued;
+    public event Action<TLoad, double>? LoadBalked;
+    public event Action<double>? StateChanged;
+
+    public IReadOnlyCollection<TLoad> WaitingItems => _waitingItems;
+    public int Occupancy => _waitingItems.Count;
+    public int Capacity => _config.Capacity;
+    public int Vacancy => (_config.Capacity == int.MaxValue) ? int.MaxValue : _config.Capacity - Occupancy;
     public bool ToDequeue => _toDequeue;
 
     /// <summary>
@@ -68,25 +35,13 @@ public class SimQueue<TLoad> : AbstractSimulationModel
     /// </summary>
     public TimeBasedMetric TimeBasedMetric { get; private set; }
 
-    /// <summary>
-    /// Occurs when a load has been successfully enqueued.
-    /// </summary>
-    public event Action<TLoad, double>? LoadEnqueued;
+    internal ILogger<SimQueue<TLoad>> Logger { get; }
 
     /// <summary>
-    /// Occurs when a load has been successfully dequeued.
+    /// Gets the configuration settings for the queue.
     /// </summary>
-    public event Action<TLoad, double>? LoadDequeued;
-
-    /// <summary>
-    /// Occurs when an item attempts to enqueue but is balked due to a full queue.
-    /// </summary>
-    public event Action<TLoad, double>? LoadBalked;
-
-    /// <summary>
-    /// Occurs when the queue state changes, such as occupancy or its ToDequeue status.
-    /// </summary>
-    public event Action<double>? StateChanged;
+    /// <remarks>Expose configuration if needed, e.g., for events or external checks</remarks>
+    internal QueueStaticConfig<TLoad> Configuration => _config;
 
     /// <summary>
     /// Initialises a new instance of the <see cref="SimQueue{TLoad}"/> class.
@@ -197,23 +152,11 @@ public class SimQueue<TLoad> : AbstractSimulationModel
         Logger.LogInformation("Queue '{QueueName}' warmed up at {Time}. Current occupancy: {Occupancy}", Name, simulationTime, Occupancy);
     }
 
-    private void EnsureSchedulerInitialized()
-    {
-        if (_scheduler == null)
-            throw new InvalidOperationException($"Queue '{Name}' has not been initialized with a scheduler. Call Initialize first.");
-    }
-
     /// <summary>
-    /// Sets the internal state indicating whether the item is marked for dequeuing.
-    /// Internal method for UpdateToDequeueEvent to call, keeping public ToDequeue readonly.
+    /// Handles the enqueue operation for the queue at the specified time.
     /// </summary>
-    /// <param name="newState">A value indicating the new state. <see langword="true"/> marks the item for dequeuing; <see langword="false"/>
-    /// clears the dequeuing state.</param>
-    internal void SetToDequeueState(bool newState)
-    {
-        _toDequeue = newState;
-    }
-
+    /// <param name="load">The load that will be enqueued.</param>
+    /// <param name="currentTime">The current time at which the enqueue operation is being processed.</param>
     internal void HandleEnqueue(TLoad load, double currentTime)
     {
         if (Vacancy <= 0 && Configuration.Capacity != int.MaxValue)
@@ -233,6 +176,10 @@ public class SimQueue<TLoad> : AbstractSimulationModel
         OnStateChanged(currentTime);
     }
 
+    /// <summary>
+    /// Handles the dequeue operation for the queue at the specified time.
+    /// </summary>
+    /// <param name="currentTime">The current time at which the dequeue operation is being processed.</param>
     internal void HandleDequeue(double currentTime)
     {
         if (Occupancy == 0)
@@ -257,6 +204,12 @@ public class SimQueue<TLoad> : AbstractSimulationModel
         OnStateChanged(currentTime);
     }
 
+    /// <summary>
+    /// Updates the dequeue permission of the queue, ToDequeue, and notifies observers if the state changes.
+    /// </summary>
+    /// <remarks>If the new state is the same as the current state, no action is taken.</remarks>
+    /// <param name="toDequeue">A value indicating whether the queue should be allowed for dequeue.</param>
+    /// <param name="currentTime">The current time, used to log and notify observers of the state change.</param>
     internal void HandleUpdateToDequeue(bool toDequeue, double currentTime)
     {
         if (_toDequeue == toDequeue) return;
@@ -268,6 +221,16 @@ public class SimQueue<TLoad> : AbstractSimulationModel
 
         // Notify observers
         OnStateChanged(currentTime);
+    }
+
+    void IOperatableQueue<TLoad>.HandleEnqueue(TLoad load, double currentTime) => HandleEnqueue(load, currentTime);
+    void IOperatableQueue<TLoad>.HandleDequeue(double currentTime) => HandleDequeue(currentTime);
+    void IOperatableQueue<TLoad>.HandleUpdateToDequeue(bool toDequeue, double currentTime) => HandleUpdateToDequeue(toDequeue, currentTime);
+
+    private void EnsureSchedulerInitialized()
+    {
+        if (_scheduler == null)
+            throw new InvalidOperationException($"Queue '{Name}' has not been initialized with a scheduler. Call Initialize first.");
     }
 
     private void OnLoadEnqueued(TLoad load, double time) => LoadEnqueued?.Invoke(load, time);
