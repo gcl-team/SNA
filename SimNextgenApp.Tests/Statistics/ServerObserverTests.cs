@@ -1,6 +1,7 @@
 ﻿using Moq;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
+using SimNextgenApp.Modeling;
 using SimNextgenApp.Statistics;
 
 namespace SimNextgenApp.Tests.Statistics;

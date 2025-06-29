@@ -1,10 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
 using SimNextgenApp.Configurations;
+using SimNextgenApp.Core;
 using SimNextgenApp.Events;
-using SimNextgenApp.Modeling;
 using SimNextgenApp.Statistics;
 
-namespace SimNextgenApp.Core;
+namespace SimNextgenApp.Modeling;
 
 /// <summary>
 /// Represents a queueing component that holds entities of type <typeparamref name="TLoad"/>
@@ -27,7 +27,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     public IReadOnlyCollection<TLoad> WaitingItems => _waitingItems;
     public int Occupancy => _waitingItems.Count;
     public int Capacity => _config.Capacity;
-    public int Vacancy => (_config.Capacity == int.MaxValue) ? int.MaxValue : _config.Capacity - Occupancy;
+    public int Vacancy => _config.Capacity == int.MaxValue ? int.MaxValue : _config.Capacity - Occupancy;
     public bool ToDequeue => _toDequeue;
 
     /// <summary>
@@ -148,7 +148,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         TimeBasedMetric.WarmedUp(simulationTime);
         // After metric is warmed up (its count is 0, time is simulationTime),
         // observe the actual queue length at this moment.
-        TimeBasedMetric.ObserveCount(this.Occupancy, simulationTime);
+        TimeBasedMetric.ObserveCount(Occupancy, simulationTime);
         Logger.LogInformation("Queue '{QueueName}' warmed up at {Time}. Current occupancy: {Occupancy}", Name, simulationTime, Occupancy);
     }
 

@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Core;
+﻿namespace SimNextgenApp.Modeling;
 
 /// <summary>
 /// Defines a contract for simulation models that are aware of and can react to
