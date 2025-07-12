@@ -64,7 +64,7 @@ internal class ConcreteTestModel : AbstractSimulationModel
 {
     public ConcreteTestModel(string name) : base(name) { }
 
-    public override void Initialize(IScheduler scheduler)
+    public override void Initialize(IRunContext engineContext)
     {
         Debug.WriteLine($"TestModel {Name} Initialized.");
     }

@@ -15,7 +15,6 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
 {
     private readonly GeneratorStaticConfig<TLoad> _config;
     private readonly Random _random;
-    private IScheduler? _scheduler;
     private readonly ILogger<Generator<TLoad>> _logger;
 
     public double? StartTime { get; private set; }
@@ -61,14 +60,13 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// Schedules the generator to start producing loads at the current simulation time.
     /// If the generator is already active, this action may be ignored.
     /// </summary>
-    /// <param name="engine">The simulation run context, used to get the current simulation time.</param>
-    /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
+    /// <param name="engineContext">The simulation run context, used to get the current simulation time.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="engine"/> is null.</exception>
-    public void ScheduleStartGenerating(IRunContext engine)
+    public void ScheduleStartGenerating(IRunContext engineContext)
     {
-        ArgumentNullException.ThrowIfNull(engine);
-        EnsureSchedulerInitialized();
-        _scheduler!.Schedule(new GeneratorStartEvent<TLoad>(this), engine.ClockTime);
+        ArgumentNullException.ThrowIfNull(engineContext);
+
+        engineContext.Scheduler.Schedule(new GeneratorStartEvent<TLoad>(this), engineContext.ClockTime);
     }
 
     /// <summary>
@@ -79,22 +77,21 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// <param name="engine">The simulation engine instance, used to get current time for scheduling.</param>
     /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="engine"/> is null.</exception>
-    public void ScheduleStopGenerating(IRunContext engine)
+    public void ScheduleStopGenerating(IRunContext engineContext)
     {
-        ArgumentNullException.ThrowIfNull(engine);
-        EnsureSchedulerInitialized();
-        _scheduler!.Schedule(new GeneratorStopEvent<TLoad>(this), engine.ClockTime);
+        ArgumentNullException.ThrowIfNull(engineContext);
+
+        engineContext.Scheduler.Schedule(new GeneratorStopEvent<TLoad>(this), engineContext.ClockTime);
     }
 
     /// <inheritdoc/>
-    public override void Initialize(IScheduler scheduler)
+    public override void Initialize(IRunContext engineContext)
     {
-        ArgumentNullException.ThrowIfNull(scheduler);
-        _scheduler = scheduler;
+        ArgumentNullException.ThrowIfNull(engineContext);
 
         _logger.LogInformation("Generator '{GeneratorName}' (ID: {ModelId}) initializing. Scheduling start event at time 0.0.", Name, Id);
 
-        _scheduler.Schedule(new GeneratorStartEvent<TLoad>(this), 0.0);
+        engineContext.Scheduler.Schedule(new GeneratorStartEvent<TLoad>(this), 0.0);
     }
 
     /// <inheritdoc/>
@@ -114,11 +111,12 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// <remarks>If the generator is not already active, this method marks it as active, sets the activation
     /// time, and initialises the load generation count. Depending on the configuration, it schedules the first load
     /// arrival event either immediately or after a delay determined by the inter-arrival time function.</remarks>
-    /// <param name="currentTime">The current simulation time, in seconds, at which the generator is being activated.</param>
-    internal void HandleActivation(double currentTime)
+    /// <param name="engineContext">The current run context (provides time and scheduler).</param>
+    internal void HandleActivation(IRunContext engineContext)
     {
         if (!IsActive)
         {
+            double currentTime = engineContext.ClockTime;
             _logger.LogDebug("Generator '{GeneratorName}' activating at time {ActivationTime}.", Name, currentTime);
 
             IsActive = true;
@@ -130,11 +128,11 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
             if (Configuration.IsSkippingFirst)
             {
                 TimeSpan delay = Configuration.InterArrivalTime!(random);
-                _scheduler!.Schedule(new GeneratorArriveEvent<TLoad>(this), currentTime + delay.TotalSeconds);
+                engineContext.Scheduler.Schedule(new GeneratorArriveEvent<TLoad>(this), currentTime + delay.TotalSeconds);
             }
             else
             {
-                _scheduler!.Schedule(new GeneratorArriveEvent<TLoad>(this), currentTime);
+                engineContext.Scheduler.Schedule(new GeneratorArriveEvent<TLoad>(this), currentTime);
             }
         }
     }
@@ -142,45 +140,41 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// <summary>
     /// Handles the deactivation of the generator by updating its state and logging relevant information.
     /// </summary>
-    internal void HandleDeactivation()
+    /// <param name="engineContext">The current run context (provides time and scheduler).</param>
+    internal void HandleDeactivation(IRunContext engineContext)
     {
         if (IsActive)
         {
             IsActive = false;
 
             _logger.LogDebug("Generator '{GeneratorName}' deactivated at time {DeactivationTime}. Total loads generated: {LoadsGenerated}.", 
-                Name, _scheduler!.ClockTime, LoadsGeneratedCount);
+                Name, engineContext.ClockTime, LoadsGeneratedCount);
         }
     }
 
     /// <summary>
     /// Handles the generation of a new load and schedules the next load generation event.
     /// </summary>
-    /// <param name="currentTime">The current simulation time, in seconds, used to schedule the next load generation event.</param>
-    internal void HandleLoadGeneration(double currentTime)
+    /// <param name="engineContext">The current run context (provides time and scheduler).</param>
+    internal void HandleLoadGeneration(IRunContext engineContext)
     {
         if (IsActive)
         {
+            double currentTime = engineContext.ClockTime;
             var random = RandomProvider;
             TLoad load = Configuration.LoadFactory!(random);
             TimeSpan nextDelay = Configuration.InterArrivalTime!(random);
 
-            _scheduler!.Schedule(new GeneratorArriveEvent<TLoad>(this), currentTime + nextDelay.TotalSeconds);
+            engineContext.Scheduler.Schedule(new GeneratorArriveEvent<TLoad>(this), nextDelay);
 
             LoadsGeneratedCount++;
             OnLoadGenerated(load, currentTime);
         }
     }
 
-    void IOperatableGenerator<TLoad>.HandleActivation(double currentTime) => HandleActivation(currentTime);
-    void IOperatableGenerator<TLoad>.HandleDeactivation() => HandleDeactivation();
-    void IOperatableGenerator<TLoad>.HandleLoadGeneration(double currentTime) => HandleLoadGeneration(currentTime);
-
-    private void EnsureSchedulerInitialized()
-    {
-        if (_scheduler == null)
-            throw new InvalidOperationException($"Generator '{Name}' has not been initialized with a scheduler. Call Initialize first.");
-    }
+    void IOperatableGenerator<TLoad>.HandleActivation(IRunContext engineContext) => HandleActivation(engineContext);
+    void IOperatableGenerator<TLoad>.HandleDeactivation(IRunContext engineContext) => HandleDeactivation(engineContext);
+    void IOperatableGenerator<TLoad>.HandleLoadGeneration(IRunContext engineContext) => HandleLoadGeneration(engineContext);
 
     private void OnLoadGenerated(TLoad load, double time) => LoadGenerated?.Invoke(load, time);
 }

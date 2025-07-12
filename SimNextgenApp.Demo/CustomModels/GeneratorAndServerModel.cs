@@ -21,7 +21,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
     public int BalkedLoadsCount { get; private set; } = 0;
 
     private readonly ILogger<GeneratorAndServerModel> _modelLogger;
-    private IRunContext? _runContext;
+    private IRunContext _runContext = null!;
 
     public GeneratorAndServerModel(
         GeneratorStaticConfig<MyLoad> genConfig, int genSeed,
@@ -52,7 +52,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         load.CreationTime = generationTime;
         _modelLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime:F2} -> {load}. Attempting service...");
 
-        bool accepted = ServicePoint.TryStartService(load);
+        bool accepted = ServicePoint.TryStartService(load, _runContext);
         if (accepted)
         {
             load.ServiceStartTime = generationTime; // Or actual service start time if ServerStartServiceEvent passes it back
@@ -65,26 +65,13 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         }
     }
 
-    public override void Initialize(IScheduler scheduler) // If using IRunContext, change signature
+    public override void Initialize(IRunContext engineContext)
     {
-        // Store the scheduler if it's the IRunContext itself, or adapt
-        // For simplicity, let's assume our SimulationEngine is passed as IScheduler but also IS IRunContext
-        // And that our AbstractSimulationModel will soon take IRunContext
-        if (scheduler is IRunContext context)
-        {
-            _runContext = context;
-        }
-        else
-        {
-            // This is a problem for HandleLoadGenerated if it needs full IRunContext.
-            // For now, if TryStartService only needs scheduler and ClockTime from IRunContext,
-            // we might get away with it or need an adapter.
-            _modelLogger.LogWarning("Initialize was called with IScheduler, not IRunContext. HandleLoadGenerated might have issues.");
-        }
+        ArgumentNullException.ThrowIfNull(engineContext);
 
+        _runContext = engineContext;
 
-        LoadGenerator.Initialize(scheduler); // Generator will schedule its GeneratorStartEvent
-        ServicePoint.Initialize(scheduler);  // Server just needs the scheduler reference, doesn't auto-start anything
+        LoadGenerator.Initialize(engineContext); // Generator will schedule its GeneratorStartEvent
     }
 
     public override void WarmedUp(double simulationTime)

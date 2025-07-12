@@ -117,7 +117,7 @@ public class SimQueueTests
         _currentTestTime = 0.0;
 
         // Act
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
 
         // Assert
         Assert.Equal(0, queue.TimeBasedMetric.CurrentCount);
@@ -140,7 +140,7 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue();
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
 
         // Simulate some activity before warmup
         _currentTestTime = 5.0;
@@ -170,7 +170,7 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue(config: _defaultFiniteConfig); // Capacity 2
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
         var load = new DummyLoad();
         _currentTestTime = 5.0;
 
@@ -190,7 +190,7 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue(config: _defaultInfiniteConfig);
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
         _currentTestTime = 5.0;
 
         queue.HandleEnqueue(new DummyLoad("L1"), 1.0);
@@ -217,7 +217,7 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue(config: _defaultFiniteConfig);
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
         _currentTestTime = 5.0;
 
         // 1. Arrange State: Fill the queue to capacity using its internal handler.
@@ -255,7 +255,7 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue();
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>("load", () => queue.TryScheduleEnqueue(null!, _mockEngineContext.Object));
@@ -266,20 +266,10 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue();
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>("engineContext", () => queue.TryScheduleEnqueue(new DummyLoad(), null!));
-    }
-
-    [Fact]
-    public void TryScheduleEnqueue_BeforeInitialize_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        var queue = CreateQueue(); // Not initialized
-
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => queue.TryScheduleEnqueue(new DummyLoad(), _mockEngineContext.Object));
     }
 
     [Fact]
@@ -287,7 +277,7 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue();
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
         _currentTestTime = 10.0;
         bool newDequeueState = false;
 
@@ -306,20 +296,10 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue();
-        queue.Initialize(_mockScheduler.Object);
+        queue.Initialize(_mockEngineContext.Object);
 
         // Act & Assert
         Assert.Throws<ArgumentNullException>("engineContext", () => queue.ScheduleUpdateToDequeue(false, null!));
-    }
-
-    [Fact]
-    public void ScheduleUpdateToDequeue_BeforeInitialize_ThrowsInvalidOperationException()
-    {
-        // Arrange
-        var queue = CreateQueue(); // Not initialized
-
-        // Act & Assert
-        Assert.Throws<InvalidOperationException>(() => queue.ScheduleUpdateToDequeue(false, _mockEngineContext.Object));
     }
 
     [Fact]

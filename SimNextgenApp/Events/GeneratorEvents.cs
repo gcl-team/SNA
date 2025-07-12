@@ -46,7 +46,7 @@ internal sealed class GeneratorStartEvent<TLoad> : AbstractGeneratorEvent<TLoad>
     {
         if (OwningGenerator is IOperatableGenerator<TLoad> operatableGenerator)
         {
-            operatableGenerator.HandleActivation(engine.ClockTime);
+            operatableGenerator.HandleActivation(engine);
         }
         else
         {
@@ -68,7 +68,7 @@ internal sealed class GeneratorStopEvent<TLoad> : AbstractGeneratorEvent<TLoad> 
     {
         if (OwningGenerator is IOperatableGenerator<TLoad> operatableGenerator)
         {
-            operatableGenerator.HandleDeactivation();
+            operatableGenerator.HandleDeactivation(engine);
         }
         else
         {
@@ -90,7 +90,7 @@ internal sealed class GeneratorArriveEvent<TLoad> : AbstractGeneratorEvent<TLoad
     {
         if (OwningGenerator is IOperatableGenerator<TLoad> operatableGenerator)
         {
-            operatableGenerator.HandleLoadGeneration(engine.ClockTime);
+            operatableGenerator.HandleLoadGeneration(engine);
         }
         else
         {

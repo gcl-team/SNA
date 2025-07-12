@@ -17,7 +17,6 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
 {
     private readonly ServerStaticConfig<TLoad> _config;
     private readonly Random _random;
-    private IScheduler? _scheduler;
 
     internal readonly HashSet<TLoad> _loadsInService;
     internal readonly Dictionary<TLoad, double> _serviceStartTimes;
@@ -68,14 +67,10 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
     }
 
     /// <inheritdoc/>
-    public bool TryStartService(TLoad loadToServe)
+    public bool TryStartService(TLoad loadToServe, IRunContext engineContext)
     {
         ArgumentNullException.ThrowIfNull(loadToServe);
-
-        if (_scheduler == null)
-        {
-            throw new InvalidOperationException($"Server '{Name}' has not been initialized with a scheduler.");
-        }
+        ArgumentNullException.ThrowIfNull(engineContext);
 
         if (Vacancy <= 0)
         {
@@ -84,24 +79,17 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
 
         // 1. Update state
         _loadsInService.Add(loadToServe);
-        double currentTime = _scheduler!.ClockTime;
+        double currentTime = engineContext.ClockTime;
         _serviceStartTimes[loadToServe] = currentTime;
 
         // 2. Schedule completion
         TimeSpan serviceDuration = _config.ServiceTime(loadToServe, _random);
-        _scheduler.Schedule(new ServerServiceCompleteEvent<TLoad>(this, loadToServe), serviceDuration);
+        engineContext.Scheduler.Schedule(new ServerServiceCompleteEvent<TLoad>(this, loadToServe), serviceDuration);
 
         // 3. Notify observers
         OnStateChanged(currentTime);
 
         return true;
-    }
-
-    /// <inheritdoc/>
-    public override void Initialize(IScheduler scheduler)
-    {
-        ArgumentNullException.ThrowIfNull(scheduler);
-        _scheduler = scheduler;
     }
 
     /// <inheritdoc/>

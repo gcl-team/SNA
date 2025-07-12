@@ -44,12 +44,18 @@ public abstract class AbstractSimulationModel : ISimulationModel, IWarmupAware
         Metadata = new Dictionary<string, object>();
     }
 
-    /// <inheritdoc/>
-    /// <remarks>
-    /// This method is abstract and MUST be implemented by derived classes
-    /// to schedule the specific initial events required by the simulation model.
-    /// </remarks>
-    public abstract void Initialize(IScheduler scheduler);
+    /// <summary>
+    /// Initializes the model, allowing it to schedule initial events.
+    /// This method is optional and should be overridden by models that need
+    /// to perform startup actions.
+    /// </summary>
+    /// <param name="context">The simulation run context.</param>
+    public virtual void Initialize(IRunContext context)
+    {
+        // Default implementation is empty.
+        // Passive models do not need to override this.
+        // Active models (like a Generator) WILL override this to schedule their first event.
+    }
 
     /// <inheritdoc/>
     /// <remarks>
