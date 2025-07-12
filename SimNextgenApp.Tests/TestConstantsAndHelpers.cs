@@ -78,3 +78,5 @@ public class NamedEvent(string label, List<string> executionList) : AbstractEven
 
     public override void Execute(IRunContext engine) => _executionList.Add(_label);
 }
+
+public record DummyResource(int Id);
