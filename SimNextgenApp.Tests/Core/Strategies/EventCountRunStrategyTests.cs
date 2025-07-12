@@ -1,6 +1,6 @@
-using SimNextgenApp.Core;
+using SimNextgenApp.Core.Strategies;
 
-namespace SimNextgenApp.Tests.Core;
+namespace SimNextgenApp.Tests.Core.Strategies;
 
 public class EventCountRunStrategyTests
 {

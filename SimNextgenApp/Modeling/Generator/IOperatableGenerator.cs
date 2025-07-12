@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Modeling;
+﻿namespace SimNextgenApp.Modeling.Generator;
 
 internal interface IOperatableGenerator<TLoad>
 {

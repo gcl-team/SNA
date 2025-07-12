@@ -1,4 +1,4 @@
-namespace SimNextgenApp.Core;
+namespace SimNextgenApp.Core.Strategies;
 
 /// <summary>
 /// A run strategy that stops the simulation after a specified duration has elapsed.

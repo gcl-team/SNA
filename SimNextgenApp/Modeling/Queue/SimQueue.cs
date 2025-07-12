@@ -4,7 +4,7 @@ using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 using SimNextgenApp.Statistics;
 
-namespace SimNextgenApp.Modeling;
+namespace SimNextgenApp.Modeling.Queue;
 
 /// <summary>
 /// Represents a queueing component that holds entities of type <typeparamref name="TLoad"/>

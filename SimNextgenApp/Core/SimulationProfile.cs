@@ -1,4 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
+using SimNextgenApp.Core.Strategies;
+using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling;
 using SimNextgenApp.Statistics;
 

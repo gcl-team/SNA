@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Modeling;
+﻿namespace SimNextgenApp.Modeling.Queue;
 
 internal interface IOperatableQueue<TLoad>
 {
