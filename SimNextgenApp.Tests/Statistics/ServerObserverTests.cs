@@ -16,10 +16,6 @@ public class ServerObserverTests
         };
         var server = new Server<DummyLoad>(config, seed: 123, instanceName: "TestServer");
 
-        // Mock the scheduler dependency for initialization
-        var mockScheduler = new Mock<IScheduler>();
-        server.Initialize(mockScheduler.Object);
-
         return server;
     }
 

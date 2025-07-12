@@ -38,7 +38,6 @@ public interface ISimulationModel
     /// required to start the simulation (e.g., the first entity arrival,
     /// initial state setup events).
     /// </summary>
-    /// <param name="scheduler">An interface provided by the engine, allowing the model
-    /// to schedule events without directly accessing the FEL.</param>
-    void Initialize(IScheduler scheduler);
+    /// <param name="engineContext">The simulation run context.</param>
+    void Initialize(IRunContext engineContext);
 }

@@ -40,7 +40,7 @@ internal sealed class ServerServiceCompleteEvent<TLoad> : AbstractServerEvent<TL
     public TLoad ServedLoad { get; }
 
     /// <summary>
-    /// Initialiszes a new instance of the <see cref="ServerServiceCompleteEvent{TLoad}"/> class, representing the
+    /// Initialises a new instance of the <see cref="ServerServiceCompleteEvent{TLoad}"/> class, representing the
     /// completion of a service operation on a server.
     /// </summary>
     /// <param name="owner">The server instance that completed the service operation.</param>

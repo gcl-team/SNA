@@ -1,4 +1,6 @@
-﻿namespace SimNextgenApp.Modeling.Server;
+﻿using SimNextgenApp.Core;
+
+namespace SimNextgenApp.Modeling.Server;
 
 public interface IServer<TLoad> : IWarmupAware
 {
@@ -39,10 +41,10 @@ public interface IServer<TLoad> : IWarmupAware
     /// If successful, the server's state is updated and a service completion event is scheduled.
     /// </summary>
     /// <param name="loadToServe">The load to start serving.</param>
+    /// <param name="engineContext">The current run context (provides time and scheduler).</param>
     /// <returns><c>true</c> if the load could be accepted (i.e., vacancy > 0 and event scheduled); <c>false</c> otherwise.</returns>
-    /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
-    /// <exception cref="ArgumentNullException">Thrown if engine or loadToServe is null.</exception>
-    bool TryStartService(TLoad loadToServe);
+    /// <exception cref="ArgumentNullException">Thrown if loadToServe or engineContext is null.</exception>
+    bool TryStartService(TLoad loadToServe, IRunContext engineContext);
 
     /// <summary>
     /// Actions to execute when a load departs from the server after completing service.

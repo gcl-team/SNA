@@ -36,8 +36,8 @@ public class SimulationEngineTests
 
         var testEvent = new TestEvent();
 
-        modelMock.Setup(m => m.Initialize(It.IsAny<IScheduler>()))
-                 .Callback<IScheduler>(sched => sched.Schedule(testEvent, 1.0));
+        modelMock.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+                 .Callback<IRunContext>(context => context.Scheduler.Schedule(testEvent, 1.0));
 
         strategyMock.SetupSequence(s => s.ShouldContinue(It.IsAny<IRunContext>()))
                     .Returns(true)
@@ -52,7 +52,7 @@ public class SimulationEngineTests
         // Assert
         Assert.True(testEvent.Executed);
         Assert.Equal(1.0, engine.ClockTime);
-        modelMock.Verify(m => m.Initialize(It.IsAny<IScheduler>()), Times.Once);
+        modelMock.Verify(m => m.Initialize(It.IsAny<IRunContext>()), Times.Once);
     }
 
     [Fact]
@@ -66,8 +66,8 @@ public class SimulationEngineTests
         var warmupTime = 5.0;
         var testEvent = new TestEvent();
 
-        modelMock.Setup(m => m.Initialize(It.IsAny<IScheduler>()))
-                 .Callback<IScheduler>(sched => sched.Schedule(testEvent, warmupTime));
+        modelMock.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+                 .Callback<IRunContext>(context => context.Scheduler.Schedule(testEvent, warmupTime));
 
         strategyMock.SetupGet(s => s.WarmupEndTime).Returns(warmupTime);
         strategyMock.SetupSequence(s => s.ShouldContinue(It.IsAny<IRunContext>()))
@@ -136,12 +136,12 @@ public class SimulationEngineTests
         var e3 = new NamedEvent("C", executedEvents);
 
         var modelMock = new Mock<ISimulationModel>();
-        modelMock.Setup(m => m.Initialize(It.IsAny<IScheduler>()))
-            .Callback<IScheduler>(s =>
+        modelMock.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+            .Callback<IRunContext>(context =>
             {
-                s.Schedule(e3, 3.0);
-                s.Schedule(e1, 1.0);
-                s.Schedule(e2, 2.0);
+                context.Scheduler.Schedule(e3, 3.0);
+                context.Scheduler.Schedule(e1, 1.0);
+                context.Scheduler.Schedule(e2, 2.0);
             });
 
         var strategyMock = new Mock<IRunStrategy>();

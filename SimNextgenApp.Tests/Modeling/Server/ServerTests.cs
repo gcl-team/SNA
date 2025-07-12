@@ -12,6 +12,7 @@ public class ServerTests
     private const int DefaultSeed = 456;
 
     private Mock<IScheduler> _mockScheduler;
+    private readonly Mock<IRunContext> _mockEngineContext;
     private double _currentTestTime;
 
     private readonly ServerStaticConfig<DummyLoad> _defaultConfig;
@@ -23,6 +24,10 @@ public class ServerTests
 
         _mockScheduler.SetupGet(s => s.ClockTime).Returns(() => _currentTestTime);
 
+        _mockEngineContext = new Mock<IRunContext>();
+        _mockEngineContext.SetupGet(e => e.ClockTime).Returns(() => _currentTestTime);
+        _mockEngineContext.SetupGet(e => e.Scheduler).Returns(_mockScheduler.Object);
+
         _defaultConfig = new ServerStaticConfig<DummyLoad>(_defaultServiceTimeFunc) { Capacity = 1 };
     }
 
@@ -32,7 +37,7 @@ public class ServerTests
         string name = DefaultServerName)
     {
         var server = new Server<DummyLoad>(config ?? _defaultConfig, seed, name);
-        server.Initialize(_mockScheduler.Object);
+        server.Initialize(_mockEngineContext.Object);
         return server;
     }
 
@@ -68,25 +73,11 @@ public class ServerTests
     }
 
     [Fact]
-    public void Initialize_NullScheduler_ThrowsArgumentNullException()
-    {
-        var server = new Server<DummyLoad>(_defaultConfig, DefaultSeed, DefaultServerName); // Not initialized yet
-        Assert.Throws<ArgumentNullException>(() => server.Initialize(null!));
-    }
-
-    [Fact]
-    public void TryStartService_BeforeInitialize_ThrowsInvalidOperationException()
-    {
-        var server = new Server<DummyLoad>(_defaultConfig, DefaultSeed, DefaultServerName); // Not initialized yet
-        Assert.Throws<InvalidOperationException>(() => server.TryStartService(CreateDummyLoad()));
-    }
-
-    [Fact]
     public void TryStartService_NullLoad_ThrowsArgumentNullException()
     {
         var server = CreateAndInitializeServer();
         _currentTestTime = 0.0;
-        Assert.Throws<ArgumentNullException>(() => server.TryStartService(null!));
+        Assert.Throws<ArgumentNullException>(() => server.TryStartService(null!, _mockEngineContext.Object));
     }
 
     [Fact]
@@ -103,7 +94,7 @@ public class ServerTests
         server.StateChanged += time => wasStateChangedFired = true;
 
         // Act
-        bool result = server.TryStartService(load);
+        bool result = server.TryStartService(load, _mockEngineContext.Object);
 
         // Assert
         Assert.True(result);
@@ -129,7 +120,7 @@ public class ServerTests
         var server = CreateAndInitializeServer(config: new ServerStaticConfig<DummyLoad>(_defaultServiceTimeFunc) { Capacity = 1 });
         var load1 = CreateDummyLoad("L1");
         _currentTestTime = 10.0;
-        server.TryStartService(load1); // Fill the one slot of capacity
+        server.TryStartService(load1, _mockEngineContext.Object); // Fill the one slot of capacity
 
         // Reset mocks and event listeners to ensure we only test the second call.
         _mockScheduler.Invocations.Clear();
@@ -140,7 +131,7 @@ public class ServerTests
         _currentTestTime = 11.0;
 
         // Act
-        bool result = server.TryStartService(load2);
+        bool result = server.TryStartService(load2, _mockEngineContext.Object);
 
         // Assert
         Assert.False(result);

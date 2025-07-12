@@ -17,7 +17,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
     public List<ServerObserver<MyLoad>> ServiceChannelObservers { get; }
 
     private readonly ILogger<SimpleMmckModel> _modelLogger;
-    private IRunContext? _runContext;
+    private IRunContext _runContext = null!;
 
     public int SystemCapacityK { get; }
     public int NumberOfServersC => ServiceChannels.Count;
@@ -72,12 +72,9 @@ internal class SimpleMmckModel : AbstractSimulationModel
         {
             server.LoadDeparted += (departedLoad, departureTime) =>
             {
-                _modelLogger.LogInformation($"--- [SERVER {server.Name} FREE] SimTime: {departureTime:F2} after serving {departedLoad}.");
-                if (_runContext != null && WaitingLine.ToDequeue && WaitingLine.Occupancy > 0)
-                {
-                    _modelLogger.LogInformation($"      Server '{server.Name}' is free, queue has items. Triggering dequeue attempt.");
-                    WaitingLine.TriggerDequeueAttempt(_runContext);
-                }
+                _modelLogger.LogInformation($"--- [SERVER {server.Name} FREE] SimTime: {departureTime:F2}. Triggering dequeue attempt.");
+                // Just poke the queue. The queue's own logic will handle the rest.
+                WaitingLine.TriggerDequeueAttempt(_runContext!);
             };
         }
 
@@ -104,48 +101,40 @@ internal class SimpleMmckModel : AbstractSimulationModel
         load.CreationTime = generationTime;
         _modelLogger.LogInformation($"--- [LOAD ARRIVAL] SimTime: {generationTime:F2} -> {load}.");
 
-        if (_runContext == null)
-        {
-            _modelLogger.LogError("RunContext not available. Model not properly initialized.");
-            return;
-        }
+        // The context is guaranteed to be non-null after Initialize
+        var context = _runContext!;
 
-        // Check K: System Capacity
-        int currentTotalInSystem = WaitingLine.Occupancy;
-        foreach (var server in ServiceChannels)
-        {
-            currentTotalInSystem += server.NumberInService;
-        }
-
-        WaitingLine.TryScheduleEnqueue(load, _runContext);
-
-        WaitingLine.LoadBalked += (balkedLoad, balkTime) => {
-            BalkedLoadsCount++;
-            _modelLogger.LogInformation($"      M/M/c/K model noted that Load {balkedLoad.Id} balked at time {balkTime}.");
-        };
-
-        TotalLoadsEnteredSystem++;
-        _modelLogger.LogTrace($"      Load {load.Id} enters system. Total in system before this load: {currentTotalInSystem - WaitingLine.Occupancy - ServiceChannels.Sum(s => s.NumberInService)} (Pre-check) -> now {currentTotalInSystem} (Post-check, pre-placement).");
-
-        // Try to send to an idle server directly
+        // Try to send the load directly to an idle server first.
         Server<MyLoad>? idleServer = ServiceChannels.FirstOrDefault(s => s.Vacancy > 0);
         if (idleServer != null)
         {
             _modelLogger.LogInformation($"      Load {load.Id} goes directly to idle Server '{idleServer.Name}'.");
-            bool accepted = idleServer.TryStartService(load);
-            if (!accepted)
+            bool accepted = idleServer.TryStartService(load, context);
+            if (accepted)
             {
-                // This should not happen if Vacancy > 0 was true unless there's a race or an issue
-                _modelLogger.LogError($"      ERROR: Idle Server '{idleServer.Name}' failed to accept load {load.Id}. This is unexpected.");
-                // Potentially try to queue it now, or treat as an error/balk
-                TryEnqueueLoad(load, generationTime, " (after server direct fail)");
+                TotalLoadsEnteredSystem++;
             }
+            else
+            {
+                // This case is a major logical error if it ever happens
+                _modelLogger.LogError($"      CRITICAL ERROR: Idle Server '{idleServer.Name}' rejected load {load.Id}.");
+            }
+            return; // The load has been handled.
+        }
+
+        // If we are here, all servers were busy. Now, try to enqueue.
+        _modelLogger.LogInformation($"      All servers busy. Load {load.Id} attempts to enter queue '{WaitingLine.Name}'.");
+        bool enqueued = WaitingLine.TryScheduleEnqueue(load, context);
+        if (enqueued)
+        {
+            TotalLoadsEnteredSystem++;
         }
         else
         {
-            // All servers busy, try to enqueue
-            _modelLogger.LogInformation($"      All servers busy. Load {load.Id} attempts to enter queue '{WaitingLine.Name}'.");
-            TryEnqueueLoad(load, generationTime);
+            // The queue is full (or has 0 capacity and is considered full). The load balks.
+            BalkedLoadsCount++;
+            _modelLogger.LogWarning($"      Load {load.Id} BALKED. Queue '{WaitingLine.Name}' is full. System at capacity K={SystemCapacityK}.");
+            // We can fire a "LoadBalked" event from this model if other components need to know.
         }
     }
 
@@ -215,24 +204,12 @@ internal class SimpleMmckModel : AbstractSimulationModel
         }
     }
 
-
-    public override void Initialize(IScheduler scheduler)
+    public override void Initialize(IRunContext runContext)
     {
-        if (scheduler is IRunContext context)
-        {
-            _runContext = context;
-        }
-        else
-        {
-            throw new InvalidOperationException("MMCKSystemModel requires IRunContext for initialization.");
-        }
+        _runContext = runContext;
 
-        LoadGenerator.Initialize(scheduler);
-        WaitingLine.Initialize(scheduler);
-        foreach (var server in ServiceChannels)
-        {
-            server.Initialize(scheduler);
-        }
+        LoadGenerator.Initialize(runContext);
+        WaitingLine.Initialize(runContext);
 
         // Setup the action for when an item is dequeued from the WaitingLine
         WaitingLine.LoadDequeued += (dequeuedLoad, dequeueTime) => {
@@ -244,7 +221,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
             if (idleServer != null)
             {
                 _modelLogger.LogInformation($"      Load {dequeuedLoad.Id} dequeued at {dequeueTime}, Server '{idleServer.Name}' attempting to serve.");
-                idleServer.TryStartService(dequeuedLoad);
+                idleServer.TryStartService(dequeuedLoad, _runContext);
             }
             else
             {

@@ -15,7 +15,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     where TLoad : notnull
 {
     private readonly QueueStaticConfig<TLoad> _config;
-    private IScheduler? _scheduler;
     private readonly Queue<TLoad> _waitingItems = new();
     private bool _toDequeue = true;
     private readonly ILogger<SimQueue<TLoad>> _logger;
@@ -34,9 +33,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// <summary>
     /// Gets the time-based metric instance used for tracking queue occupancy statistics over time.
     /// </summary>
-    public TimeBasedMetric TimeBasedMetric { get; private set; }
-
-    
+    public TimeBasedMetric TimeBasedMetric { get; private set; }    
 
     /// <summary>
     /// Gets the configuration settings for the queue.
@@ -81,7 +78,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     {
         ArgumentNullException.ThrowIfNull(load);
         ArgumentNullException.ThrowIfNull(engineContext);
-        EnsureSchedulerInitialized();
 
        if (Vacancy <= 0 && _config.Capacity != int.MaxValue)
         {
@@ -106,7 +102,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// <param name="engineContext">The context of the current execution, providing access to the scheduler and clock time.</param>
     public void TriggerDequeueAttempt(IRunContext engineContext)
     {
-        EnsureSchedulerInitialized();
         if (ToDequeue && Occupancy > 0)
         {
             _logger.LogTrace("Dequeue attempt triggered for {QueueName} at {Time} by external signal.", Name, engineContext.ClockTime);
@@ -122,19 +117,16 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     public void ScheduleUpdateToDequeue(bool toDequeue, IRunContext engineContext)
     {
         ArgumentNullException.ThrowIfNull(engineContext);
-        EnsureSchedulerInitialized();
+
         engineContext.Scheduler.Schedule(new UpdateToDequeueEvent<TLoad>(this, toDequeue), engineContext.ClockTime);
     }
 
-    /// <summary>
-    /// Initialises the queue with the specified scheduler.
-    /// </summary>
-    /// <param name="scheduler">The scheduler to be used for managing queue operations. Cannot be <see langword="null"/>.</param>
-    public override void Initialize(IScheduler scheduler)
+    /// <inheritdoc/>
+    public override void Initialize(IRunContext runContext)
     {
-        ArgumentNullException.ThrowIfNull(scheduler);
-        _scheduler = scheduler;
-        TimeBasedMetric.ObserveCount(0, 0); // Initialize metric at time 0 with 0 count
+        ArgumentNullException.ThrowIfNull(runContext);
+
+        TimeBasedMetric.ObserveCount(0, 0); // Initialise metric at time 0 with 0 count
         _logger.LogInformation("Queue '{QueueName}' initialized.", Name);
     }
 
@@ -227,12 +219,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     void IOperatableQueue<TLoad>.HandleEnqueue(TLoad load, double currentTime) => HandleEnqueue(load, currentTime);
     void IOperatableQueue<TLoad>.HandleDequeue(double currentTime) => HandleDequeue(currentTime);
     void IOperatableQueue<TLoad>.HandleUpdateToDequeue(bool toDequeue, double currentTime) => HandleUpdateToDequeue(toDequeue, currentTime);
-
-    private void EnsureSchedulerInitialized()
-    {
-        if (_scheduler == null)
-            throw new InvalidOperationException($"Queue '{Name}' has not been initialized with a scheduler. Call Initialize first.");
-    }
 
     private void OnLoadEnqueued(TLoad load, double time) => LoadEnqueued?.Invoke(load, time);
     private void OnLoadDequeued(TLoad load, double time) => LoadDequeued?.Invoke(load, time);
