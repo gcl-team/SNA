@@ -1,4 +1,4 @@
-namespace SimNextgenApp.Core;
+namespace SimNextgenApp.Core.Utilities;
 
 public enum SimulationTimeUnit
 {

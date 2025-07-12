@@ -2,9 +2,9 @@
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
-using SimNextgenApp.Modeling;
+using SimNextgenApp.Modeling.Server;
 
-namespace SimNextgenApp.Tests.Modeling;
+namespace SimNextgenApp.Tests.Modeling.Server;
 
 public class ServerTests
 {

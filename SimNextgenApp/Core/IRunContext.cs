@@ -1,3 +1,5 @@
+using SimNextgenApp.Core.Strategies;
+
 namespace SimNextgenApp.Core;
 
 /// <summary>

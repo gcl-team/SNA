@@ -4,9 +4,9 @@ using Moq;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
-using SimNextgenApp.Modeling;
+using SimNextgenApp.Modeling.Queue;
 
-namespace SimNextgenApp.Tests.Modeling;
+namespace SimNextgenApp.Tests.Modeling.Queue;
 
 public class SimQueueTests
 {

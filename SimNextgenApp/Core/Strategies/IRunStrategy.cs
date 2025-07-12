@@ -1,4 +1,4 @@
-namespace SimNextgenApp.Core;
+namespace SimNextgenApp.Core.Strategies;
 
 /// <summary>
 /// Defines the contract for strategies that control the execution duration

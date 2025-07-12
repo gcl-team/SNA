@@ -1,6 +1,6 @@
 ﻿using SimNextgenApp.Core;
 
-namespace SimNextgenApp.Modeling;
+namespace SimNextgenApp.Modeling.Queue;
 
 public interface ISimQueue<TLoad> : IWarmupAware
 {

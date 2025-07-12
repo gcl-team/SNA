@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Modeling;
+﻿namespace SimNextgenApp.Modeling.Server;
 
 public interface IServer<TLoad> : IWarmupAware
 {

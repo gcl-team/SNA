@@ -2,6 +2,9 @@
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Modeling;
+using SimNextgenApp.Modeling.Generator;
+using SimNextgenApp.Modeling.Queue;
+using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Statistics;
 
 namespace SimNextgenApp.Demo.CustomModels;

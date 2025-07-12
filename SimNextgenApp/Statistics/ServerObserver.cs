@@ -1,4 +1,4 @@
-﻿using SimNextgenApp.Modeling;
+﻿using SimNextgenApp.Modeling.Server;
 
 namespace SimNextgenApp.Statistics;
 

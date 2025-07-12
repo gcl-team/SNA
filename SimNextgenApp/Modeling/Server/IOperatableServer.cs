@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Modeling;
+﻿namespace SimNextgenApp.Modeling.Server;
 
 internal interface IOperatableServer<TLoad>
 {

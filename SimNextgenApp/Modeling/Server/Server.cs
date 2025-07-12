@@ -6,7 +6,7 @@ using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("SimNextgenApp.Tests")]
-namespace SimNextgenApp.Modeling;
+namespace SimNextgenApp.Modeling.Server;
 
 /// <summary>
 /// Represents a server in a DES that processes loads. This component acts as a pure state machine,

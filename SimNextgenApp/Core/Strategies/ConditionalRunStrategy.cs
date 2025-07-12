@@ -1,4 +1,4 @@
-namespace SimNextgenApp.Core;
+namespace SimNextgenApp.Core.Strategies;
 
 /// <summary>
 /// A run strategy that stops the simulation based on a custom condition evaluated against the engine's state.

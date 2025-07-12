@@ -3,7 +3,7 @@ using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 
-namespace SimNextgenApp.Modeling;
+namespace SimNextgenApp.Modeling.Generator;
 
 /// <summary>
 /// Represents a source component in a simulation model that generates entities (loads) of type <typeparamref name="TLoad"/>.

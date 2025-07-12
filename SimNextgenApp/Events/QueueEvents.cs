@@ -1,5 +1,5 @@
 ﻿using SimNextgenApp.Core;
-using SimNextgenApp.Modeling;
+using SimNextgenApp.Modeling.Queue;
 
 namespace SimNextgenApp.Events;
 

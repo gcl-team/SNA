@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SimNextgenApp.Core;
+using SimNextgenApp.Core.Strategies;
+using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
 using System;
