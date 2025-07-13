@@ -107,7 +107,7 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
     /// <inheritdoc/>
     public override void WarmedUp(double simulationTime)
     {
-        UtilizationMetric.WarmedUp(simulationTime);
+        UtilizationMetric.WarmedUp(simulationTime, 0);
         UtilizationMetric.ObserveCount(BusyCount, simulationTime);
     }
 }

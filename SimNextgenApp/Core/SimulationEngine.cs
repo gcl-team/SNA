@@ -221,9 +221,11 @@ public class SimulationEngine : IScheduler, IRunContext
 
         ev.ExecutionTime = time;
 
-        long sequence = Interlocked.Increment(ref _eventSequenceCounter);
+        long sequence;
+
         lock (_felLock)
         {
+            sequence = Interlocked.Increment(ref _eventSequenceCounter);
             _fel.Enqueue(ev, (time, sequence));
         }
         

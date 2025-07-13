@@ -1,10 +1,33 @@
+using Moq;
+using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
+using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Core.Strategies;
 
 public class EventCountRunStrategyTests
 {
-    [Theory]
+    [Fact(DisplayName = "Constructor should set properties correctly when valid arguments are provided.")]
+    public void Constructor_WithValidArguments_SetsPropertiesCorrectly()
+    {
+        // Arrange & Act
+        var strategy = new EventCountRunStrategy(maxEventCount: 1000, warmupEndTime: 100.0);
+
+        // Assert
+        Assert.Equal(100.0, strategy.WarmupEndTime);
+    }
+
+    [Fact(DisplayName = "Constructor should leave WarmupEndTime as null when it is not provided.")]
+    public void Constructor_WithoutWarmupTime_LeavesWarmupPropertyNull()
+    {
+        // Arrange & Act
+        var strategy = new EventCountRunStrategy(maxEventCount: 1000);
+
+        // Assert
+        Assert.Null(strategy.WarmupEndTime);
+    }
+
+    [Theory(DisplayName = "Constructor should throw ArgumentOutOfRangeException for a non-positive event count.")]
     [InlineData(0)]
     [InlineData(-1)]
     public void Constructor_ThrowsArgumentOutOfRangeException_ForNonPositiveMaxEventCount(long invalidMaxEventCount)
@@ -12,8 +35,8 @@ public class EventCountRunStrategyTests
         Assert.Throws<ArgumentOutOfRangeException>("maxEventCount", () => new EventCountRunStrategy(invalidMaxEventCount));
     }
 
-    [Fact]
-    public void Constructor_ThrowsArgumentOutOfRangeException_ForNegativeWarmupEndTime()
+    [Fact(DisplayName = "Constructor should throw ArgumentOutOfRangeException for a negative warm-up time.")]
+    public void Constructor_NegativeWarmupEndTime_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
         long maxEventCount = 10;
@@ -24,21 +47,39 @@ public class EventCountRunStrategyTests
     }
 
     [Theory]
-    [InlineData(0, 10, true)]   // 0 executed events, max 10 -> continue
-    [InlineData(5, 10, true)]   // 5 executed events, max 10 -> continue
-    [InlineData(9, 10, true)]   // 9 executed events, max 10 -> continue
-    [InlineData(10, 10, false)] // 10 executed events, max 10 -> stop
-    [InlineData(15, 10, false)] // 15 executed events, max 10 -> stop
-    public void ShouldContinue_ReturnsExpectedValue(long executedEventCount, long maxEventCount, bool expected)
+    [DisplayName("ShouldContinue should return true when the executed event count is less than the maximum.")]
+    [InlineData(0)]   // Start of simulation
+    [InlineData(998)] // Middle of simulation
+    [InlineData(999)] // Just before the limit
+    public void ShouldContinue_EventCountIsLessThanMax_ReturnsTrue(long executedEventCount)
     {
         // Arrange
-        var context = new TestRunContext(null!) { ExecutedEventCount = executedEventCount };
-        var strategy = new EventCountRunStrategy(maxEventCount);
+        var strategy = new EventCountRunStrategy(maxEventCount: 1000);
+        var mockContext = new Mock<IRunContext>();
+        mockContext.SetupGet(c => c.ExecutedEventCount).Returns(executedEventCount);
 
         // Act
-        bool actual = strategy.ShouldContinue(context);
+        bool result = strategy.ShouldContinue(mockContext.Object);
 
         // Assert
-        Assert.Equal(expected, actual);
+        Assert.True(result);
+    }
+
+    [Theory]
+    [DisplayName("ShouldContinue should return false when the executed event count is at or over the maximum.")]
+    [InlineData(1000)] // Exactly at the limit
+    [InlineData(1001)] // Past the limit
+    public void ShouldContinue_EventCountIsAtOrOverMax_ReturnsFalse(long executedEventCount)
+    {
+        // Arrange
+        var strategy = new EventCountRunStrategy(maxEventCount: 1000);
+        var mockContext = new Mock<IRunContext>();
+        mockContext.SetupGet(c => c.ExecutedEventCount).Returns(executedEventCount);
+
+        // Act
+        bool result = strategy.ShouldContinue(mockContext.Object);
+
+        // Assert
+        Assert.False(result);
     }
 }

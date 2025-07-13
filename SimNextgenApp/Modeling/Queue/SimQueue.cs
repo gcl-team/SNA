@@ -138,7 +138,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// </remarks>
     public override void WarmedUp(double simulationTime)
     {
-        TimeBasedMetric.WarmedUp(simulationTime);
+        TimeBasedMetric.WarmedUp(simulationTime, 0);
         // After metric is warmed up (its count is 0, time is simulationTime),
         // observe the actual queue length at this moment.
         TimeBasedMetric.ObserveCount(Occupancy, simulationTime);

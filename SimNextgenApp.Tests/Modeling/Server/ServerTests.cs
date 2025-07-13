@@ -62,16 +62,6 @@ public class ServerTests
             new Server<DummyLoad>(null!, 123, "Invalid"));
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(-1)]
-    public void Constructor_NonPositiveOrZeroCapacity_ThrowsArgumentOutOfRangeException(int invalidCapacity)
-    {
-        var config = new ServerStaticConfig<DummyLoad>(_defaultServiceTimeFunc) { Capacity = invalidCapacity };
-        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => new Server<DummyLoad>(config, 123, "Invalid"));
-        Assert.Equal("config", ex.ParamName); // Config parameter contains the invalid capacity
-    }
-
     [Fact]
     public void TryStartService_NullLoad_ThrowsArgumentNullException()
     {

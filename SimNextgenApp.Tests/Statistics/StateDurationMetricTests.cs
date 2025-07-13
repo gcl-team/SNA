@@ -12,7 +12,7 @@ public enum TestMachineState
 
 public class StateDurationMetricTests
 {
-    [Fact]
+    [Fact(DisplayName = "Constructor with default parameters should initialise the metric correctly.")]
     public void Constructor_DefaultInitialTime_InitializesCorrectly()
     {
         // Arrange
@@ -32,7 +32,7 @@ public class StateDurationMetricTests
         Assert.Empty(metric.History);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor with specified initial time and history enabled should initialise correctly.")]
     public void Constructor_WithInitialTimeAndHistoryEnabled_InitializesCorrectly()
     {
         // Arrange
@@ -56,17 +56,19 @@ public class StateDurationMetricTests
         Assert.Equal(initialState, metric.History[0].State);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor should throw ArgumentOutOfRangeException for a negative initial time.")]
     public void Constructor_NegativeInitialTime_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
         var initialState = TestMachineState.Idle;
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => new StateDurationMetric<TestMachineState>(initialState, -1.0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            new StateDurationMetric<TestMachineState>(initialState, -1.0)
+        );
     }
 
-    [Fact]
+    [Fact(DisplayName = "UpdateState with a single transition should record duration for the previous state.")]
     public void UpdateState_SingleTransition_RecordsDurationAndUpdatesState()
     {
         // Arrange
@@ -85,16 +87,16 @@ public class StateDurationMetricTests
         Assert.False(metric.StateDurations.ContainsKey(TestMachineState.Busy)); // No completed duration for Busy yet
     }
 
-    [Fact]
+    [Fact(DisplayName = "UpdateState with multiple transitions should accumulate durations correctly.")]
     public void UpdateState_MultipleTransitions_AccumulatesDurationsCorrectly()
     {
         // Arrange
         var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 0.0);
 
         // Act
-        metric.UpdateState(TestMachineState.Busy, 10.0);       // Idle for 10s
+        metric.UpdateState(TestMachineState.Busy, 10.0);        // Idle for 10s
         metric.UpdateState(TestMachineState.Maintenance, 15.0); // Busy for 5s
-        metric.UpdateState(TestMachineState.Idle, 25.0);      // Maintenance for 10s
+        metric.UpdateState(TestMachineState.Idle, 25.0);        // Maintenance for 10s
 
         // Assert
         AssertHelpers.AreEqual(25.0, metric.CurrentTime);
@@ -105,7 +107,7 @@ public class StateDurationMetricTests
         AssertHelpers.AreEqual(10.0, metric.StateDurations[TestMachineState.Maintenance]);
     }
 
-    [Fact]
+    [Fact(DisplayName = "\"UpdateState with a self-transition should record the duration spent in that state.\"")]
     public void UpdateState_TransitionToSameStateAtLaterTime_AddsToDuration()
     {
         // Arrange
@@ -113,22 +115,19 @@ public class StateDurationMetricTests
 
         // Act
         // This scenario is a bit unusual for state transitions, but the logic should handle it.
-        // It implies the entity *remained* Idle, and we're just marking a point in time.
-        // However, UpdateState is for *transitions*. A more typical way to advance time without state change
-        // would be for GetProportionOfTimeInState to use a later asOfClockTime.
-        // The current UpdateState implies a "refresh" or re-affirmation of the state.
-        // The duration *before* this call in CurrentState (Idle) should be recorded.
+        // This simulates an event that re-affirms the current state at a later time.
+        // The metric should correctly record the time spent in 'Idle' before this call.
         metric.UpdateState(TestMachineState.Idle, 5.0); // Idle for 5s
 
         // Assert
         AssertHelpers.AreEqual(5.0, metric.CurrentTime);
         Assert.Equal(TestMachineState.Idle, metric.CurrentState);
         Assert.True(metric.StateDurations.ContainsKey(TestMachineState.Idle));
-        AssertHelpers.AreEqual(5.0, metric.StateDurations[TestMachineState.Idle]);
+        AssertHelpers.AreEqual(5.0, metric.StateDurations[TestMachineState.Idle]); // Verify that the 5 seconds spent in Idle was correctly recorded.
     }
 
 
-    [Fact]
+    [Fact(DisplayName = "UpdateState with a zero-duration transition should update state without accumulating time.")]
     public void UpdateState_TransitionAtSameTime_UpdatesStateNoDurationChange()
     {
         // Arrange
@@ -140,20 +139,22 @@ public class StateDurationMetricTests
         // Assert
         AssertHelpers.AreEqual(5.0, metric.CurrentTime);
         Assert.Equal(TestMachineState.Busy, metric.CurrentState);
-        Assert.False(metric.StateDurations.ContainsKey(TestMachineState.Idle)); // No duration for Idle as time didn't advance
+        Assert.False(metric.StateDurations.ContainsKey(TestMachineState.Idle)); // No duration for Idle as time did not advance
     }
 
-    [Fact]
+    [Fact(DisplayName = "UpdateState should throw ArgumentOutOfRangeException if time moves backward.")]
     public void UpdateState_ClockTimeGoesBackwards_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
         var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 10.0);
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => metric.UpdateState(TestMachineState.Busy, 5.0));
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            metric.UpdateState(TestMachineState.Busy, 5.0)
+        );
     }
 
-    [Fact]
+    [Fact(DisplayName = "UpdateState should add all transitions to history when enabled.")]
     public void UpdateState_WithHistoryEnabled_RecordsHistory()
     {
         // Arrange
@@ -170,7 +171,7 @@ public class StateDurationMetricTests
         Assert.Equal((15.0, TestMachineState.Maintenance), metric.History[2]);
     }
 
-    [Fact]
+    [Fact(DisplayName = "WarmedUp should reset all statistics and re-initialise the metric's state.")]
     public void WarmedUp_ResetsMetricsAndHistoryCorrectly()
     {
         // Arrange
@@ -193,7 +194,7 @@ public class StateDurationMetricTests
         Assert.Equal((warmUpTime, stateAtWarmUp), metric.History[0]);
     }
 
-    [Fact]
+    [Fact(DisplayName = "WarmedUp should throw ArgumentOutOfRangeException for a negative warm-up time.")]
     public void WarmedUp_NegativeClockTime_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
@@ -203,7 +204,7 @@ public class StateDurationMetricTests
         Assert.Throws<ArgumentOutOfRangeException>(() => metric.WarmedUp(-5.0));
     }
 
-    [Fact]
+    [Fact(DisplayName = "GetTotalDurationInState should return zero for a state that was never entered.")]
     public void GetTotalDurationInState_StateNeverEntered_ReturnsZero()
     {
         // Arrange
@@ -217,8 +218,8 @@ public class StateDurationMetricTests
         AssertHelpers.AreEqual(0.0, duration);
     }
 
-    [Fact]
-    public void GetTotalDurationInState_StateEnteredMultipleTimes_ReturnsSum()
+    [Fact(DisplayName = "GetTotalDurationInState should return the correct total recorded duration.")]
+    public void GetTotalDurationInState_ForVariousStates_ReturnsCorrectDurations()
     {
         // Arrange
         var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 0.0);
@@ -235,13 +236,13 @@ public class StateDurationMetricTests
         AssertHelpers.AreEqual(5.0, busyDuration);
     }
 
-    [Fact]
+    [Fact(DisplayName = "GetProportionOfTimeInState returns correct proportions for each state at a given asOfTime.")]
     public void GetProportionOfTimeInState_BasicScenario_CorrectProportion()
     {
         // Arrange
         var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 0.0); // InitialTime = 0
-        metric.UpdateState(TestMachineState.Busy, 10.0);  // Idle for 10s
-        metric.UpdateState(TestMachineState.Maintenance, 15.0); // Busy for 5s
+        metric.UpdateState(TestMachineState.Busy, 10.0);                                    // Idle for 10s
+        metric.UpdateState(TestMachineState.Maintenance, 15.0);                             // Busy for 5s
         // CurrentState = Maintenance, CurrentTime = 15.0
         // StateDurations: { Idle: 10, Busy: 5 }
 
@@ -269,7 +270,39 @@ public class StateDurationMetricTests
         AssertHelpers.AreEqual(0.25, propBusy);
     }
 
-    [Fact]
+    [Fact(DisplayName = "GetProportionOfTime should include ongoing duration for the current state.")]
+    public void GetProportionOfTime_ForCurrentState_IncludesOngoingDuration()
+    {
+        // Arrange
+        var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 0.0);
+        metric.UpdateState(TestMachineState.Busy, 10.0); // CurrentTime=10, CurrentState=Busy
+        var asOfTime = 25.0; // Total time is 25s.
+
+        // Act
+        // Proportion of Busy = (ongoing duration from 10 to 25 = 15s) / (total time 25s) = 0.6
+        var propBusy = metric.GetProportionOfTimeInState(TestMachineState.Busy, asOfTime);
+
+        // Assert
+        AssertHelpers.AreEqual(0.6, propBusy);
+    }
+
+    [Fact(DisplayName ="GetProportionOfTime should calculate correctly for a state that has completed its duration.")]
+    public void GetProportionOfTime_ForCompletedState_CalculatesCorrectly()
+    {
+        // Arrange
+        var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 0.0);
+        metric.UpdateState(TestMachineState.Busy, 10.0); // Idle ran for 10s. CurrentTime = 10.
+        var asOfTime = 20.0; // Total time is 20s.
+
+        // Act
+        // Proportion of Idle = (recorded duration 10s) / (total time 20s) = 0.5
+        var propIdle = metric.GetProportionOfTimeInState(TestMachineState.Idle, asOfTime);
+
+        // Assert
+        AssertHelpers.AreEqual(0.5, propIdle);
+    }
+
+    [Fact(DisplayName = "GetProportionOfTime should be correct when 'asOfTime' equals the last event time.")]
     public void GetProportionOfTimeInState_AsOfTimeEqualsCurrentTime_CorrectProportion()
     {
         // Arrange
@@ -289,8 +322,8 @@ public class StateDurationMetricTests
         AssertHelpers.AreEqual(0.0, propBusy);
         AssertHelpers.AreEqual(1.0, propIdle);
     }
-    
-    [Fact]
+
+    [Fact(DisplayName = "GetProportionOfTime should throw if 'asOfTime' is before the initial time.")]
     public void GetProportionOfTimeInState_AsOfTimeBeforeInitialTime_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
@@ -300,7 +333,23 @@ public class StateDurationMetricTests
         Assert.Throws<ArgumentOutOfRangeException>(() => metric.GetProportionOfTimeInState(TestMachineState.Idle, 5.0));
     }
 
-    [Fact]
+    [Fact(DisplayName = "GetProportionOfTime should throw if 'asOfTime' is before the warm-up time.")]
+    public void GetProportionOfTime_AsOfTimeBeforeWarmupTime_ThrowsException()
+    {
+        // Arrange
+        var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 0.0);
+        metric.UpdateState(TestMachineState.Busy, 50.0);
+
+        metric.WarmedUp(100.0); // New InitialTime is 100.0
+
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
+            metric.GetProportionOfTimeInState(TestMachineState.Busy, 90.0) // Querying before InitialTime
+        );
+        Assert.Equal("asOfClockTime", ex.ParamName);
+    }
+
+    [Fact(DisplayName = "GetProportionOfTime should return 1.0 for the initial state when total time is zero.")]
     public void GetProportionOfTimeInState_TotalObservedTimeIsZero_AtInitialTime()
     {
         // Arrange
@@ -315,56 +364,34 @@ public class StateDurationMetricTests
         AssertHelpers.AreEqual(1.0, propIdle); // Entity is in Idle state for 100% of the zero duration.
         AssertHelpers.AreEqual(0.0, propBusy);
     }
-    
-        [Fact]
-    public void GetProportionOfTimeInState_QueryForPastTimeWhileCurrentlyInQueriedState() // Renaming for clarity
+
+    [Fact(DisplayName = "GetProportionOfTime should calculate correctly for a past timestamp when history is enabled.")]
+    public void GetProportionOfTime_ForPastTimestampWithHistory_CalculatesCorrectly()
     {
         // Arrange
-        var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 0.0);
-        metric.UpdateState(TestMachineState.Busy, 10.0); // Idle: 0-10 (10s). CurrentTime=10, CurrentState=Busy
-                                                         // StateDurations[Idle]=10
-        metric.UpdateState(TestMachineState.Idle, 20.0); // Busy: 10-20 (10s). CurrentTime=20, CurrentState=Idle
-                                                         // StateDurations[Idle]=10 (no change), StateDurations[Busy]=10
+        // CRITICAL: We must enable history for this feature to work correctly.
+        var metric = new StateDurationMetric<TestMachineState>(
+            TestMachineState.Idle,
+            0.0,
+            true
+        );
 
-        // State of metric after all updates:
-        // InitialTime = 0.0
-        // CurrentTime = 20.0
-        // CurrentState = TestMachineState.Idle
-        // StateDurations = { Idle: 10.0, Busy: 10.0 }
+        metric.UpdateState(TestMachineState.Busy, 10.0); // Idle duration: 10s (from t=0 to t=10)
+        metric.UpdateState(TestMachineState.Idle, 20.0); // Busy duration: 10s (from t=10 to t=20)
 
-        // Test 1: Proportion of Idle at asOfClockTime = 15.0
-        // At t=15, the entity was in state Busy.
-        // Recorded duration for Idle is 10.0 (from 0-10).
-        // totalObservedTimeSpan = 15.0 - 0.0 = 15.0
-        // Proportion = 10.0 / 15.0
-        var proportionIdleAt15 = metric.GetProportionOfTimeInState(TestMachineState.Idle, 15.0);
-        AssertHelpers.AreEqual(10.0 / 15.0, proportionIdleAt15);
+        var asOfTime = 15.0; // We are querying for a time in the past.
 
-        // Test 2: Proportion of Busy at asOfClockTime = 15.0
-        // At t=15, the entity was in state Busy.
-        // CurrentState (final state of metric) is Idle, not Busy, so the special "ongoing" logic for final CurrentState is NOT triggered for Busy.
-        // Recorded duration for Busy is 10.0 (from 10-20).
-        // totalObservedTimeSpan = 15.0 - 0.0 = 15.0
-        // Proportion = 10.0 / 15.0
-        var proportionBusyAt15 = metric.GetProportionOfTimeInState(TestMachineState.Busy, 15.0);
-        AssertHelpers.AreEqual(10.0 / 15.0, proportionBusyAt15); // << THE FIX IS HERE in the expected value
+        // Act
+        // Human logic: At t=15, the machine had been Idle for 10s and Busy for 5s. Total time is 15s.
 
-        // Test 3: Proportion of Idle at asOfClockTime = 20.0 (final time)
-        // CurrentState (final state of metric) IS Idle. asOfClockTime (20) >= CurrentTime (20).
-        // Recorded duration for Idle is 10.0.
-        // Ongoing duration for Idle = asOfClockTime (20) - CurrentTime (20) = 0.0.
-        // Total duration in Idle = 10.0 + 0.0 = 10.0.
-        // totalObservedTimeSpan = 20.0 - 0.0 = 20.0
-        // Proportion = 10.0 / 20.0 = 0.5
-        var proportionIdleAt20 = metric.GetProportionOfTimeInState(TestMachineState.Idle, 20.0);
-        AssertHelpers.AreEqual(10.0 / 20.0, proportionIdleAt20);
+        // Proportion of Idle time at t=15 should be 10.0 / 15.0
+        var propIdle = metric.GetProportionOfTimeInState(TestMachineState.Idle, asOfTime);
 
-        // Test 4: Proportion of Busy at asOfClockTime = 20.0 (final time)
-        // CurrentState (final state of metric) is Idle, not Busy.
-        // Recorded duration for Busy is 10.0.
-        // totalObservedTimeSpan = 20.0 - 0.0 = 20.0
-        // Proportion = 10.0 / 20.0 = 0.5
-        var proportionBusyAt20 = metric.GetProportionOfTimeInState(TestMachineState.Busy, 20.0);
-        AssertHelpers.AreEqual(10.0 / 20.0, proportionBusyAt20);
+        // Proportion of Busy time at t=15 should be 5.0 / 15.0
+        var propBusy = metric.GetProportionOfTimeInState(TestMachineState.Busy, asOfTime);
+
+        // Assert
+        AssertHelpers.AreEqual(10.0 / 15.0, propIdle);
+        AssertHelpers.AreEqual(5.0 / 15.0, propBusy);
     }
 }
