@@ -6,8 +6,8 @@ namespace SimNextgenApp.Tests.Modeling;
 
 public class AbstractSimulationModelTests
 {
-    [Fact]
-    public void Constructor_AssignsNameCorrectly()
+    [Fact(DisplayName = "Constructor should assign the provided name correctly.")]
+    public void Constructor_ValidName_AssignsNameCorrectly()
     {
         string expectedName = "Test Model 1";
 
@@ -16,16 +16,17 @@ public class AbstractSimulationModelTests
         Assert.Equal(expectedName, model.Name);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor should initialize an empty, non-null Metadata dictionary.")]
     public void Constructor_InitializesMetadata()
     {
         var model = new ConcreteTestModel("Test Model 2");
 
         Assert.NotNull(model.Metadata);
+        Assert.Empty(model.Metadata);
         Assert.IsAssignableFrom<IDictionary<string, object>>(model.Metadata);
     }
 
-    [Theory]
+    [Theory(DisplayName = "Constructor should throw ArgumentException for a null or whitespace name.")]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("   ")]
@@ -37,7 +38,7 @@ public class AbstractSimulationModelTests
         Assert.Equal("name", ex.ParamName); 
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor should assign unique and sequential IDs to new instances.")]
     public void Constructor_AssignsUniqueIds()
     {
         var model1 = new ConcreteTestModel("M1");
@@ -47,7 +48,7 @@ public class AbstractSimulationModelTests
         Assert.True(model2.Id > model1.Id, "Subsequent ID should be greater");
     }
 
-    [Fact]
+    [Fact(DisplayName = "ToString should return the name and ID in the format 'Name#Id'.")]
     public void ToString_ReturnsCorrectFormat()
     {
         var model = new ConcreteTestModel("MyFormatTest");

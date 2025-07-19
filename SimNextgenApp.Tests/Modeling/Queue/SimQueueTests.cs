@@ -5,6 +5,8 @@ using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 using SimNextgenApp.Modeling.Queue;
+using SimNextgenApp.Statistics;
+using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Modeling.Queue;
 
@@ -36,10 +38,14 @@ public class SimQueueTests
         QueueStaticConfig<DummyLoad>? config = null,
         string name = DefaultQueueName)
     {
-        return new SimQueue<DummyLoad>(config ?? _defaultInfiniteConfig, name, _nullLoggerFactory);
+        var queue = new SimQueue<DummyLoad>(config ?? _defaultInfiniteConfig, name, _nullLoggerFactory);
+
+        queue.Initialize(_mockEngineContext.Object);
+
+        return queue;
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor with infinite capacity should initialise properties correctly.")]
     public void Constructor_WithValidInfiniteConfig_InitializesCorrectly()
     {
         // Arrange
@@ -59,7 +65,7 @@ public class SimQueueTests
         Assert.Equal(0, queue.TimeBasedMetric.CurrentCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor with finite capacity should initialise properties correctly.")]
     public void Constructor_WithValidFiniteConfig_InitializesCorrectly()
     {
         // Arrange
@@ -69,10 +75,16 @@ public class SimQueueTests
         Assert.Equal("FiniteQ_Cap2", queue.Name);
         Assert.Equal(0, queue.Occupancy);
         Assert.Equal(2, queue.Vacancy);
+        Assert.Equal(2, queue.Capacity);
         Assert.True(queue.ToDequeue);
+        Assert.Empty(queue.WaitingItems);
+
+        // --- Statistics ---
+        Assert.NotNull(queue.TimeBasedMetric);
+        Assert.Equal(0, queue.TimeBasedMetric.CurrentCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor should throw ArgumentNullException if config is null.")]
     public void Constructor_NullConfig_ThrowsArgumentNullException()
     {
         // Arrange
@@ -85,7 +97,7 @@ public class SimQueueTests
         Assert.Equal("config", ex.ParamName);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor should throw ArgumentNullException if logger factory is null.")]
     public void Constructor_NullLoggerFactory_ThrowsArgumentNullException()
     {
         var ex = Assert.Throws<ArgumentNullException>(() =>
@@ -94,7 +106,7 @@ public class SimQueueTests
         Assert.Equal("loggerFactory", ex.ParamName);
     }
 
-    [Theory]
+    [Theory(DisplayName = "Constructor should throw for invalid capacity values.")]
     [InlineData(0)]
     [InlineData(-1)]
     public void Constructor_InvalidCapacityInConfig_ThrowsArgumentOutOfRangeException(int invalidCapacity)
@@ -106,11 +118,11 @@ public class SimQueueTests
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() =>
             new SimQueue<DummyLoad>(invalidConfig, DefaultQueueName, _nullLoggerFactory)
         );
-        Assert.Equal("config", ex.ParamName); // The constructor checks config.Capacity
+        Assert.Equal("config", ex.ParamName);
     }
 
-    [Fact]
-    public void Initialize_WithValidScheduler_SetsSchedulerAndInitializesMetric()
+    [Fact(DisplayName = "Initialize should prepare the TimeBasedMetric correctly.")]
+    public void Initialize_WithValidContext_InitializesMetric()
     {
         // Arrange
         var queue = CreateQueue();
@@ -125,8 +137,8 @@ public class SimQueueTests
         Assert.Equal(0.0, queue.TimeBasedMetric.InitialTime);
     }
 
-    [Fact]
-    public void Initialize_NullScheduler_ThrowsArgumentNullException()
+    [Fact(DisplayName = "Initialize should throw ArgumentNullException for a null context.")]
+    public void Initialize_NullContext_ThrowsArgumentNullException()
     {
         // Arrange
         var queue = CreateQueue();
@@ -135,41 +147,11 @@ public class SimQueueTests
         Assert.Throws<ArgumentNullException>(() => queue.Initialize(null!));
     }
 
-    [Fact]
-    public void WarmedUp_ResetsMetricAndObservesCurrentOccupancy()
+    [Fact(DisplayName = "TryScheduleEnqueue should schedule an EnqueueEvent when vacancy exists.")]
+    public void TryScheduleEnqueue_WithVacancy_SchedulesEventAndReturnsTrue()
     {
         // Arrange
-        var queue = CreateQueue();
-        queue.Initialize(_mockEngineContext.Object);
-
-        // Simulate some activity before warmup
-        _currentTestTime = 5.0;
-        queue.HandleEnqueue(new DummyLoad("L1"), _currentTestTime);
-        _currentTestTime = 10.0;
-        queue.HandleEnqueue(new DummyLoad("L2"), _currentTestTime);
-
-        // Sanity check the pre-warmup state
-        Assert.Equal(2, queue.Occupancy);
-
-        double warmupTime = 20.0;
-        _currentTestTime = warmupTime;
-
-        // Act
-        queue.WarmedUp(warmupTime);
-
-        // Assert
-        Assert.Equal(warmupTime, queue.TimeBasedMetric.InitialTime);
-        Assert.Equal(warmupTime, queue.TimeBasedMetric.CurrentTime);
-        Assert.Equal(2, queue.TimeBasedMetric.CurrentCount); // Should observe the 2 items
-        Assert.Equal(2, queue.Occupancy); // Occupancy should remain
-        Assert.Equal(2, queue.WaitingItems.Count());
-    }
-
-    [Fact]
-    public void TryScheduleEnqueue_WhenQueueHasVacancy_SchedulesEnqueueEventAndReturnsTrue()
-    {
-        // Arrange
-        var queue = CreateQueue(config: _defaultFiniteConfig); // Capacity 2
+        var queue = CreateQueue(_defaultFiniteConfig);
         queue.Initialize(_mockEngineContext.Object);
         var load = new DummyLoad();
         _currentTestTime = 5.0;
@@ -185,17 +167,13 @@ public class SimQueueTests
             Times.Once);
     }
 
-    [Fact]
-    public void TryScheduleEnqueue_WhenInfiniteQueue_AlwaysSchedulesAndReturnsTrue()
+    [Fact(DisplayName = "TryScheduleEnqueue for an infinite queue should always succeed.")]
+    public void TryScheduleEnqueue_InfiniteQueue_AlwaysSchedulesAndReturnsTrue()
     {
         // Arrange
-        var queue = CreateQueue(config: _defaultInfiniteConfig);
+        var queue = CreateQueue(_defaultInfiniteConfig);
         queue.Initialize(_mockEngineContext.Object);
         _currentTestTime = 5.0;
-
-        queue.HandleEnqueue(new DummyLoad("L1"), 1.0);
-        queue.HandleEnqueue(new DummyLoad("L2"), 2.0);
-
         var loadToEnqueue = new DummyLoad("L3");
 
         // Act
@@ -212,11 +190,11 @@ public class SimQueueTests
             Times.Once);
     }
 
-    [Fact]
-    public void TryScheduleEnqueue_WhenFiniteQueueIsFull_BalksAndReturnsFalse_AndFiresEvent()
+    [Fact(DisplayName = "TryScheduleEnqueue for a full queue should balk and fire LoadBalked event.")]
+    public void TryScheduleEnqueue_FullQueue_BalksAndFiresEvent()
     {
         // Arrange
-        var queue = CreateQueue(config: _defaultFiniteConfig);
+        var queue = CreateQueue(_defaultFiniteConfig);
         queue.Initialize(_mockEngineContext.Object);
         _currentTestTime = 5.0;
 
@@ -250,7 +228,7 @@ public class SimQueueTests
         _mockScheduler.Verify(s => s.Schedule(It.IsAny<EnqueueEvent<DummyLoad>>(), It.IsAny<double>()), Times.Never);
     }
 
-    [Fact]
+    [Fact(DisplayName = "TryScheduleEnqueue should throw for a null load.")]
     public void TryScheduleEnqueue_NullLoad_ThrowsArgumentNullException()
     {
         // Arrange
@@ -261,8 +239,8 @@ public class SimQueueTests
         Assert.Throws<ArgumentNullException>("load", () => queue.TryScheduleEnqueue(null!, _mockEngineContext.Object));
     }
 
-    [Fact]
-    public void TryScheduleEnqueue_NullEngineContext_ThrowsArgumentNullException()
+    [Fact(DisplayName = "TryScheduleEnqueue should throw for a null context.")]
+    public void TryScheduleEnqueue_NullContext_ThrowsArgumentNullException()
     {
         // Arrange
         var queue = CreateQueue();
@@ -272,7 +250,7 @@ public class SimQueueTests
         Assert.Throws<ArgumentNullException>("engineContext", () => queue.TryScheduleEnqueue(new DummyLoad(), null!));
     }
 
-    [Fact]
+    [Fact(DisplayName = "ScheduleUpdateToDequeue should schedule an UpdateToDequeueEvent.")]
     public void ScheduleUpdateToDequeue_SchedulesUpdateEvent()
     {
         // Arrange
@@ -291,8 +269,8 @@ public class SimQueueTests
             Times.Once);
     }
 
-    [Fact]
-    public void ScheduleUpdateToDequeue_NullEngineContext_ThrowsArgumentNullException()
+    [Fact(DisplayName = "ScheduleUpdateToDequeue should throw for a null context.")]
+    public void ScheduleUpdateToDequeue_NullContext_ThrowsArgumentNullException()
     {
         // Arrange
         var queue = CreateQueue();
@@ -302,12 +280,113 @@ public class SimQueueTests
         Assert.Throws<ArgumentNullException>("engineContext", () => queue.ScheduleUpdateToDequeue(false, null!));
     }
 
-    [Fact]
+    // We test the internal 'Handle' methods directly to verify the core logic of the queue
+    // without needing to instantiate and execute events in a full simulation run.
+
+    [Fact(DisplayName = "HandleEnqueue should add a load and update metrics.")]
+    public void HandleEnqueue_UpdatesStateAndMetrics()
+    {
+        // Arrange
+        var queue = CreateQueue();
+        var load = new DummyLoad();
+
+        // Act
+        queue.HandleEnqueue(load, 10.0);
+
+        // Assert
+        Assert.Equal(1, queue.Occupancy);
+        Assert.Contains(load, queue.WaitingItems);
+        Assert.Equal(1, queue.TimeBasedMetric.CurrentCount);
+    }
+
+    [Fact(DisplayName ="HandleDequeue should remove a load and update metrics when enabled.")]
+    public void HandleDequeue_WhenEnabled_RemovesLoadAndUpdatesMetrics()
+    {
+        // Arrange
+        var queue = CreateQueue();
+        var load1 = new DummyLoad("L1");
+        var load2 = new DummyLoad("L2");
+        queue.HandleEnqueue(load1, 5.0);
+        queue.HandleEnqueue(load2, 6.0);
+
+        // Act
+        queue.HandleDequeue(10.0);
+
+        // Assert
+        Assert.Equal(1, queue.Occupancy);
+        Assert.Equal(1, queue.TimeBasedMetric.CurrentCount);
+        var remainingLoad = Assert.Single(queue.WaitingItems);
+        Assert.Same(load2, remainingLoad); // Verifies FIFO
+        Assert.Equal(1, queue.TimeBasedMetric.CurrentCount);
+    }
+
+    [Fact(DisplayName ="HandleUpdateToDequeue should update the ToDequeue property.")]
+    public void HandleUpdateToDequeue_UpdatesProperty()
+    {
+        // Arrange
+        var queue = CreateQueue();
+        Assert.True(queue.ToDequeue); // Default is true
+
+        // Act
+        queue.HandleUpdateToDequeue(false, 10.0);
+
+        // Assert
+        Assert.False(queue.ToDequeue);
+    }
+
+    [Fact(DisplayName = "HandleDequeue should do nothing if ToDequeue is false.")]
+    public void HandleDequeue_WhenDisabled_DoesNothing()
+    {
+        // Arrange
+        var queue = CreateQueue();
+        queue.HandleEnqueue(new DummyLoad(), 5.0);
+        queue.HandleUpdateToDequeue(false, 6.0); // Disable dequeuing
+
+        // Act
+        queue.HandleDequeue(10.0);
+
+        // Assert
+        Assert.Equal(1, queue.Occupancy); // State is unchanged
+    }
+
+    [Fact(DisplayName = "ToDequeue property should default to true.")]
     public void ToDequeue_DefaultIsTrue()
     {
         // Arrange
         var queue = CreateQueue();
+
         // Act & Assert
         Assert.True(queue.ToDequeue);
     }
+
+    [Fact(DisplayName = "WarmedUp should reset the metric with the current occupancy.")]
+    public void WarmedUp_ResetsMetricAndObservesCurrentOccupancy()
+    {
+        // Arrange
+        var queue = CreateQueue();
+        queue.Initialize(_mockEngineContext.Object);
+
+        // Simulate some activity before warmup
+        _currentTestTime = 5.0;
+        queue.HandleEnqueue(new DummyLoad("L1"), _currentTestTime);
+        _currentTestTime = 10.0;
+        queue.HandleEnqueue(new DummyLoad("L2"), _currentTestTime);
+
+        // Sanity check the pre-warmup state
+        Assert.Equal(2, queue.Occupancy);
+
+        double warmupTime = 20.0;
+        _currentTestTime = warmupTime;
+
+        // Act
+        queue.WarmedUp(warmupTime);
+
+        // Assert
+        Assert.Equal(warmupTime, queue.TimeBasedMetric.InitialTime);
+        Assert.Equal(warmupTime, queue.TimeBasedMetric.CurrentTime);
+        Assert.Equal(2, queue.TimeBasedMetric.CurrentCount); // Should observe the 2 items
+        Assert.Equal(2, queue.Occupancy); // Occupancy should remain
+        Assert.Equal(2, queue.WaitingItems.Count());
+    }
+
 }

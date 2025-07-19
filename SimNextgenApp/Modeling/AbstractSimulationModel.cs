@@ -39,7 +39,7 @@ public abstract class AbstractSimulationModel : ISimulationModel, IWarmupAware
             throw new ArgumentException("Model name cannot be null or whitespace.", nameof(name));
         }
 
-        Id = (int)Interlocked.Increment(ref _instanceCounter);
+        Id = Interlocked.Increment(ref _instanceCounter);
         Name = name;
         Metadata = new Dictionary<string, object>();
     }

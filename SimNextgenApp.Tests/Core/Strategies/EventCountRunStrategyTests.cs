@@ -46,8 +46,7 @@ public class EventCountRunStrategyTests
         var ex = Assert.Throws<ArgumentOutOfRangeException>("warmupEndTime", () => new EventCountRunStrategy(maxEventCount, invalidWarmup));
     }
 
-    [Theory]
-    [DisplayName("ShouldContinue should return true when the executed event count is less than the maximum.")]
+    [Theory(DisplayName = "ShouldContinue should return true when the executed event count is less than the maximum.")]
     [InlineData(0)]   // Start of simulation
     [InlineData(998)] // Middle of simulation
     [InlineData(999)] // Just before the limit
@@ -65,8 +64,7 @@ public class EventCountRunStrategyTests
         Assert.True(result);
     }
 
-    [Theory]
-    [DisplayName("ShouldContinue should return false when the executed event count is at or over the maximum.")]
+    [Theory(DisplayName = "ShouldContinue should return false when the executed event count is at or over the maximum.")]
     [InlineData(1000)] // Exactly at the limit
     [InlineData(1001)] // Past the limit
     public void ShouldContinue_EventCountIsAtOrOverMax_ReturnsFalse(long executedEventCount)

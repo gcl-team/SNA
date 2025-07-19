@@ -1,7 +1,6 @@
 ﻿using Moq;
 using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Statistics;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Statistics;
 
@@ -24,8 +23,7 @@ public class ServerObserverTests
         _observer = new ServerObserver<DummyLoad>(_mockServer.Object);
     }
 
-    [Fact]
-    [DisplayName("Constructor should throw ArgumentNullException if the server is null.")]
+    [Fact(DisplayName = "Constructor should throw ArgumentNullException if the server is null.")]
     public void Constructor_WithNullServer_ThrowsArgumentNullException()
     {
         var ex = Assert.Throws<ArgumentNullException>(() => 
@@ -35,8 +33,7 @@ public class ServerObserverTests
         Assert.Equal("serverToObserve", ex.ParamName);
     }
 
-    [Fact]
-    [DisplayName("Constructor should subscribe to server events upon creation.")]
+    [Fact(DisplayName = "Constructor should subscribe to server events upon creation.")]
     public void Constructor_WithValidServer_SubscribesToEvents()
     {
         // Arrange
@@ -53,8 +50,7 @@ public class ServerObserverTests
             "The observer should subscribe to the LoadDeparted event.");
     }
 
-    [Fact]
-    [DisplayName("Observer should update its busy units metric when the server's state changes.")]
+    [Fact(DisplayName = "Observer should update its busy units metric when the server's state changes.")]
     public void OnServerStateChange_WhenEventFires_UpdatesBusyUnitsMetric()
     {
         // Arrange
@@ -71,8 +67,7 @@ public class ServerObserverTests
         Assert.Equal(eventTime, _observer.BusyUnitsMetric.CurrentTime);
     }
 
-    [Fact]
-    [DisplayName("Observer should increment loads completed count when a load departs.")]
+    [Fact(DisplayName = "Observer should increment loads completed count when a load departs.")]
     public void OnLoadDepart_WhenEventFires_IncrementsLoadsCompleted()
     {
         // Arrange
@@ -86,8 +81,7 @@ public class ServerObserverTests
         Assert.Equal(2, _observer.LoadsCompleted);
     }
 
-    [Fact]
-    [DisplayName("WarmedUp should reset statistics and re-observe the current server state.")]
+    [Fact(DisplayName = "WarmedUp should reset statistics and re-observe the current server state.")]
     public void WarmedUp_WhenCalled_ResetsStatsAndReinitializes()
     {
         // Arrange
@@ -109,8 +103,7 @@ public class ServerObserverTests
         Assert.Equal(numberInServiceAtWarmup, _observer.BusyUnitsMetric.CurrentCount);
     }
 
-    [Fact]
-    [DisplayName("Utilization property should calculate correctly based on metric average and server capacity.")]
+    [Fact(DisplayName = "Utilization property should calculate correctly based on metric average and server capacity.")]
     public void Utilization_WithPositiveCapacity_CalculatesCorrectly()
     {
         // Arrange
@@ -140,8 +133,7 @@ public class ServerObserverTests
         Assert.Equal(0.25, utilization);
     }
 
-    [Fact]
-    [DisplayName("Utilization should be zero if server capacity is zero to avoid division by zero.")]
+    [Fact(DisplayName = "Utilization should be zero if server capacity is zero to avoid division by zero.")]
     public void Utilization_WithZeroCapacity_ReturnsZero()
     {
         // Arrange

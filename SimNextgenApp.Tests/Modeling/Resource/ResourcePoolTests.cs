@@ -3,9 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SimNextgenApp.Core;
 using SimNextgenApp.Modeling.Resource;
-using System;
-using System.Collections.Generic;
-using System.Text;
+using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Modeling.Resource;
 
@@ -42,12 +40,12 @@ public class ResourcePoolTests
         );
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor with valid resources should initialise properties correctly.")]
     public void Constructor_WithValidResources_InitializesCorrectly()
     {
         // Arrange
         var resources = CreateDefaultResources(5);
-        var pool = CreatePool(resources: resources, name: "ValidPool");
+        var pool = CreatePool(resources, "ValidPool");
 
         // Assert
         Assert.Equal("ValidPool", pool.Name);
@@ -57,7 +55,7 @@ public class ResourcePoolTests
         Assert.NotNull(pool.UtilizationMetric);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor should throw ArgumentNullException for null resource collection.")]
     public void Constructor_WithNullResources_ThrowsArgumentNullException()
     {
         // Arrange & Act & Assert
@@ -67,7 +65,7 @@ public class ResourcePoolTests
         );
     }
 
-    [Fact]
+    [Fact(DisplayName = "Constructor should throw ArgumentNullException for null logger factory.")]
     public void Constructor_WithNullLoggerFactory_ThrowsArgumentNullException()
     {
         // Arrange & Act & Assert
@@ -77,7 +75,23 @@ public class ResourcePoolTests
         );
     }
 
-    [Fact]
+    [Fact(DisplayName = "Initialize should reset the utilisation metric to its base state.")]
+    public void Initialize_SetsUtilizationMetricToBaseState()
+    {
+        // Arrange
+        var pool = CreatePool(resources: CreateDefaultResources(3));
+        // Mess up the metric to ensure Initialize fixes it
+        pool.TryAcquire(_mockEngineContext.Object);
+        Assert.NotEqual(0, pool.UtilizationMetric.CurrentCount);
+
+        // Act
+        pool.Initialize(_mockEngineContext.Object);
+
+        // Assert
+        Assert.Equal(0, pool.UtilizationMetric.CurrentCount);
+    }
+
+    [Fact(DisplayName = "TryAcquire should succeed and update state when resources are available.")]
     public void TryAcquire_WhenResourcesAvailable_SucceedsAndUpdatesState()
     {
         // Arrange
@@ -95,8 +109,8 @@ public class ResourcePoolTests
         Assert.Equal(1, pool.UtilizationMetric.CurrentCount); // BusyCount should be observed
     }
 
-    [Fact]
-    public void TryAcquire_WhenPoolBecomesEmpty_ReturnsNullOnNextAttempt()
+    [Fact(DisplayName = "TryAcquire should return null when no resources are available.")]
+    public void TryAcquire_WhenPoolIsEmpty_ReturnsNull()
     {
         // Arrange
         var pool = CreatePool(resources: CreateDefaultResources(1));
@@ -114,7 +128,7 @@ public class ResourcePoolTests
         Assert.Equal(1, pool.UtilizationMetric.CurrentCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Release should succeed and update state for a valid resource.")]
     public void Release_WithValidResource_SucceedsAndUpdatesState()
     {
         // Arrange
@@ -134,7 +148,7 @@ public class ResourcePoolTests
         Assert.Equal(0, pool.UtilizationMetric.CurrentCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Release should throw ArgumentNullException for a null resource.")]
     public void Release_WithNullResource_ThrowsArgumentNullException()
     {
         // Arrange
@@ -147,8 +161,8 @@ public class ResourcePoolTests
         );
     }
 
-    [Fact]
-    public void Release_WhenResourceIsAlreadyIdle_DoesNotChangeState()
+    [Fact(DisplayName = "Release should not change state if resource is already idle (double-release).")]
+    public void Release_WhenResourceIsAlreadyIdle_StateIsUnchanged()
     {
         // Arrange
         var resources = CreateDefaultResources(2);
@@ -156,7 +170,7 @@ public class ResourcePoolTests
         var resourceToDoubleRelease = resources.First();
 
         // Act
-        pool.Release(resourceToDoubleRelease, _mockEngineContext.Object); // Should be logged as an error and ignored
+        pool.Release(resourceToDoubleRelease, _mockEngineContext.Object);
 
         // Assert
         Assert.Equal(2, pool.TotalCapacity);
@@ -164,8 +178,8 @@ public class ResourcePoolTests
         Assert.Equal(0, pool.BusyCount);
     }
 
-    [Fact]
-    public void Events_ResourceAcquired_IsFiredOnSuccessfulAcquire()
+    [Fact(DisplayName = "ResourceAcquired event should fire on a successful acquire.")]
+    public void Events_ResourceAcquired_IsFiredOnSuccess()
     {
         // Arrange
         var pool = CreatePool(resources: CreateDefaultResources(3));
@@ -187,16 +201,16 @@ public class ResourcePoolTests
         Assert.Equal(5.0, eventTime);
     }
 
-    [Fact]
+    [Fact(DisplayName = "RequestFailed event should fire on a failed acquire.")]
     public void Events_RequestFailed_IsFiredOnFailedAcquire()
     {
         // Arrange
         var pool = CreatePool(resources: CreateDefaultResources(0)); // An empty pool
-        bool wasFired = false;
+        bool isFired = false;
         double eventTime = -1;
 
         pool.RequestFailed += (time) => {
-            wasFired = true;
+            isFired = true;
             eventTime = time;
         };
         _currentTestTime = 7.0;
@@ -205,11 +219,11 @@ public class ResourcePoolTests
         pool.TryAcquire(_mockEngineContext.Object);
 
         // Assert
-        Assert.True(wasFired);
+        Assert.True(isFired);
         Assert.Equal(7.0, eventTime);
     }
 
-    [Fact]
+    [Fact(DisplayName = "ResourceReleased event should fire on a successful release.")]
     public void Events_ResourceReleased_IsFiredOnSuccessfulRelease()
     {
         // Arrange
@@ -234,23 +248,7 @@ public class ResourcePoolTests
         Assert.Equal(15.0, eventTime);
     }
 
-    [Fact]
-    public void Initialize_SetsUtilizationMetricToBaseState()
-    {
-        // Arrange
-        var pool = CreatePool(resources: CreateDefaultResources(3));
-        // Mess up the metric to ensure Initialize fixes it
-        pool.TryAcquire(_mockEngineContext.Object);
-        Assert.NotEqual(0, pool.UtilizationMetric.CurrentCount);
-
-        // Act
-        pool.Initialize(_mockEngineContext.Object);
-
-        // Assert
-        Assert.Equal(0, pool.UtilizationMetric.CurrentCount);
-    }
-
-    [Fact]
+    [Fact(DisplayName = "WarmedUp should reset the metric and observe the current busy count.")]
     public void WarmedUp_ResetsMetricAndObservesCurrentState()
     {
         // Arrange

@@ -138,10 +138,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// </remarks>
     public override void WarmedUp(double simulationTime)
     {
-        TimeBasedMetric.WarmedUp(simulationTime, 0);
-        // After metric is warmed up (its count is 0, time is simulationTime),
-        // observe the actual queue length at this moment.
-        TimeBasedMetric.ObserveCount(Occupancy, simulationTime);
+        TimeBasedMetric.WarmedUp(simulationTime, Occupancy);
         _logger.LogInformation("Queue '{QueueName}' warmed up at {Time}. Current occupancy: {Occupancy}", Name, simulationTime, Occupancy);
     }
 
@@ -160,7 +157,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         }
 
         _waitingItems.Enqueue(load);
-        TimeBasedMetric.ObserveChange(Occupancy, currentTime);
+        TimeBasedMetric.ObserveCount(Occupancy, currentTime);
         _logger.LogTrace("Enqueued {Load} into {QueueName} at {Time}. New Occupancy: {Occupancy}",
             load, Name, currentTime, Occupancy);
 
@@ -188,7 +185,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         }
 
         var load = _waitingItems.Dequeue();
-        TimeBasedMetric.ObserveChange(Occupancy, currentTime);
+        TimeBasedMetric.ObserveCount(Occupancy, currentTime);
         _logger.LogTrace("Dequeued {Load} from {QueueName} at {Time}. New Occupancy: {Occupancy}",
             load, Name, currentTime, Occupancy);
 
