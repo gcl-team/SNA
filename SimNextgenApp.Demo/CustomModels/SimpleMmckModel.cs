@@ -73,25 +73,24 @@ internal class SimpleMmckModel : AbstractSimulationModel
             server.LoadDeparted += (departedLoad, departureTime) =>
             {
                 _modelLogger.LogInformation($"--- [SERVER {server.Name} FREE] SimTime: {departureTime:F2}. Triggering dequeue attempt.");
-                // Just poke the queue. The queue's own logic will handle the rest.
+                // Just poke the queue. The queue will handle the rest.
                 WaitingLine.TriggerDequeueAttempt(_runContext!);
             };
         }
 
-        // --- Wire components together ---
-
-        // A. When a load is generated:
+        // 4. Wire components together
         LoadGenerator.LoadGenerated += HandleLoadGeneratedByGenerator;
 
-        // B. When a load is dequeued from the queue (if queue manages pushing to server):
-        // WaitingLine.OnDequeueActions.Add(HandleLoadDequeuedFromWaitingLine);
-        // OR (more common) C. When a server becomes free, it tries to pull from the queue:
+        // 5. When a server finishes its work, it must notify the queue that it is free.
         foreach (var server in ServiceChannels)
         {
             server.LoadDeparted += (departedLoad, departureTime) =>
             {
-                // server has just become free (or one of its units has)
-                TryServeNextFromQueue(server, departureTime); // Pass server that just finished
+                // The server is now free. Poke the queue to see if it has anyone waiting.
+                // The internal logic in the queue will then decide if it should dequeue an item.
+                // If it does, the Dequeue event will fire.
+                _modelLogger.LogInformation($"--- [SERVER FREE] SimTime: {departureTime:F2}. Server '{server.Name}' pokes queue.");
+                WaitingLine.TriggerDequeueAttempt(_runContext!);
             };
         }
     }
@@ -138,72 +137,6 @@ internal class SimpleMmckModel : AbstractSimulationModel
         }
     }
 
-    private void TryEnqueueLoad(MyLoad load, double time, string contextSuffix = "")
-    {
-        if (_runContext == null) return;
-
-        // The queue's capacity (K-c) is already set. TryScheduleEnqueue will use it.
-        bool enqueued = WaitingLine.TryScheduleEnqueue(load, _runContext);
-        if (enqueued)
-        {
-            _modelLogger.LogInformation($"      Load {load.Id} enqueued in '{WaitingLine.Name}'.{contextSuffix}");
-        }
-        else
-        {
-            // This means the queue itself (waiting spots K-c) was full.
-            // This case should have been caught by the (currentTotalInSystem >= SystemCapacityK) check earlier.
-            // If it happens here, it's likely a logic discrepancy or a very tight race if K was exactly met by queueing.
-            BalkedLoadsCount++; // Increment again or ensure balk is only counted once
-            _modelLogger.LogWarning($"      Load {load.Id} BALKED from Queue '{WaitingLine.Name}'.{contextSuffix} Queue full. This might indicate K was met by queueing.");
-        }
-    }
-
-
-    // Called when a server finishes a load and might be able to take one from the queue
-    private void TryServeNextFromQueue(Server<MyLoad> newlyFreedServer, double currentTime)
-    {
-        if (_runContext == null)
-        {
-            _modelLogger.LogError("RunContext not available in TryServeNextFromQueue.");
-            return;
-        }
-
-        if (WaitingLine.Occupancy > 0)
-        {
-            if (newlyFreedServer.Vacancy > 0) // Ensure this specific server unit is free
-            {
-                _modelLogger.LogInformation($"      Server '{newlyFreedServer.Name}' is free. Attempting to pull from queue '{WaitingLine.Name}'.");
-                // To dequeue, we need to schedule a DequeueEvent or have Queue manage it.
-                // For now, let's assume Queue's OnDequeueActions list is empty and we manage it here.
-                // This requires a method on Queue that directly dequeues and returns the item,
-                // OR scheduling a DequeueEvent and then having its OnDequeueAction trigger service.
-
-                // Let's refine: DequeueEvent in Queue should have OnDequeueActions.
-                // One of those actions will be to offer it to an idle server.
-                // This requires careful coordination.
-
-                // Simpler approach for now: If server is free, and queue has items,
-                // the server itself tries to pull by scheduling a dequeue *for itself*.
-                // This needs a bit more thought on who "owns" the dequeue trigger.
-
-                // Let's assume a slightly different model: when a server becomes free,
-                // it simply *signals* that it's free. A central dispatcher or the queue itself
-                // then decides what to do.
-
-                // For this M/M/c/K, a common pattern:
-                // Server becomes free. If queue is not empty, schedule an event for *this server*
-                // to *attempt to take from queue*. This event would then call a method on queue like
-                // `TryDequeueAndServe(serverInstance, context)`
-                // OR, more simply for now, let the queue's auto-dequeue logic (if enabled and items exist) handle it.
-
-                // If the queue has `ToDequeue = true` and items, its internal `DequeueEvent` will fire.
-                // That `DequeueEvent`'s `OnDequeueActions` needs to find an idle server.
-                // Let's add an action to WaitingLine.OnDequeueActions:
-                // (This is done in the constructor now)
-            }
-        }
-    }
-
     public override void Initialize(IRunContext runContext)
     {
         _runContext = runContext;
@@ -225,14 +158,14 @@ internal class SimpleMmckModel : AbstractSimulationModel
             }
             else
             {
+                // This case indicates a logical flaw in the simulation timing or dequeue trigger.
+                // A dequeue should only happen if a server slot is expected to be free.
+                //
                 // This should not happen if DequeueEvent only fires when a server is expected to be free
                 // or if this action is the primary way to get an idle server.
                 // If all servers are somehow busy again, the item might have to be re-queued or is lost.
                 // This indicates a need for robust state checking or a different dequeue trigger.
-                _modelLogger.LogWarning($"      Load {dequeuedLoad.Id} dequeued, but NO idle server found. Re-queuing logic or loss needs consideration.");
-                // For now, assume it might get picked up if another server frees up and polls, or re-enqueue if possible.
-                // Re-queuing immediately could cause a loop if not careful.
-                // A better model might be that the DequeueEvent checks for an idle server *before* fully dequeuing.
+                _modelLogger.LogWarning($"      CRITICAL: Load {dequeuedLoad.Id} dequeued, but NO idle server found. Re-queuing logic or loss needs consideration.");
             }
         };
     }
@@ -252,17 +185,5 @@ internal class SimpleMmckModel : AbstractSimulationModel
         BalkedLoadsCount = 0;
         TotalLoadsEnteredSystem = 0;
         _modelLogger.LogInformation("--- M/M/c/K System Warmed Up at {WarmupTime}. Statistics reset. ---", simulationTime);
-    }
-}
-
-// Helper extension for invoking actions (optional)
-public static class ActionListExtensions
-{
-    public static void InvokeForAll<T1, T2>(this List<Action<T1, T2>> actions, Action<Action<T1, T2>> invoker)
-    {
-        foreach (var action in actions.ToList()) // ToList for safe iteration if action modifies list
-        {
-            invoker(action);
-        }
     }
 }

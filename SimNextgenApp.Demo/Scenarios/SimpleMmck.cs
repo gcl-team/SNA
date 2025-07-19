@@ -31,14 +31,13 @@ internal static class SimpleMmck
         var generatorConfig = new GeneratorStaticConfig<MyLoad>(interArrivalTimeFunc, loadFactoryFunc)
         { IsSkippingFirst = false };
 
-        // 2. Queue Configuration (Capacity will be overridden by MyMmckSystemModel)
+        // 2. Queue Configuration (Capacity will be overridden by mmckSystem)
         var queueConfig = new QueueStaticConfig<MyLoad>(); // Uses default infinite, model will set K-c
 
         // 3. Server Configuration (Template for all servers)
         Func<MyLoad, Random, TimeSpan> serviceTimeFunc = (load, rnd) =>
             TimeSpan.FromSeconds(-meanServiceSecs * Math.Log(1.0 - rnd.NextDouble()));
-        var serverConfigTemplate = new ServerStaticConfig<MyLoad>(serviceTimeFunc)
-        { Capacity = 1 }; // Each server unit has capacity 1
+        var serverConfigTemplate = new ServerStaticConfig<MyLoad>(serviceTimeFunc) { Capacity = 1 }; // Each server unit has capacity 1
 
         // 4. Create the Composite M/M/c/K Model
         var mmckSystem = new SimpleMmckModel(
@@ -54,9 +53,11 @@ internal static class SimpleMmck
         var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
 
         // 6. Create a Memory Tracer to capture simulation events
+        //    The MemoryTracer records every event that is scheduled and executed.
         var tracer = new MemoryTracer();
 
-        // 7. Create the Simulation Profile
+        // 7. Create the Simulation Profile to bundle all settings for a reproducible run
+        //    This is useful for managing complex simulations with many parameters.
         var simulationProfile = new SimulationProfile(
             model: mmckSystem,
             runStrategy: runStrategy,
@@ -66,10 +67,9 @@ internal static class SimpleMmck
             tracer: tracer
         );
 
-        // 8. Create the Simulation Engine
+        // 8. Create and run the Simulation Engine
         var simulationEngine = new SimulationEngine(simulationProfile);
 
-        // 9. Run the simulation
         programLogger.LogInformation($"Starting M/M/c/K simulation run for {runDuration} units, warmup {warmupDuration} units...");
         SimulationResult? simulationResult = null;
         try
@@ -81,7 +81,7 @@ internal static class SimpleMmck
             programLogger.LogCritical(ex, "Simulation run failed!");
         }
 
-        // 10. Report results
+        // 9. Report results and diagnostics
         programLogger.LogInformation($"\n--- Simulation Finished --- {simulationResult}");
 
         programLogger.LogInformation("\n--- Generator Stats (Post-Warmup) ---");
@@ -110,7 +110,7 @@ internal static class SimpleMmck
             serverReporter.Report();
         }
 
-        // 11. Print the Memory Tracer events
+        Console.WriteLine("\n--- Events recorded by MemoryTracer ---");
         tracer.PrintToConsole();
     }
 }

@@ -51,9 +51,11 @@ internal static class SimpleServerAndGenerator
         var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
 
         // 5. Create a Memory Tracer to capture simulation events
+        //    The MemoryTracer records every event that is scheduled and executed.
         var tracer = new MemoryTracer();
 
-        // 6. Create the Simulation Profile
+        // 6. Create the Simulation Profile to bundle all settings for a reproducible run
+        //    This is useful for managing complex simulations with many parameters.
         var simulationProfile = new SimulationProfile(
             model: simpleSystem,
             runStrategy: runStrategy,
@@ -63,11 +65,9 @@ internal static class SimpleServerAndGenerator
             tracer: tracer
         );
 
-        // 7. Create the Simulation Engine
+        // 7. Create and run the Simulation Engine
         var simulationEngine = new SimulationEngine(simulationProfile);
 
-
-        // 8. Run the simulation
         SimulationResult? simulationResult = null;
         programLogger.LogInformation($"Starting simulation run for {runDuration} units, warmup {warmupDuration} units...");
         try
@@ -79,7 +79,7 @@ internal static class SimpleServerAndGenerator
             programLogger.LogCritical(ex, "Simulation run failed!");
         }
 
-        // 9. Report results
+        // 9. Report results and diagnostics
         programLogger.LogInformation($"\n--- Simulation Finished --- {simulationResult}");
 
         programLogger.LogInformation("\n--- Generator Stats ---");
@@ -94,7 +94,7 @@ internal static class SimpleServerAndGenerator
         programLogger.LogInformation($"\n--- System Stats ---");
         programLogger.LogInformation($"Total Balked Loads (post-warmup): {simpleSystem.BalkedLoadsCount}");
 
-        // 10. Print the Memory Tracer events
+        Console.WriteLine("\n--- Events recorded by MemoryTracer ---");
         tracer.PrintToConsole();
     }
 }

@@ -52,10 +52,12 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         load.CreationTime = generationTime;
         _modelLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime:F2} -> {load}. Attempting service...");
 
+        // We pass the engine context so the Server can schedule future events (e.g., ServerServiceCompleteEvent).
         bool accepted = ServicePoint.TryStartService(load, _runContext);
         if (accepted)
         {
-            load.ServiceStartTime = generationTime; // Or actual service start time if ServerStartServiceEvent passes it back
+            // If accepted, the service begins immediately at the time of generation.
+            load.ServiceStartTime = generationTime;
             _modelLogger.LogInformation($"      Load {load.Id} accepted by Server '{ServicePoint.Name}'.");
         }
         else
