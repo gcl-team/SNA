@@ -23,6 +23,8 @@ public class MemoryTracer : ISimulationTracer
     /// <inheritdoc/>
     public void Trace(TraceRecord record)
     {
+        ArgumentNullException.ThrowIfNull(record);
+
         Records.Add(record);
     }
 }

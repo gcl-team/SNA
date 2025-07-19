@@ -1,11 +1,12 @@
 using SimNextgenApp.Statistics;
+using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Statistics;
 
 public class TimeBasedMetricTests
 {
-    [Fact]
-    public void Constructor_DefaultInitialization_PropertiesAreSetCorrectly()
+    [Fact(DisplayName = "Constructor with default parameters should initialise all properties correctly.")]
+    public void Constructor_DefaultInitialization_SetsPropertiesCorrectly()
     {
         // Arrange & Act
         var metric = new TimeBasedMetric();
@@ -25,8 +26,8 @@ public class TimeBasedMetricTests
         Assert.Empty(metric.History);
     }
 
-    [Fact]
-    public void Constructor_WithInitialTimeAndHistory_PropertiesAreSetCorrectly()
+    [Fact(DisplayName = "Constructor with initial time and history enabled should initialise the relevant properties correctly.")]
+    public void Constructor_WithInitialTimeAndHistory_SetsPropertiesCorrectly()
     {
         // Arrange & Act
         var metric = new TimeBasedMetric(initialTime: 10.0, enableHistory: true);
@@ -38,7 +39,19 @@ public class TimeBasedMetricTests
         Assert.NotNull(metric.History);
     }
 
-    [Fact]
+    [Theory(DisplayName = "Constructor should throw for invalid initial time.")]
+    [InlineData(-1.0)]
+    [InlineData(-0.001)]
+    public void Constructor_NegativeInitialTime_ThrowsArgumentOutOfRangeException(double invalidTime)
+    {
+        var ex = Assert.Throws<ArgumentOutOfRangeException>(() => 
+            new TimeBasedMetric(initialTime: invalidTime)
+        );
+
+        Assert.Equal("initialTime", ex.ParamName);
+    }
+
+    [Fact(DisplayName = "ObserveCount with a single observation updates all core metrics correctly.")]
     public void ObserveCount_SingleObservation_UpdatesMetricsCorrectly()
     {
         // Arrange
@@ -50,26 +63,26 @@ public class TimeBasedMetricTests
         // Assert
         AssertHelpers.AreEqual(10.0, metric.CurrentTime);
         AssertHelpers.AreEqual(5.0, metric.CurrentCount);
-        AssertHelpers.AreEqual(5.0, metric.TotalIncrementObserved); // From 0 to 5
+        AssertHelpers.AreEqual(5.0, metric.TotalIncrementObserved);                 // From 0 to 5
         AssertHelpers.AreEqual(0.0, metric.TotalDecrementObserved);
-        AssertHelpers.AreEqual(10.0, metric.TotalActiveDuration); // Duration from 0 to 10
-        AssertHelpers.AreEqual(0.0 * 10.0, metric.CumulativeCountTimeProduct); // Count was 0 for 10s
-        AssertHelpers.AreEqual(0.0, metric.AverageCount); // (0*10)/10
+        AssertHelpers.AreEqual(10.0, metric.TotalActiveDuration);                   // Duration from 0 to 10
+        AssertHelpers.AreEqual(0.0 * 10.0, metric.CumulativeCountTimeProduct);      // Count was 0 for 10s
+        AssertHelpers.AreEqual(0.0, metric.AverageCount);                           // (0*10)/10
 
         Assert.True(metric.TimePerCount.ContainsKey(0), "TimePerCount should contain key 0");
         AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]);
     }
 
-    [Fact]
-    public void ObserveCount_MultipleObservations_IncrementAndDecrement_MetricsCorrect()
+    [Fact(DisplayName = "ObserveCount with multiple observations accumulates metrics correctly.")]
+    public void ObserveCount_MultipleObservations_AccumulatesMetricsCorrectly()
     {
         // Arrange
         var metric = new TimeBasedMetric(initialTime: 0.0);
 
         // Act
-        metric.ObserveCount(count: 5.0, clockTime: 10.0); // Count 0 for 10s, then becomes 5
-        metric.ObserveCount(count: 8.0, clockTime: 15.0); // Count 5 for 5s (15-10), then becomes 8
-        metric.ObserveCount(count: 6.0, clockTime: 20.0); // Count 8 for 5s (20-15), then becomes 6
+        metric.ObserveCount(5.0, 10.0);     // Count 0 for 10s, then becomes 5
+        metric.ObserveCount(8.0, 15.0);     // Count 5 for 5s (15-10), then becomes 8
+        metric.ObserveCount(6.0, 20.0);     // Count 8 for 5s (20-15), then becomes 6
 
         // Assert
         AssertHelpers.AreEqual(20.0, metric.CurrentTime);
@@ -99,23 +112,23 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(5.0, metric.TimePerCount[8]);
     }
 
-    [Fact]
-    public void ObserveCount_ObservationAtSameTime_NoDurationChange_CountUpdates()
+    [Fact(DisplayName = "ObserveCount with multiple observations at same time accumulates metrics correctly.")]
+    public void ObserveCount_ObservationAtSameTime_AccumulatesMetricsCorrectly()
     {
         // Arrange
         var metric = new TimeBasedMetric(initialTime: 0.0);
-        metric.ObserveCount(count: 5.0, clockTime: 10.0); // Initial state: CurrentTime=10, CurrentCount=5, TotalActiveDuration=10, CCTP=0
+        metric.ObserveCount(5.0, 10.0); // Initial state: CurrentTime=10, CurrentCount=5, TotalActiveDuration=10, CCTP=0
 
         // Act
-        metric.ObserveCount(count: 7.0, clockTime: 10.0); // Observe again at the same time
+        metric.ObserveCount(7.0, 10.0); // Observe again at the same time
 
         // Assert
         AssertHelpers.AreEqual(10.0, metric.CurrentTime);
-        AssertHelpers.AreEqual(7.0, metric.CurrentCount); // Count updated
-        AssertHelpers.AreEqual(5.0 + (7.0 - 5.0), metric.TotalIncrementObserved); // Increment 5 (0->5) + 2 (5->7) = 7
-        AssertHelpers.AreEqual(10.0, metric.TotalActiveDuration); // Duration should not change
-        AssertHelpers.AreEqual(0.0, metric.CumulativeCountTimeProduct);  // CCTP should not change
-        AssertHelpers.AreEqual(0.0, metric.AverageCount); // (0*10)/10
+        AssertHelpers.AreEqual(7.0, metric.CurrentCount);                           // Count updated
+        AssertHelpers.AreEqual(5.0 + (7.0 - 5.0), metric.TotalIncrementObserved);   // Increment 5 (0->5) + 2 (5->7) = 7
+        AssertHelpers.AreEqual(10.0, metric.TotalActiveDuration);                   // Duration should not change
+        AssertHelpers.AreEqual(0.0, metric.CumulativeCountTimeProduct);             // CCTP should not change
+        AssertHelpers.AreEqual(0.0, metric.AverageCount);                           // (0*10)/10
 
         // TimePerCount should still reflect duration for count 0, as no new duration passed
         AssertHelpers.AreEqual(1, metric.TimePerCount.Count);
@@ -123,8 +136,8 @@ public class TimeBasedMetricTests
     }
 
 
-    [Fact]
-    public void ObserveChange_PositiveChange_MetricsCorrect()
+    [Fact(DisplayName = "ObserveChange with positive number accumulates metrics correctly.")]
+    public void ObserveChange_PositiveChange_AccumulatesMetricsCorrectly()
     {
         // Arrange
         var metric = new TimeBasedMetric(initialTime: 0.0);
@@ -142,8 +155,8 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(25.0 / 15.0, metric.AverageCount);
     }
 
-    [Fact]
-    public void ObserveChange_NegativeChange_MetricsCorrect()
+    [Fact(DisplayName = "ObserveChange with negative number accumulates metrics correctly.")]
+    public void ObserveChange_NegativeChange_AccumulatesMetricsCorrectly()
     {
         // Arrange
         var metric = new TimeBasedMetric(initialTime: 0.0);
@@ -162,7 +175,22 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(70.0 / 12.0, metric.AverageCount);
     }
 
-    [Fact]
+    [Fact(DisplayName = "ObserveCount should use Math.Round for TimePerCount keys.")]
+    public void ObserveCount_WithFractionalCount_RoundsKeyForTimePerCount()
+    {
+        // Arrange
+        var metric = new TimeBasedMetric();
+
+        // Act
+        metric.ObserveCount(4.7, 10.0); // Count 0 for 10s.
+        metric.ObserveCount(5.2, 20.0); // Count 4.7 for 10s.
+
+        // Assert
+        AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]); // For count 0
+        AssertHelpers.AreEqual(10.0, metric.TimePerCount[5]); // For count 4.7, which rounds to 5
+    }
+
+    [Fact(DisplayName = "Rates (Increment/Decrement) should be calculated correctly.")]
     public void Rates_Calculation_CorrectAfterObservations()
     {
         // Arrange
@@ -176,7 +204,7 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(3.0 / 20.0, metric.DecrementRate);
     }
 
-    [Fact]
+    [Fact(DisplayName = "Rates should be 0 when no duration has passed yet.")]
     public void Rates_NoDuration_RatesAreZero()
     {
         // Arrange
@@ -188,7 +216,7 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(0.0, metric.DecrementRate); // TotalActiveDuration is 0
     }
 
-    [Fact]
+    [Fact(DisplayName = "AverageSojournTime based on Little's Law should be calculated correctly.")]
     public void AverageSojournTime_Calculation_Correct()
     {
         // Arrange
@@ -214,7 +242,7 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(expectedAvgCount / expectedDecRate, metric.AverageSojournTime);
     }
 
-    [Fact]
+    [Fact(DisplayName = "AverageSojournTime should be 0 when there is only increments and 0 decrements.")]
     public void AverageSojournTime_ZeroDecrementRate_ReturnsZero()
     {
         // Arrange
@@ -225,34 +253,33 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(0.0, metric.AverageSojournTime);
     }
 
-
-    [Fact]
+    [Fact(DisplayName = "WarmedUp should reset metrics and set new baseline count.")]
     public void WarmedUp_ResetsMetrics_PreservesHistorySetting()
     {
         // Arrange
-        var metric = new TimeBasedMetric(initialTime: 0.0, enableHistory: true);
+        var metric = new TimeBasedMetric(enableHistory: true);
         metric.ObserveCount(5.0, 10.0);
-        metric.ObserveCount(3.0, 15.0);
+        double countAtWarmup = 3.0;
 
         // Act
-        metric.WarmedUp(clockTime: 20.0);
+        metric.WarmedUp(20.0, countAtWarmup);
 
         // Assert
-        AssertHelpers.AreEqual(20.0, metric.InitialTime);
-        AssertHelpers.AreEqual(20.0, metric.CurrentTime);
-        AssertHelpers.AreEqual(0.0, metric.CurrentCount); // Resets to 0
-        AssertHelpers.AreEqual(0.0, metric.TotalIncrementObserved);
-        AssertHelpers.AreEqual(0.0, metric.TotalDecrementObserved);
-        AssertHelpers.AreEqual(0.0, metric.TotalActiveDuration);
-        AssertHelpers.AreEqual(0.0, metric.CumulativeCountTimeProduct);
-        Assert.True(metric.IsHistoryEnabled, "IsHistoryEnabled should be preserved");
-        Assert.NotNull(metric.TimePerCount);
+        Assert.Equal(20.0, metric.InitialTime);
+        Assert.Equal(20.0, metric.CurrentTime);
+        Assert.Equal(countAtWarmup, metric.CurrentCount);
+        Assert.Equal(0.0, metric.TotalIncrementObserved);
+        Assert.Equal(0.0, metric.TotalActiveDuration);
+        Assert.True(metric.IsHistoryEnabled);
         Assert.Empty(metric.TimePerCount);
-        Assert.NotNull(metric.History);
-        Assert.Empty(metric.History);
+
+        // Verify history is reset and contains the new baseline
+        var historyItem = Assert.Single(metric.History);
+        Assert.Equal(20.0, historyItem.Time);
+        Assert.Equal(countAtWarmup, historyItem.CountValue);
     }
 
-    [Fact]
+    [Fact(DisplayName = "History should record observations when enabled.")]
     public void History_Enabled_RecordsObservations()
     {
         // Arrange
@@ -270,7 +297,7 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(3.0, metric.History[1].CountValue);
     }
 
-    [Fact]
+    [Fact(DisplayName = "History should not record observations when disabled.")]
     public void History_Disabled_DoesNotRecordObservations()
     {
         // Arrange
@@ -284,17 +311,14 @@ public class TimeBasedMetricTests
         Assert.Empty(metric.History);
     }
 
-    [Fact]
-    public void GetCountPercentileByTime_VariousScenarios()
+    [Fact(DisplayName = "GetCountPercentileByTime calculates percentiles correctly from binned time data.")]
+    public void GetCountPercentileByTime_VariousScenarios_CalculatesCorrectly()
     {
         // Arrange
         var metric = new TimeBasedMetric();
-        // Count 0 for 10s (0-10)
-        // Count 2 for 30s (10-40)
-        // Count 5 for 60s (40-100)
-        metric.ObserveCount(2, 10); // At t=10, count becomes 2. Before that, count was 0 for 10s.
-        metric.ObserveCount(5, 40); // At t=40, count becomes 5. Before that, count was 2 for 30s.
-        metric.ObserveCount(5, 100); // At t=100, count remains 5. Before that, count was 5 for 60s.
+        metric.ObserveCount(2, 10);  // Time at count 0 = 10s
+        metric.ObserveCount(5, 40);  // Time at count 2 = 30s
+        metric.ObserveCount(5, 100); // Time at count 5 = 60s
 
         // TimePerCount: {0: 10, 2: 30, 5: 60}
         // TotalActiveDuration = 10 + 30 + 60 = 100
@@ -309,16 +333,17 @@ public class TimeBasedMetricTests
         Assert.Equal(5, metric.GetCountPercentileByTime(100));      // Max count
     }
 
-    [Fact]
+    [Fact(DisplayName = "GetCountPercentileByTime return 0 for empty data.")]
     public void GetCountPercentileByTime_EmptyData_ReturnsDefaultOrThrows()
     {
         // Arrange
         var metric = new TimeBasedMetric();
-        // Assert - current behavior is to return 0 for empty data
+
+        // Assert
         Assert.Equal(0, metric.GetCountPercentileByTime(50));
     }
 
-    [Theory]
+    [Theory(DisplayName = "GetCountPercentileByTime throws error for invalid ratio.")]
     [InlineData(-1.0)]
     [InlineData(101.0)]
     public void GetCountPercentileByTime_InvalidRatio_ThrowsArgumentOutOfRangeException(double invalidRatio)
@@ -328,12 +353,14 @@ public class TimeBasedMetricTests
         metric.ObserveCount(1,1); // Add some data
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => metric.GetCountPercentileByTime(invalidRatio));
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            metric.GetCountPercentileByTime(invalidRatio)
+        );
     }
 
 
-    [Fact]
-    public void GenerateHistogram_BasicCase_CorrectBins()
+    [Fact(DisplayName = "GenerateHistogram creates correct bins and calculates probabilities.")]
+    public void GenerateHistogram_BasicCase_CreatesCorrectBins()
     {
         // Arrange
         var metric = new TimeBasedMetric();
@@ -369,34 +396,7 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual((20.0 + 10.0) / 30.0, histogram[1].CumulativeProbability);
     }
 
-    [Fact]
-    public void GenerateHistogram_NonZeroMinCount_CorrectBins()
-    {
-        var metric = new TimeBasedMetric(initialTime: 0);
-        metric.ObserveCount(5, 10);  // Count 0 for 10s. CurrentCount = 5
-        metric.ObserveCount(7, 20);  // Count 5 for 10s. CurrentCount = 7
-        metric.ObserveCount(7, 30);  // Count 7 for 10s. CurrentCount = 7
-        // TimePerCount: {0:10, 5:10, 7:10}. TotalActiveDuration = 30.
-
-        var histogram = metric.GenerateHistogram(countIntervalWidth: 2.0);
-        // MinObservedCount (key in TimePerCount) = 0. MaxObservedCount = 7
-        // Bins starting from floor(0/2)*2 = 0
-        // [0, 2): count 0 (10s). P=10/30. CP=10/30
-        // [2, 4): (empty). P=0. CP=10/30
-        // [4, 6): count 5 (10s). P=10/30. CP=20/30
-        // [6, 8): count 7 (10s). P=10/30. CP=30/30
-
-        Assert.Equal(4, histogram.Count);
-        AssertHelpers.AreEqual(0.0, histogram[0].CountLowerBound); AssertHelpers.AreEqual(10.0, histogram[0].TotalTime);
-        AssertHelpers.AreEqual(2.0, histogram[1].CountLowerBound); AssertHelpers.AreEqual(0.0, histogram[1].TotalTime);
-        AssertHelpers.AreEqual(4.0, histogram[2].CountLowerBound); AssertHelpers.AreEqual(10.0, histogram[2].TotalTime);
-        AssertHelpers.AreEqual(6.0, histogram[3].CountLowerBound); AssertHelpers.AreEqual(10.0, histogram[3].TotalTime);
-
-        AssertHelpers.AreEqual(1.0, histogram.Last().CumulativeProbability);
-    }
-
-
-    [Fact]
+    [Fact(DisplayName = "GenerateHistogram creates empty bins with empty data.")]
     public void GenerateHistogram_EmptyData_ReturnsEmptyList()
     {
         // Arrange
@@ -410,7 +410,7 @@ public class TimeBasedMetricTests
         Assert.Empty(histogram);
     }
 
-    [Theory]
+    [Theory(DisplayName = "GenerateHistogram throws exception when invalid interval is provided.")]
     [InlineData(0.0)]
     [InlineData(-1.0)]
     public void GenerateHistogram_InvalidInterval_ThrowsArgumentOutOfRangeException(double invalidInterval)
@@ -420,10 +420,12 @@ public class TimeBasedMetricTests
         metric.ObserveCount(1,1); // Add some data
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => metric.GenerateHistogram(invalidInterval));
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            metric.GenerateHistogram(invalidInterval)
+        );
     }
 
-    [Fact]
+    [Fact(DisplayName = "ObserveCount should throw if time moves backward.")]
     public void ObserveCount_TimeGoesBackwards_ThrowsArgumentOutOfRangeException()
     {
         // Arrange
@@ -431,48 +433,49 @@ public class TimeBasedMetricTests
         metric.ObserveCount(5, 10);
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>(() => metric.ObserveCount(6, 5));
+        Assert.Throws<ArgumentOutOfRangeException>(() => 
+            metric.ObserveCount(6, 5)
+        );
     }
 
 
-    [Fact]
+    [Fact(DisplayName = "ObservationCoverageRatio should be 1.0 for full coverage from t=0.")]
     public void ObservationCoverageRatio_FullCoverage()
     {
+        // Arrange
         var metric = new TimeBasedMetric(0);
-        metric.ObserveCount(1, 10); // ActiveDuration = 10. CurrentTime = 10. InitialTime = 0.
-        // Ratio = 10 / (10-0) = 1
+        metric.ObserveCount(1, 10);
+
+        // Act & Assert
+        // ActiveDuration is 10. Span is (10-0)=10. Ratio = 10/10 = 1.
         AssertHelpers.AreEqual(1.0, metric.ObservationCoverageRatio);
     }
 
-    [Fact]
+    [Fact(DisplayName = "ObservationCoverageRatio should be 1.0 when starting at a non-zero time.")]
     public void ObservationCoverageRatio_PartialCoverageDueToInitialTime()
     {
+        // Arrange
         var metric = new TimeBasedMetric(5); // InitialTime = 5
-        metric.ObserveCount(1, 10); // ActiveDuration = 5 (from 5 to 10). CurrentTime = 10. InitialTime = 5.
-        // Ratio = 5 / (10-5) = 1
+
+        // Act
+        metric.ObserveCount(1, 10);
+
+        // Assert
+        // ActiveDuration is (10-5)=5. Span is (10-5)=5. Ratio = 5/5 = 1.
         AssertHelpers.AreEqual(1.0, metric.ObservationCoverageRatio);
     }
 
-    [Fact]
+    [Fact(DisplayName = "ObservationCoverageRatio should be 0.0 for a metric with no duration.")]
     public void ObservationCoverageRatio_NoObservationsAfterInit_IsZero()
     {
-        var metric = new TimeBasedMetric(initialTime: 0, enableHistory: false);
-        // No ObserveCount calls yet, but let's imagine CurrentTime somehow advanced (not directly possible with public API)
-        // For this test, we focus on the calculation.
-        // If CurrentTime == InitialTime, it's 0.
-        // Let's test if CurrentTime > InitialTime but TotalActiveDuration is 0
-        // This state is hard to achieve naturally without internal manipulation or a flawed ObserveCount.
-        // The existing logic will always have TotalActiveDuration match CurrentTime-InitialTime if observations span the period.
-        // So, if CurrentTime != InitialTime, TotalActiveDuration would be CurrentTime-InitialTime.
-        // The only way for it to be less is if ObserveCount wasn't called to cover some span.
-        // However, with the current API, ObserveCount implicitly covers the span.
-        // Let's test the edge case where TotalActiveDuration is somehow zero (e.g., only one observation at InitialTime)
-        // and CurrentTime later moves (hypothetically).
+        // Arrange
+        var metric = new TimeBasedMetric();
 
-        // Directly, after construction:
-        AssertHelpers.AreEqual(0.0, metric.ObservationCoverageRatio);
+        // Act
+        metric.ObserveCount(1, 0); // Observe at the initial time, no duration passes
 
-        metric.ObserveCount(1,0); // Observe at initial time
+        // Assert
+        // CurrentTime equals InitialTime, so the denominator is zero.
         AssertHelpers.AreEqual(0.0, metric.ObservationCoverageRatio);
     }
 }

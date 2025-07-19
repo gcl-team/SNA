@@ -37,7 +37,3 @@ public class ConditionalRunStrategy : IRunStrategy
         return _continueCondition(context);
     }
 }
-
-// Usage Example:
-// var strategy = new ConditionalRunStrategy(engine => engine.Model.GetComponent<MyQueue>("Q1").Length < 100);
-// engine.Run(strategy);

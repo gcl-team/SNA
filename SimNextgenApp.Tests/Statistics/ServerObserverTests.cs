@@ -1,6 +1,4 @@
 ﻿using Moq;
-using SimNextgenApp.Configurations;
-using SimNextgenApp.Core;
 using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Statistics;
 
@@ -8,144 +6,143 @@ namespace SimNextgenApp.Tests.Statistics;
 
 public class ServerObserverTests
 {
-    private Server<DummyLoad> CreateTestServer(int capacity = 1)
-    {
-        var config = new ServerStaticConfig<DummyLoad>((load, random) => TimeSpan.FromSeconds(10))
-        {
-            Capacity = capacity
-        };
-        var server = new Server<DummyLoad>(config, seed: 123, instanceName: "TestServer");
+    private readonly Mock<IServer<DummyLoad>> _mockServer;
+    private readonly ServerObserver<DummyLoad> _observer;
+    private readonly DummyLoad _testLoad = new();
 
-        return server;
+    public ServerObserverTests()
+    {
+        // Use Strict mock behavior to ensure we are setting up all necessary interactions.
+        _mockServer = new Mock<IServer<DummyLoad>>(MockBehavior.Strict);
+
+        // The observer needs to subscribe to events. Moq requires us to set up
+        // the event add/remove accessors for Strict mocks.
+        _mockServer.SetupAdd(s => s.StateChanged += It.IsAny<Action<double>>());
+        _mockServer.SetupAdd(s => s.LoadDeparted += It.IsAny<Action<DummyLoad, double>>());
+
+        _observer = new ServerObserver<DummyLoad>(_mockServer.Object);
     }
 
-    //[Fact]
-    //public void OnLoadDepart_IncrementsLoadsCompletedCount()
-    //{
-    //    // Arrange
-    //    var server = CreateTestServer();
-    //    var observer = new ServerObserver<DummyLoad>(server);
-    //    var load = new DummyLoad("L1");
+    [Fact(DisplayName = "Constructor should throw ArgumentNullException if the server is null.")]
+    public void Constructor_WithNullServer_ThrowsArgumentNullException()
+    {
+        var ex = Assert.Throws<ArgumentNullException>(() => 
+            new ServerObserver<DummyLoad>(null!)
+        );
 
-    //    Assert.Equal(0, observer.LoadsCompleted); // Pre-condition
+        Assert.Equal("serverToObserve", ex.ParamName);
+    }
 
-    //    // Act
-    //    // Manually trigger the server's completion logic, which fires the event hook.
-    //    // We need to add the load first so Remove succeeds.
-    //    server.LoadsInService.Add(load);
-    //    server.HandleServiceCompletion(load, currentTime: 10.0);
+    [Fact(DisplayName = "Constructor should subscribe to server events upon creation.")]
+    public void Constructor_WithValidServer_SubscribesToEvents()
+    {
+        // Arrange
+        var localMockServer = new Mock<IServer<DummyLoad>>();
 
-    //    // Assert
-    //    Assert.Equal(1, observer.LoadsCompleted);
-    //}
+        // Act
+        var observer = new ServerObserver<DummyLoad>(localMockServer.Object);
 
-    //[Fact]
-    //public void OnServerStateChange_UpdatesBusyUnitsMetric_OnArrival()
-    //{
-    //    // Arrange
-    //    var server = CreateTestServer(capacity: 2);
-    //    var observer = new ServerObserver<DummyLoad>(server);
-    //    var load1 = new DummyLoad("L1");
+        // Assert
+        localMockServer.VerifyAdd(s => s.StateChanged += It.IsAny<Action<double>>(), Times.Once,
+            "The observer should subscribe to the StateChanged event.");
 
-    //    Assert.Equal(0, observer.BusyUnitsMetric.CurrentCount); // Pre-condition
+        localMockServer.VerifyAdd(s => s.LoadDeparted += It.IsAny<Action<DummyLoad, double>>(), Times.Once,
+            "The observer should subscribe to the LoadDeparted event.");
+    }
 
-    //    // Act
-    //    // Manually trigger the server's arrival logic.
-    //    server.HandleLoadArrivalForService(load1, currentTime: 10.0);
+    [Fact(DisplayName = "Observer should update its busy units metric when the server's state changes.")]
+    public void OnServerStateChange_WhenEventFires_UpdatesBusyUnitsMetric()
+    {
+        // Arrange
+        const int currentNumberInService = 3;
+        const double eventTime = 50.0;
 
-    //    // Assert
-    //    Assert.Equal(1, observer.BusyUnitsMetric.CurrentCount);
-    //}
+        _mockServer.SetupGet(s => s.NumberInService).Returns(currentNumberInService);
 
-    //[Fact]
-    //public void OnServerStateChange_UpdatesBusyUnitsMetric_OnDeparture()
-    //{
-    //    // Arrange
-    //    var server = CreateTestServer(capacity: 2);
-    //    var observer = new ServerObserver<DummyLoad>(server);
-    //    var load1 = new DummyLoad("L1");
+        // Act
+        _mockServer.Raise(s => s.StateChanged += null, eventTime);
 
-    //    // Simulate a state where the server is busy
-    //    server.HandleLoadArrivalForService(load1, currentTime: 10.0);
-    //    Assert.Equal(1, observer.BusyUnitsMetric.CurrentCount); // Pre-condition
+        // Assert
+        Assert.Equal(currentNumberInService, _observer.BusyUnitsMetric.CurrentCount);
+        Assert.Equal(eventTime, _observer.BusyUnitsMetric.CurrentTime);
+    }
 
-    //    // Act
-    //    // Now, trigger the departure logic.
-    //    server.HandleServiceCompletion(load1, currentTime: 20.0);
+    [Fact(DisplayName = "Observer should increment loads completed count when a load departs.")]
+    public void OnLoadDepart_WhenEventFires_IncrementsLoadsCompleted()
+    {
+        // Arrange
+        Assert.Equal(0, _observer.LoadsCompleted); // Verify initial state
 
-    //    // Assert
-    //    Assert.Equal(0, observer.BusyUnitsMetric.CurrentCount);
-    //}
+        // Act
+        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 10.0);
+        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 20.0);
 
-    //[Fact]
-    //public void Utilization_Property_CalculatesCorrectly()
-    //{
-    //    // Arrange
-    //    var server = CreateTestServer(capacity: 2);
-    //    var observer = new ServerObserver<DummyLoad>(server);
-    //    var load1 = new DummyLoad("L1");
-    //    var load2 = new DummyLoad("L2");
+        // Assert
+        Assert.Equal(2, _observer.LoadsCompleted);
+    }
 
-    //    // Act & Assert
-    //    // At T=10, the server becomes busy with 1 load.
-    //    server.HandleLoadArrivalForService(load1, 10.0);    // T=10, busy=1
-    //                                                        // T=10 to 20: 1 busy.
+    [Fact(DisplayName = "WarmedUp should reset statistics and re-observe the current server state.")]
+    public void WarmedUp_WhenCalled_ResetsStatsAndReinitializes()
+    {
+        // Arrange
+        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 10.0);
+        Assert.Equal(1, _observer.LoadsCompleted); // Verify pre-warmup state
 
-    //    observer.BusyUnitsMetric.ObserveCount(server.NumberInService, 20.0);
+        const int numberInServiceAtWarmup = 2;
+        const double warmupTime = 100.0;
 
-    //    server.HandleLoadArrivalForService(load2, 20.0);    // T=20, busy=2
-    //                                                        // T=20 to 30: 2 busy.
-    //    server.HandleServiceCompletion(load1, 30.0);        // T=30, busy=1
-    //                                                        // T=30 to 40: 1 busy.
-    //    observer.BusyUnitsMetric.ObserveCount(server.NumberInService, 40.0); // Final observation at T=40
+        _mockServer.SetupGet(s => s.NumberInService).Returns(numberInServiceAtWarmup);
 
-    //    // Calculation:
-    //    // (0 * 10) + (1 * 10) + (2 * 10) + (1 * 10) = 0 + 10 + 20 + 10 = 40 (CumulativeCountTimeProduct)
-    //    // Total duration = 40
-    //    // AverageCount = 40 / 40 = 1.0
-    //    // Utilization = AverageCount / Capacity = 1.0 / 2.0 = 0.5
+        // Act
+        _observer.WarmedUp(warmupTime);
 
-    //    Assert.Equal(0.5, observer.Utilization, 5); // Use precision for double comparison
-    //}
+        // Assert
+        Assert.Equal(0, _observer.LoadsCompleted); // Loads completed should be reset.
+        Assert.Equal(warmupTime, _observer.BusyUnitsMetric.InitialTime);
+        Assert.Equal(warmupTime, _observer.BusyUnitsMetric.CurrentTime);
+        Assert.Equal(numberInServiceAtWarmup, _observer.BusyUnitsMetric.CurrentCount);
+    }
 
-    //[Fact]
-    //public void WarmedUp_ResetsAllStatistics_AndReinitializesCount()
-    //{
-    //    // Arrange
-    //    var server = CreateTestServer(capacity: 5);
-    //    var observer = new ServerObserver<DummyLoad>(server);
+    [Fact(DisplayName = "Utilization property should calculate correctly based on metric average and server capacity.")]
+    public void Utilization_WithPositiveCapacity_CalculatesCorrectly()
+    {
+        // Arrange
+        _mockServer.SetupGet(s => s.Capacity).Returns(4); // Server has a capacity of 4.
 
-    //    // Simulate a "dirty" state with pre-warm-up data
-    //    var load1 = new DummyLoad("L1");
-    //    var load2 = new DummyLoad("L2");
-    //    var load3 = new DummyLoad("L3");
-    //    var load4 = new DummyLoad("L4");
-    //    server.HandleLoadArrivalForService(load1, 10.0);
-    //    server.HandleLoadArrivalForService(load2, 20.0);
-    //    server.HandleServiceCompletion(load1, 30.0);
+        // The observer's metric is updated via the StateChanged event.
+        // We simulate a scenario: 
+        // - From T=0 to T=10, 0 units are busy.
+        // - From T=10 to T=20, 2 units are busy.
+        _mockServer.SetupGet(s => s.NumberInService).Returns(0);
+        _mockServer.Raise(s => s.StateChanged += null, 0.0); // Initialize at T=0
 
-    //    // Sanity check the dirty state
-    //    Assert.Equal(1, observer.LoadsCompleted);
-    //    Assert.Equal(1, observer.BusyUnitsMetric.CurrentCount);
+        _mockServer.SetupGet(s => s.NumberInService).Returns(2);
+        _mockServer.Raise(s => s.StateChanged += null, 10.0); // At time 10, count becomes 2.
 
-    //    // Now, put the server in its final pre-warm-up state.
-    //    // It should have 3 busy units (L2, L3, L4)
-    //    server.HandleLoadArrivalForService(load3, 98.0);
-    //    server.HandleLoadArrivalForService(load4, 99.0);
-    //    Assert.Equal(3, server.NumberInService);
+        _mockServer.SetupGet(s => s.NumberInService).Returns(0);
+        _mockServer.Raise(s => s.StateChanged += null, 20.0); // At time 20, count becomes 0.
 
-    //    double warmUpTime = 100.0;
+        // Act
+        // The calculation happens inside the property, so we just read it.
+        double utilization = _observer.Utilization;
 
-    //    // Act
-    //    observer.WarmedUp(warmUpTime);
+        // Assert
+        // The TimeBasedMetric average count is: ((0 * 10) + (2 * 10)) / 20 = 20 / 20 = 1.0
+        // Utilization should be AverageCount / Capacity = 1.0 / 4 = 0.25
+        Assert.Equal(1.0, _observer.BusyUnitsMetric.AverageCount);
+        Assert.Equal(0.25, utilization);
+    }
 
-    //    // Assert
-    //    // 1. Verify statistics are cleared
-    //    Assert.Equal(0, observer.LoadsCompleted);
-    //    Assert.Equal(0, observer.BusyUnitsMetric.TotalActiveDuration);
+    [Fact(DisplayName = "Utilization should be zero if server capacity is zero to avoid division by zero.")]
+    public void Utilization_WithZeroCapacity_ReturnsZero()
+    {
+        // Arrange
+        _mockServer.SetupGet(s => s.Capacity).Returns(0); // Edge case: capacity is 0.
 
-    //    // 2. Verify BusyUnitsMetric is re-initialized with the server's current state
-    //    Assert.Equal(warmUpTime, observer.BusyUnitsMetric.InitialTime);
-    //    Assert.Equal(3, observer.BusyUnitsMetric.CurrentCount);
-    //}
+        // Act
+        double utilization = _observer.Utilization;
+
+        // Assert
+        Assert.Equal(0.0, utilization);
+    }
 }

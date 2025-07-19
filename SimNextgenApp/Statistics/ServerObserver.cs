@@ -8,7 +8,7 @@ namespace SimNextgenApp.Statistics;
 /// <typeparam name="TLoad">The type of load being processed by the server.</typeparam>
 public class ServerObserver<TLoad>
 {
-    private readonly Server<TLoad> _server;
+    private readonly IServer<TLoad> _server;
     private readonly TimeBasedMetric _busyServerUnitsCounter;
     private int _loadsCompletedCount;
 
@@ -32,7 +32,7 @@ public class ServerObserver<TLoad>
     public TimeBasedMetric BusyUnitsMetric => _busyServerUnitsCounter;
     
 
-    public ServerObserver(Server<TLoad> serverToObserve)
+    public ServerObserver(IServer<TLoad> serverToObserve)
     {
         _server = serverToObserve ?? throw new ArgumentNullException(nameof(serverToObserve));
 
@@ -50,7 +50,7 @@ public class ServerObserver<TLoad>
     /// </summary>
     public void WarmedUp(double simulationTime)
     {
-        _busyServerUnitsCounter.WarmedUp(simulationTime);
+        _busyServerUnitsCounter.WarmedUp(simulationTime, 0);
         _loadsCompletedCount = 0;
 
         // Re-initialise the counter with the server current state.

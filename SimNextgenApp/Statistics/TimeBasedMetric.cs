@@ -185,13 +185,20 @@ public class TimeBasedMetric
     /// </summary>
     /// <param name="clockTime">The simulation time from which to start fresh measurement. Must not be negative.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if clockTime is negative.</exception>
-    public void WarmedUp(double clockTime)
+    public void WarmedUp(double clockTime, double currentCountAtWarmup)
     {
         if (clockTime < 0)
             throw new ArgumentOutOfRangeException(nameof(clockTime), "Clock time for warm-up cannot be negative.");
 
         // Preserve history setting, re-initialize other fields
         Init(clockTime, IsHistoryEnabled);
+
+        CurrentCount = currentCountAtWarmup; // Set the new baseline count
+
+        if (IsHistoryEnabled)
+        {
+            _history?.Add((clockTime, CurrentCount));
+        }
     }
 
     /// <summary>

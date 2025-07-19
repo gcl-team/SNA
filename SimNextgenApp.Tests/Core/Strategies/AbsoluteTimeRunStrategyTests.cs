@@ -4,55 +4,78 @@ namespace SimNextgenApp.Tests.Core.Strategies;
 
 public class AbsoluteTimeRunStrategyTests
 {
-    [Fact]
-    public void Constructor_ValidInputs_SetsProperties()
+    [Fact(DisplayName = "Constructor should set WarmupEndTime when a valid value is provided.")]
+    public void Constructor_WithValidWarmupTime_SetsWarmupProperty()
     {
+        // Arrange & Act
         var strategy = new AbsoluteTimeRunStrategy(100.0, 10.0);
+
+        // Assert
         Assert.Equal(10.0, strategy.WarmupEndTime);
     }
 
-    [Fact]
-    public void Constructor_ValidInputs_SetsProperties_NoWarmup()
+    [Fact(DisplayName = "Constructor should leave WarmupEndTime as null when it is not provided.")]
+    public void Constructor_WithoutWarmupTime_LeavesWarmupPropertyNull()
     {
+        // Arrange & Act
         var strategy = new AbsoluteTimeRunStrategy(100.0);
+
+        // Assert
         Assert.Null(strategy.WarmupEndTime);
     }
 
-    [Theory]
+
+    [Theory(DisplayName = "Constructor should throw ArgumentOutOfRangeException for a non-positive stop time.")]
     [InlineData(0.0)]
     [InlineData(-100.0)]
-    public void Constructor_Throws_When_StopTime_Is_Not_Positive(double invalidTime)
+    public void Constructor_NonPositiveStopTime_ThrowsArgumentOutOfRangeException(double invalidTime)
     {
         Assert.Throws<ArgumentOutOfRangeException>("stopTime", () => new AbsoluteTimeRunStrategy(invalidTime));
     }
 
-    [Fact]
-    public void Constructor_Throws_When_WarmupEndTime_Is_Negative()
+    [Fact(DisplayName = "Constructor should throw ArgumentOutOfRangeException for a negative warm-up time.")]
+    public void Constructor_NegativeWarmupTime_ThrowsArgumentOutOfRangeException()
     {
         Assert.Throws<ArgumentOutOfRangeException>("warmupEndTime", () => new AbsoluteTimeRunStrategy(100.0, -10.0));
     }
 
-    [Fact]
-    public void Constructor_Throws_When_WarmupEndTime_Is_Longer_Than_StopTime()
+    [Theory(DisplayName = "Constructor should throw if warm-up time is not less than stop time.")]
+    [InlineData(100.0, 100.0)]
+    [InlineData(5.0, 20.0)]
+    public void Constructor_WarmupEndTimeLongerThanStopTime_ThrowsArgumentOutOfRangeException(double stopTime, double invalidWarmupTime)
     {
-        Assert.Throws<ArgumentOutOfRangeException>("warmupEndTime", () => new AbsoluteTimeRunStrategy(5.0, 20.0));
+        Assert.Throws<ArgumentOutOfRangeException>("warmupEndTime", () => new AbsoluteTimeRunStrategy(stopTime, invalidWarmupTime));
     }
 
-    [Theory]
-    [InlineData(0.0, 100.0, true)]
-    [InlineData(99.9, 100.0, true)]
-    [InlineData(100.0, 100.0, false)]
-    [InlineData(100.1, 100.0, false)]
-    public void ShouldContinue_ReturnsCorrectValueBasedOnClockTime(double clockTime, double stopTime, bool expectedResult)
+    [Theory(DisplayName = "ShouldContinue should return true if clock time is less than stop time.")]
+    [InlineData(0.0)]
+    [InlineData(99.9)]
+    public void ShouldContinue_TimeIsBeforeStopTime_ReturnsTrue(double clockTime)
     {
         // Arrange
         var context = new TestRunContext(null!) { ClockTime = clockTime };
-        var strategy = new AbsoluteTimeRunStrategy(stopTime);
+        var strategy = new AbsoluteTimeRunStrategy(100.0);
 
         // Act
-        bool actualResult = strategy.ShouldContinue(context);
+        bool result = strategy.ShouldContinue(context);
 
         // Assert
-        Assert.Equal(expectedResult, actualResult);
+        Assert.True(result);
+    }
+
+    [Theory(DisplayName = "ShouldContinue should return false if clock time is at or after stop time.")]
+    [InlineData(100.0)]
+    [InlineData(100.001)]
+    public void ShouldContinue_TimeIsAtOrAfterStopTime_ReturnsFalse(double clockTime)
+    {
+        // Arrange
+        var context = new TestRunContext(null!) { ClockTime = clockTime };
+        var strategy = new AbsoluteTimeRunStrategy(100.0);
+
+        // Act
+        bool result = strategy.ShouldContinue(context);
+
+        // Assert
+        Assert.False(result);
     }
 }

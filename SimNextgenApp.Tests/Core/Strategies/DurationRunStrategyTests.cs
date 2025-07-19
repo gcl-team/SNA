@@ -1,66 +1,89 @@
+using Moq;
+using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
+using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Core.Strategies;
 
 public class DurationRunStrategyTests
 {
-    [Fact]
-    public void Constructor_ValidInputs_SetsProperties()
+    [Fact(DisplayName = "Constructor should set WarmupEndTime when a valid value is provided.")]
+    public void Constructor_WithValidWarmupDuration_SetsWarmupProperty()
     {
+        // Arrange & Act
         var strategy = new DurationRunStrategy(100.0, 10.0);
+
+        // Assert
         Assert.Equal(10.0, strategy.WarmupEndTime);
     }
 
-    [Fact]
-    public void Constructor_ValidInputs_SetsProperties_NoWarmup()
+    [Fact(DisplayName = "Constructor should leave WarmupEndTime as null when it is not provided.")]
+    public void Constructor_WithoutWarmupDuration_LeavesWarmupPropertyNull()
     {
+        // Arrange & Act
         var strategy = new DurationRunStrategy(100.0);
+
+        // Assert
         Assert.Null(strategy.WarmupEndTime);
     }
 
-    [Theory]
+    [Theory(DisplayName = "Constructor should throw ArgumentOutOfRangeException for a non-positive run duration.")]
     [InlineData(0.0)]
     [InlineData(-100.0)]
-    public void Constructor_Throws_When_RunDuration_Is_Not_Positive(double invalidDuration)
+    public void Constructor_NonPositiveRunDuration_ThrowsArgumentOutOfRangeException(double invalidDuration)
     {
-        Assert.Throws<ArgumentOutOfRangeException>("runDuration", () => new DurationRunStrategy(invalidDuration));
+        Assert.Throws<ArgumentOutOfRangeException>("runDuration", () => 
+            new DurationRunStrategy(invalidDuration)
+        );
     }
 
-    [Fact]
-    public void Constructor_Throws_When_WarmupDuration_Is_Negative()
+    [Fact(DisplayName = "Constructor should throw ArgumentOutOfRangeException for a negative warm-up duration.")]
+    public void Constructor_NegativeWarmupDuration_ThrowsArgumentOutOfRangeException()
     {
-        Assert.Throws<ArgumentOutOfRangeException>("warmupDuration", () => new DurationRunStrategy(100.0, -10.0));
+        Assert.Throws<ArgumentOutOfRangeException>("warmupDuration", () => 
+            new DurationRunStrategy(100.0, -10.0)
+        );
     }
 
-    [Fact]
-    public void Constructor_Throws_When_WarmupDuration_Is_Longer_Than_RunDuration()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>("warmupDuration", () => new DurationRunStrategy(5.0, 20.0));
-    }
-
-    [Theory]
+    [Theory(DisplayName = "Constructor should throw if warm-up duration is not less than run duration.")]
     [InlineData(100.0, 100.0)]
-    [InlineData(100.0, 101.0)]
-    public void Constructor_Throws_When_WarmupDuration_Is_Not_Less_Than_RunDuration(double runDuration, double invalidWarmup)
+    [InlineData(99.0, 100.0)]
+    public void Constructor_WarmupNotLessThanRunDuration_ThrowsArgumentOutOfRangeException(double runDuration, double invalidWarmup)
     {
         Assert.Throws<ArgumentOutOfRangeException>("warmupDuration", () => new DurationRunStrategy(runDuration, invalidWarmup));
     }
 
-    [Theory]
-    [InlineData(0.0, 100.0, true)]
-    [InlineData(99.9, 100.0, true)]
-    [InlineData(100.0, 100.0, false)]
-    [InlineData(100.1, 100.0, false)]
-    public void ShouldContinue_ReturnsCorrectValueBasedOnClockTime(double clockTime, double runDuration, bool expectedResult)
+    [Theory(DisplayName = "ShouldContinue should return true if clock time is less than run duration.")]
+    [InlineData(0.0)]
+    [InlineData(99.999)]
+    public void ShouldContinue_TimeIsBeforeRunDuration_ReturnsTrue(double clockTime)
     {
         // Arrange
-        var context = new TestRunContext(null!) { ClockTime = clockTime };
-        var strategy = new DurationRunStrategy(runDuration);
+        var mockContext = new Mock<IRunContext>();
+        mockContext.SetupGet(c => c.ClockTime).Returns(clockTime);
+        var strategy = new DurationRunStrategy(runDuration: 100.0);
 
         // Act
-        bool actualResult = strategy.ShouldContinue(context);
+        bool result = strategy.ShouldContinue(mockContext.Object);
 
         // Assert
-        Assert.Equal(expectedResult, actualResult);
+        Assert.True(result);
+    }
+
+    [Theory(DisplayName = "ShouldContinue should return false if clock time is at or after run duration.")]
+    [InlineData(100.0)]
+    [InlineData(100.001)]
+    public void ShouldContinue_TimeIsAtOrAfterRunDuration_ReturnsFalse(double clockTime)
+    {
+        // Arrange
+        var mockContext = new Mock<IRunContext>();
+        mockContext.SetupGet(c => c.ClockTime).Returns(clockTime);
+        var strategy = new DurationRunStrategy(runDuration: 100.0);
+
+        // Act
+        bool result = strategy.ShouldContinue(mockContext.Object);
+
+        // Assert
+        Assert.False(result);
     }
 }

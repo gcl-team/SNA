@@ -53,13 +53,9 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
     /// <param name="seed">The seed for the random number stream used by this server.</param>
     /// <param name="instanceName">A unique name for this server instance (e.g., "CheckoutCounter1").</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> is null.</exception>
-    /// <exception cref="ArgumentException">Thrown if essential configuration like ServiceTime is missing.</exception>
     public Server(ServerStaticConfig<TLoad> config, int seed, string instanceName) : base(instanceName)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
-
-        if (config.Capacity <= 0 && config.Capacity != int.MaxValue)
-            throw new ArgumentOutOfRangeException(nameof(config), "Server capacity must be positive or int.MaxValue.");
 
         _random = new Random(seed);
         _loadsInService = [];

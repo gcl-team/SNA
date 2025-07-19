@@ -8,10 +8,24 @@ namespace SimNextgenApp.Configurations;
 /// <typeparam name="TLoad">The type of load (entity) that this server will process.</typeparam>
 public record ServerStaticConfig<TLoad> : IStaticConfig
 {
+    private int _capacity = int.MaxValue;
+
     /// <summary>
     /// Gets the maximum number of loads the server can process or hold simultaneously.
+    /// Must be a non-negative number.
     /// </summary>
-    public int Capacity { get; init; } = int.MaxValue;
+    public int Capacity
+    {
+        get => _capacity;
+        init
+        {
+            if (value < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(Capacity), "Capacity cannot be negative.");
+            }
+            _capacity = value;
+        }
+    }
 
     /// <summary>
     /// Gets the function that defines the service time for each load.
