@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Serilog;
 using SimNextgenApp.Demo.Scenarios;
 using System.CommandLine;
 
@@ -33,6 +34,16 @@ if (args.Length == 0)
 var simpleGenCommand = new Command("simple-generator", "Run the SimpleGenerator demo");
 simpleGenCommand.SetHandler(() =>
 {
+    Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Verbose()
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .WriteTo.Seq("http://localhost:5341")
+            .CreateLogger();
+
+    // Create a logger factory that uses Serilog
+    loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
+
     Console.WriteLine("====== Running SimpleGenerator ======");
     SimpleGenerator.RunDemo(loggerFactory);
 });

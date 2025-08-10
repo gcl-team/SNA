@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Serilog.Context;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
@@ -135,51 +136,68 @@ public class SimulationEngine : IScheduler, IRunContext
 
         try
         {
-            while (strategy.ShouldContinue(this) && _fel.TryDequeue(out var currentEvent, out var priority))
+            using (LogContext.PushProperty("ProfileRunId", _profile.RunId))
             {
-                _executedEventCount += 1;
-
-                // 1. Advance Clock
-                if (priority.Time < ClockTime)
+                while (strategy.ShouldContinue(this) && _fel.TryDequeue(out var currentEvent, out var priority))
                 {
-                    // Should not happen with correct scheduling and FEL logic
-                    throw new SimulationException($"FEL Error: Event {currentEvent.GetType().Name} time {priority.Time} is before ClockTime {ClockTime}. FEL is corrupted.");
-                }
+                    _executedEventCount += 1;
 
-                _clockTime = priority.Time;
-
-                // 2. Check for Warm-up Completion (only if applicable and not yet notified)
-                if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
-                {
-                    if (Model is IWarmupAware warmupAwareModel)
+                    // 1. Advance Clock
+                    if (priority.Time < ClockTime)
                     {
-                        _logger.LogInformation("Warm-up period complete at simulation time {WarmupEndTime}.", ClockTime);
-                        warmupAwareModel.WarmedUp(ClockTime); // Notify model
+                        // Should not happen with correct scheduling and FEL logic
+                        throw new SimulationException($"FEL Error: Event {currentEvent.GetType().Name} time {priority.Time} is before ClockTime {ClockTime}. FEL is corrupted.");
                     }
 
-                    _warmupCompleteNotified = true; // Ensure notification only happens once
+                    _clockTime = priority.Time;
+
+                    // 2. Check for Warm-up Completion (only if applicable and not yet notified)
+                    if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
+                    {
+                        if (Model is IWarmupAware warmupAwareModel)
+                        {
+                            _logger.LogInformation("Warm-up period complete at simulation time {WarmupEndTime}.", ClockTime);
+                            warmupAwareModel.WarmedUp(ClockTime); // Notify model
+                        }
+
+                        _warmupCompleteNotified = true; // Ensure notification only happens once
+                    }
+
+                    // 3. Execute Event
+                    using (LogContext.PushProperty("TraceId", currentEvent.EventId))
+                    using (LogContext.PushProperty("SpanId", Guid.NewGuid().ToString()))
+                    {
+                        var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
+
+                        _tracer?.Trace(new TraceRecord(
+                            Point: TracePoint.EventExecuting,
+                            ClockTime: ClockTime,
+                            EventId: currentEvent.EventId,
+                            EventType: currentEvent.GetType().Name,
+                            Details: currentEvent.GetTraceDetails()
+                        ));
+
+                        _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
+                        currentEvent.Execute(this);
+
+                        stopwatchLog.Stop();
+                        _logger.LogInformation(
+                            "Executed event {EventType} (ID: {EventId}) in {Elapsed:0.000} ms",
+                            currentEvent.GetType().Name,
+                            currentEvent.EventId,
+                            stopwatch.Elapsed.TotalMilliseconds);
+
+                        _tracer?.Trace(new TraceRecord(
+                            Point: TracePoint.EventCompleted,
+                            ClockTime: ClockTime,
+                            EventId: currentEvent.EventId,
+                            EventType: currentEvent.GetType().Name,
+                            Details: currentEvent.GetTraceDetails()
+                        ));
+                    }                    
                 }
-
-                _tracer?.Trace(new TraceRecord(
-                    Point: TracePoint.EventExecuting,
-                    ClockTime: ClockTime,
-                    EventId: currentEvent.EventId,
-                    EventType: currentEvent.GetType().Name,
-                    Details: currentEvent.GetTraceDetails()
-                ));
-
-                // 3. Execute Event
-                _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
-                currentEvent.Execute(this);
-
-                _tracer?.Trace(new TraceRecord(
-                    Point: TracePoint.EventCompleted,
-                    ClockTime: ClockTime,
-                    EventId: currentEvent.EventId,
-                    EventType: currentEvent.GetType().Name,
-                    Details: currentEvent.GetTraceDetails()
-                ));
             }
+            
         }
         catch (Exception ex)
         {
