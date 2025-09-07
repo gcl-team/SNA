@@ -103,11 +103,30 @@ mmckCommand.SetHandler(
     durationOption, warmupOption, genSeedOption, serverSeedBaseOption
 );
 
+// ---- Demo: simple-generator ----
+var simpleRestaurantCommand = new Command("simple-restaurant", "Run the SimpleRestaurant demo");
+simpleRestaurantCommand.SetHandler(() =>
+{
+    Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Verbose()
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .WriteTo.Seq("http://localhost:5341")
+            .CreateLogger();
+
+    // Create a logger factory that uses Serilog
+    loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
+
+    Console.WriteLine("====== Running SimpleRestaurant ======");
+    SimpleRestaurant.RunDemo(loggerFactory);
+});
+
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");
 demoCommand.AddCommand(simpleGenCommand);
 demoCommand.AddCommand(simpleServerCommand);
 demoCommand.AddCommand(mmckCommand);
+demoCommand.AddCommand(simpleRestaurantCommand);
 
 rootCommand.AddCommand(demoCommand);
 

@@ -1,10 +1,14 @@
-﻿namespace SimNextgenApp.Demo.RestaurantSample;
+﻿using SimNextgenApp.Statistics;
 
-internal class TableManager(IEnumerable<Table> tables)
+namespace SimNextgenApp.Demo.RestaurantSample;
+
+internal class TableManager
 {
-    private readonly List<Table> _allTables = [.. tables];
+    private readonly List<Table> _allTables;
 
-    private readonly Dictionary<Table, CustomerGroup> _occupiedTables = [];
+    private readonly Dictionary<Table, CustomerGroup> _occupiedTables;
+
+    public TimeBasedMetric UtilizationMetric { get; }
 
     // This event is CRUCIAL. It signals that a table has become free,
     // allowing the main model to check the waiting queue.
@@ -13,6 +17,14 @@ internal class TableManager(IEnumerable<Table> tables)
     public int TotalTableCount => _allTables.Count;
     public int OccupiedTableCount => _occupiedTables.Count;
     public int AvailableTableCount => TotalTableCount - OccupiedTableCount;
+
+    public TableManager(IEnumerable<Table> tables)
+    {
+        _allTables = [.. tables];
+        _occupiedTables = [];
+        UtilizationMetric = new TimeBasedMetric(enableHistory: false);
+        UtilizationMetric.ObserveCount(0, 0);
+    }
 
     /// <summary>
     /// Finds the best available table for a group of a given size.
@@ -33,7 +45,7 @@ internal class TableManager(IEnumerable<Table> tables)
     /// <summary>
     /// Marks a table as occupied by a specific customer group.
     /// </summary>
-    public void OccupyTable(Table table, CustomerGroup group)
+    public void OccupyTable(Table table, CustomerGroup group, double currentTime)
     {
         if (_occupiedTables.ContainsKey(table))
         {
@@ -41,16 +53,23 @@ internal class TableManager(IEnumerable<Table> tables)
         }
 
         _occupiedTables[table] = group;
+        UtilizationMetric.ObserveCount(OccupiedTableCount, currentTime);
     }
 
     /// <summary>
     /// Releases a table, making it available for new customers.
     /// </summary>
-    public void ReleaseTable(Table table)
+    public void ReleaseTable(Table table, double currentTime)
     {
         if (_occupiedTables.Remove(table))
         {
+            UtilizationMetric.ObserveCount(OccupiedTableCount, currentTime);
             TableFreed?.Invoke(table);
         }
+    }
+
+    public void WarmedUp(double simulationTime)
+    {
+        UtilizationMetric.WarmedUp(simulationTime, OccupiedTableCount);
     }
 }

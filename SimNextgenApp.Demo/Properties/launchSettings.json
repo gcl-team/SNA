@@ -14,6 +14,11 @@
       "commandName": "Project",
       "commandLineArgs": "demo mmck --servers 3 --capacity 10 --arrival-secs 2.5",
       "workingDirectory": "$(ProjectDir)"
+    },
+    "Simple Restaurant Demo": {
+      "commandName": "Project",
+      "commandLineArgs": "demo simple-restaurant",
+      "workingDirectory": "$(ProjectDir)"
     }
   }
 }

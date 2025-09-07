@@ -34,6 +34,11 @@ internal class RestaurantModel : AbstractSimulationModel
     private readonly Func<Point, Point, TimeSpan> _walkTimeCalculator;
     private readonly Point entranceLocation = new(0, 0);
 
+
+    // --- Statistics ---
+    public List<double> CustomerWaitTimesForTable { get; } = new();
+    public List<double> OrderToDeliveryTimes { get; } = new();
+
     public RestaurantModel(
         GeneratorStaticConfig<CustomerGroup> genCustomerGroupConfig, int genCustomerGroupSeed,
         QueueStaticConfig<CustomerGroup> queueCustomerGroupConfig,
@@ -74,15 +79,15 @@ internal class RestaurantModel : AbstractSimulationModel
 
         // Wire up events that need the runContext.
         // Customer Arrival Flow
-        CustomerArrivals.LoadGenerated += (group, time) => TrySeatOrQueueNewCustomer(group); // Renamed for clarity
-        WaitingForTableQueue.LoadDequeued += HandleWaitingCustomerDequeued; // CORRECTED
+        CustomerArrivals.LoadGenerated += (group, time) => TrySeatOrQueueNewCustomer(group);
+        WaitingForTableQueue.LoadDequeued += HandleWaitingCustomerDequeued;
 
         // Waiter becomes free, check for work
         Waiters.ResourceReleased += Waiters_ResourceReleased;
 
         // Kitchen Flow
-        KitchenServer.LoadDeparted += HandleCookingComplete; // This is correct
-        OrderQueueForKitchen.LoadDequeued += (order, time) => KitchenServer.TryStartService(order, _runContext); // This is correct
+        KitchenServer.LoadDeparted += HandleCookingComplete;
+        OrderQueueForKitchen.LoadDequeued += (order, time) => KitchenServer.TryStartService(order, _runContext);
 
         // Food Pickup Flow
         CookedFoodQueueForPickup.LoadDequeued += HandleFoodPickup;
@@ -116,10 +121,12 @@ internal class RestaurantModel : AbstractSimulationModel
 
         Waiter? availableWaiter = Waiters.TryAcquire(_runContext);
 
+        group.ArrivalTime = _runContext.ClockTime;
+
         if (availableTable != null && availableWaiter != null)
         {
             // Success! We have a table and a waiter to seat them.
-            TableManager.OccupyTable(availableTable, group);
+            TableManager.OccupyTable(availableTable, group, group.ArrivalTime);
 
             // Schedule the "Seating Complete" event after walking time.
             var walkTime = _walkTimeCalculator(entranceLocation, availableTable.Location);
@@ -139,7 +146,7 @@ internal class RestaurantModel : AbstractSimulationModel
         }
     }
 
-    internal void HandleWaitingCustomerDequeued(CustomerGroup group, double arrivalTime)
+    internal void HandleWaitingCustomerDequeued(CustomerGroup group, double dequeueTime)
     {
         Table? availableTable = TableManager.FindAvailableTable(group.GroupSize);
 
@@ -148,7 +155,7 @@ internal class RestaurantModel : AbstractSimulationModel
         if (availableTable != null && availableWaiter != null)
         {
             // Success! We have a table and a waiter to seat them.
-            TableManager.OccupyTable(availableTable, group);
+            TableManager.OccupyTable(availableTable, group, dequeueTime);
 
             // Schedule the "Seating Complete" event after walking time.
             var walkTime = _walkTimeCalculator(entranceLocation, availableTable.Location);
@@ -156,6 +163,10 @@ internal class RestaurantModel : AbstractSimulationModel
                 new SeatingCompleteEvent(this, group, availableTable, availableWaiter),
                 walkTime
             );
+
+            // The wait time is the difference between when they are dequeued
+            // and when they arrived.
+            CustomerWaitTimesForTable.Add(dequeueTime - group.ArrivalTime);
         }
         else
         {
@@ -206,6 +217,9 @@ internal class RestaurantModel : AbstractSimulationModel
             // If the kitchen has a free chef, start cooking immediately.
             OrderQueueForKitchen.TriggerDequeueAttempt(context);
         }
+
+        // The total time is the difference between food arrival and order submission.
+        OrderToDeliveryTimes.Add(context.ClockTime - order.TimeSubmitted);
     }
 
     internal void HandleCookingComplete(Order order, double finishedCookingTime)
@@ -278,12 +292,20 @@ internal class RestaurantModel : AbstractSimulationModel
         logger.LogInformation($"--- [EATING COMPLETE] SimTime: {context.ClockTime:F2} -> Table {table.Id} is now free.");
 
         // Step 1: Free up the table.
-        TableManager.ReleaseTable(table);
+        TableManager.ReleaseTable(table, context.ClockTime);
 
         // Step 2: Try to seat any waiting customer groups.
         if (WaitingForTableQueue.Occupancy > 0)
         {
             WaitingForTableQueue.TriggerDequeueAttempt(context);
         }
+    }
+
+    public override void WarmedUp(double simulationTime)
+    {
+        CustomerWaitTimesForTable.Clear();
+        OrderToDeliveryTimes.Clear();
+
+        TableManager.WarmedUp(simulationTime);
     }
 }
