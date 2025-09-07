@@ -31,6 +31,9 @@ internal class RestaurantModel : AbstractSimulationModel
 
     // --- Configuration ---
     // Function to calculate walk time based on two points
+    private readonly Func<Random, TimeSpan> _menuBrowseTimeGenerator;
+    private readonly Func<Random, TimeSpan> _eatingTimeGenerator;
+    private readonly Random _customerMenuBrowsingAndEatingRandom;
     private readonly Func<Point, Point, TimeSpan> _walkTimeCalculator;
     private readonly Point entranceLocation = new(0, 0);
 
@@ -41,6 +44,7 @@ internal class RestaurantModel : AbstractSimulationModel
 
     public RestaurantModel(
         Func<Point, Point, TimeSpan> walkTimeCalculator,
+        Func<Random, TimeSpan> menuBrowseTimeGenerator, Func<Random, TimeSpan> eatingTimeGenerator, int customerMenuBrowsingAndEatingSeed,
         GeneratorStaticConfig<CustomerGroup> genCustomerGroupConfig, int genCustomerGroupSeed,
         QueueStaticConfig<CustomerGroup> queueCustomerGroupConfig,
         QueueStaticConfig<Order> queueForKitchenConfig,
@@ -54,6 +58,10 @@ internal class RestaurantModel : AbstractSimulationModel
         _loggerFactory = loggerFactory;
 
         _walkTimeCalculator = walkTimeCalculator;
+
+        _menuBrowseTimeGenerator = menuBrowseTimeGenerator;
+        _eatingTimeGenerator = eatingTimeGenerator;
+        _customerMenuBrowsingAndEatingRandom = new Random(customerMenuBrowsingAndEatingSeed);
 
         CustomerArrivals = new Generator<CustomerGroup>(genCustomerGroupConfig, genCustomerGroupSeed, $"{name}_CustomerGroup_Arrivals", loggerFactory);
         WaitingForTableQueue = new SimQueue<CustomerGroup>(queueCustomerGroupConfig, $"{name}_CustomerGroup_Queue", loggerFactory);
@@ -216,7 +224,7 @@ internal class RestaurantModel : AbstractSimulationModel
         // We schedule a "ReadyToOrderEvent" to occur in the future.
         context.Scheduler.Schedule(
             new ReadyToOrderEvent(this, group, table),
-            TimeSpan.FromSeconds(20)
+            _menuBrowseTimeGenerator(_customerMenuBrowsingAndEatingRandom)
         );
     }
 
@@ -308,7 +316,7 @@ internal class RestaurantModel : AbstractSimulationModel
         // Step 1: Finish the eating activity after a fixed duration.
         context.Scheduler.Schedule(
             new EatingCompleteEvent(this, table),
-            TimeSpan.FromSeconds(20)
+            _eatingTimeGenerator(_customerMenuBrowsingAndEatingRandom)
         );
     }
 

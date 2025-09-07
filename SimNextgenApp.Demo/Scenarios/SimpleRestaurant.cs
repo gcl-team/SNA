@@ -18,7 +18,12 @@ internal class SimpleRestaurant
         {
             new Table(1, 2, new Point(10, 10)),
             new Table(2, 4, new Point(10, 20)),
-            new Table(3, 4, new Point(20, 20))
+            new Table(3, 1, new Point(20, 20)),
+            new Table(3, 1, new Point(30, 10)),
+            new Table(3, 2, new Point(30, 20)),
+            new Table(3, 3, new Point(30, 30)),
+            new Table(3, 4, new Point(40, 10)),
+            new Table(3, 4, new Point(40, 20)),
         };
 
         var waiterStartingPoint = new Point(0, 15);
@@ -49,9 +54,18 @@ internal class SimpleRestaurant
             TimeSpan.FromSeconds(-20 * Math.Log(1.0 - rnd.NextDouble()));
         var serverKitchenConfig = new ServerStaticConfig<Order>(serviceTimeFunc) { Capacity = 100 };
 
+        // Customers browse the menu for 1 to 4 minutes (60 to 240 seconds)
+        Func<Random, TimeSpan> menuBrowseTimeFunc = rnd =>
+            TimeSpan.FromSeconds(Uniform(60, 240, rnd));
+
+        // Customers eat for 15 to 30 minutes (900 to 1800 seconds)
+        Func<Random, TimeSpan> eatingTimeFunc = rnd =>
+            TimeSpan.FromSeconds(Uniform(900, 1800, rnd));
+
         // 3. Create the Main Model
         var restaurantModel = new RestaurantModel(
             walkTimeCalc,
+            menuBrowseTimeFunc, eatingTimeFunc, 100,
             genCustomerGroupConfig, 100,
             queueCustomerGroupConfig,
             queueForKitchenConfig,
@@ -120,5 +134,10 @@ internal class SimpleRestaurant
     private static double Exponential(double mean, Random rnd) 
     {
         return -mean * Math.Log(1.0 - rnd.NextDouble());
+    }
+
+    private static double Uniform(double min, double max, Random rnd)
+    {
+        return min + (max - min) * rnd.NextDouble();
     }
 }
