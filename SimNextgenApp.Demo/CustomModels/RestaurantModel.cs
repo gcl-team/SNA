@@ -40,6 +40,7 @@ internal class RestaurantModel : AbstractSimulationModel
     public List<double> OrderToDeliveryTimes { get; } = new();
 
     public RestaurantModel(
+        Func<Point, Point, TimeSpan> walkTimeCalculator,
         GeneratorStaticConfig<CustomerGroup> genCustomerGroupConfig, int genCustomerGroupSeed,
         QueueStaticConfig<CustomerGroup> queueCustomerGroupConfig,
         QueueStaticConfig<Order> queueForKitchenConfig,
@@ -51,6 +52,8 @@ internal class RestaurantModel : AbstractSimulationModel
         : base(name)
     {
         _loggerFactory = loggerFactory;
+
+        _walkTimeCalculator = walkTimeCalculator;
 
         CustomerArrivals = new Generator<CustomerGroup>(genCustomerGroupConfig, genCustomerGroupSeed, $"{name}_CustomerGroup_Arrivals", loggerFactory);
         WaitingForTableQueue = new SimQueue<CustomerGroup>(queueCustomerGroupConfig, $"{name}_CustomerGroup_Queue", loggerFactory);
@@ -96,17 +99,12 @@ internal class RestaurantModel : AbstractSimulationModel
     private void Waiters_ResourceReleased(Waiter arg1, double arg2)
     {
         // Check 1: Any customer groups waiting for a table?
-        if (WaitingForTableQueue.Occupancy > 0 && TableManager.AvailableTableCount > 0)
-        {
-            WaitingForTableQueue.TriggerDequeueAttempt(_runContext);
-            return;
-        }
+        TrySeatWaitingCustomer();
 
         // Check 2: Any cooked food waiting for pickup?
         if (CookedFoodQueueForPickup.Occupancy > 0)
         {
             CookedFoodQueueForPickup.TriggerDequeueAttempt(_runContext);
-            return;
         }
     }
 
@@ -143,6 +141,25 @@ internal class RestaurantModel : AbstractSimulationModel
 
             // Put the customer group in the waiting queue.
             WaitingForTableQueue.TryScheduleEnqueue(group, _runContext);
+        }
+    }
+
+    internal void TrySeatWaitingCustomer()
+    {
+        // Don't do anything if no one is waiting.
+        if (WaitingForTableQueue.Occupancy == 0)
+        {
+            return;
+        }
+
+        // "Peek" at the first customer group without removing them.
+        var nextGroup = WaitingForTableQueue.WaitingItems.First();
+
+        Table? availableTable = TableManager.FindAvailableTable(nextGroup.GroupSize);
+
+        if (availableTable != null && Waiters.AvailableCount > 0)
+        {
+            WaitingForTableQueue.TriggerDequeueAttempt(_runContext);
         }
     }
 
@@ -233,7 +250,7 @@ internal class RestaurantModel : AbstractSimulationModel
             var table = order.AtTable;
             var walkTime = _walkTimeCalculator(availableWaiter.CurrentLocation, table.Location);
             _runContext.Scheduler.Schedule(
-                new FoodServingCompleteEvent(this, order.ForGroup, table),
+                new FoodServingCompleteEvent(this, order, availableWaiter),
                 walkTime
             );
         }
@@ -263,7 +280,7 @@ internal class RestaurantModel : AbstractSimulationModel
             var table = order.AtTable;
             var walkTime = _walkTimeCalculator(availableWaiter.CurrentLocation, table.Location);
             _runContext.Scheduler.Schedule(
-                new FoodServingCompleteEvent(this, order.ForGroup, table),
+                new FoodServingCompleteEvent(this, order, availableWaiter),
                 walkTime
             );
         }
@@ -274,10 +291,19 @@ internal class RestaurantModel : AbstractSimulationModel
         }
     }
 
-    internal void HandleReadyToEat(CustomerGroup group, Table table, IRunContext context)
+    internal void HandleFoodServingComplete(Order order, Waiter waiter, IRunContext context)
     {
         var logger = _loggerFactory.CreateLogger<RestaurantModel>();
-        logger.LogInformation($"--- [READY TO EAT] SimTime: {context.ClockTime:F2} -> Group {group.Id} seated at Table {table.Id}.");
+
+        var group = order.ForGroup;
+        var table = order.AtTable;
+
+        logger.LogInformation($"--- [FOOD SERVED] SimTime: {context.ClockTime:F2} -> Group {group.Id} seated at Table {table.Id} served with order {order.Id}.");
+
+        OrderToDeliveryTimes.Add(context.ClockTime - order.TimeSubmitted);
+
+        waiter.CurrentLocation = order.AtTable.Location;
+        Waiters.Release(waiter, context);
 
         // Step 1: Finish the eating activity after a fixed duration.
         context.Scheduler.Schedule(
@@ -295,10 +321,7 @@ internal class RestaurantModel : AbstractSimulationModel
         TableManager.ReleaseTable(table, context.ClockTime);
 
         // Step 2: Try to seat any waiting customer groups.
-        if (WaitingForTableQueue.Occupancy > 0)
-        {
-            WaitingForTableQueue.TriggerDequeueAttempt(context);
-        }
+        TrySeatWaitingCustomer();
     }
 
     public override void WarmedUp(double simulationTime)

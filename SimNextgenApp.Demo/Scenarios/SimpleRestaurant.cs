@@ -38,16 +38,20 @@ internal class SimpleRestaurant
         // Customer arrival rate and group size distribution
         Func<Random, TimeSpan> interArrivalTime = rnd => TimeSpan.FromMinutes(Exponential(5, rnd));
         Func<Random, CustomerGroup> customerFactory = rnd => new CustomerGroup(ChooseGroupSize(rnd), 0);
-        var genCustomerGroupConfig = new GeneratorStaticConfig<CustomerGroup>(interArrivalTime, customerFactory);
+        var genCustomerGroupConfig = new GeneratorStaticConfig<CustomerGroup>(interArrivalTime, customerFactory)
+        {
+            IsSkippingFirst = false
+        };
         var queueCustomerGroupConfig = new QueueStaticConfig<CustomerGroup>();
         var queueForKitchenConfig = new QueueStaticConfig<Order>();
         var queueForPickupConfig = new QueueStaticConfig<Order>();
         Func<Order, Random, TimeSpan> serviceTimeFunc = (load, rnd) =>
-            TimeSpan.FromSeconds(20 * Math.Log(1.0 - rnd.NextDouble()));
+            TimeSpan.FromSeconds(-20 * Math.Log(1.0 - rnd.NextDouble()));
         var serverKitchenConfig = new ServerStaticConfig<Order>(serviceTimeFunc) { Capacity = 100 };
 
         // 3. Create the Main Model
         var restaurantModel = new RestaurantModel(
+            walkTimeCalc,
             genCustomerGroupConfig, 100,
             queueCustomerGroupConfig,
             queueForKitchenConfig,
@@ -59,7 +63,7 @@ internal class SimpleRestaurant
             );
 
         // 4. Create Run Strategy and Profile
-        var runStrategy = new DurationRunStrategy(TimeSpan.FromSeconds(30).TotalSeconds);
+        var runStrategy = new DurationRunStrategy(TimeSpan.FromMinutes(60 * 8).TotalSeconds);
         var profile = new SimulationProfile(
             model: restaurantModel,
             runStrategy: runStrategy,
@@ -110,8 +114,9 @@ internal class SimpleRestaurant
 
     private static int ChooseGroupSize(Random rnd) 
     {
-        return 5;
+        return rnd.Next(1, 5);
     }
+
     private static double Exponential(double mean, Random rnd) 
     {
         return -mean * Math.Log(1.0 - rnd.NextDouble());

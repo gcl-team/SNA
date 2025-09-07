@@ -4,10 +4,10 @@ using SimNextgenApp.Events;
 
 namespace SimNextgenApp.Demo.RestaurantSample;
 
-internal class FoodServingCompleteEvent(RestaurantModel model, CustomerGroup group, Table table) : AbstractEvent
+internal class FoodServingCompleteEvent(RestaurantModel model, Order order, Waiter waiter) : AbstractEvent
 {
     public override void Execute(IRunContext context)
     {
-        model.HandleReadyToEat(group, table, context);
+        model.HandleFoodServingComplete(order, waiter, context);
     }
 }
