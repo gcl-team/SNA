@@ -72,6 +72,32 @@ docker run --rm sna-demo demo mmck --servers 3 --capacity 10 --arrival-secs 2.5
 
 The logs and output will appear in our terminal.
 
+### Step 3: (Optional) View Logs on Seq
+
+Follow [the official tutorial](https://datalust.co/docs/getting-started) to run Seq in a Docker container:
+
+```bash
+docker run \
+  --name seq \
+  -d \
+  --restart unless-stopped \
+  -e ACCEPT_EULA=Y \
+  -e SEQ_FIRSTRUN_ADMINPASSWORD=<password> \
+  -v <local path to store data>:/data \
+  -p 5341:80 \
+  datalust/seq
+```
+
+Dashboard (Localhost): http://localhost:8081/
+
+Demo Query: 
+
+```sql
+select @Timestamp, coalesce(@Data.CustomerGroupSize, 0) as CustomerGroupSize, @Data.AvailableTable as AvailableTableCount 
+from stream 
+where @Data.AvailableTable is not null and ProfileRunId = '<profile run id>'
+```
+
 ### Step 3: (Optional) Publish to Docker Hub
 
 If you want to share the Docker image, you can push it to Docker Hub or any other container registry.

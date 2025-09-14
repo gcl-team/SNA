@@ -1,7 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog;
+using SimNextgenApp.Demo.RestaurantSample;
 using SimNextgenApp.Demo.Scenarios;
 using System.CommandLine;
+using System.Drawing;
 
 var loggerFactory = LoggerFactory.Create(builder =>
 {
@@ -103,11 +105,178 @@ mmckCommand.SetHandler(
     durationOption, warmupOption, genSeedOption, serverSeedBaseOption
 );
 
+// ---- Demo: simple-restaurant ----
+var simpleRestaurantCommand = new Command("simple-restaurant", "Run the SimpleRestaurant demo");
+
+// Define options
+var tablesOption = new Option<List<Table>>(
+    name: "--table",
+    description: "Capacity and location of table (format: capacity,x,y)",
+    parseArgument: result =>
+    {
+        var tables = new List<Table>();
+
+        for (int i = 0; i < result.Tokens.Count; i++)
+        {
+            var token = result.Tokens[i];
+
+            var parts = token.Value.Split(',');
+            if (parts.Length != 3)
+            {
+                result.ErrorMessage =
+                    $"Invalid format '{token.Value}'. Expected 'capacity,x,y'.";
+                continue;
+            }
+
+            if (!int.TryParse(parts[0], out var capacity))
+            {
+                result.ErrorMessage = $"Invalid capacity in '{token.Value}'.";
+                continue;
+            }
+
+            if (!int.TryParse(parts[1], out var x) || !int.TryParse(parts[2], out var y))
+            {
+                result.ErrorMessage = $"Invalid coordinates in '{token.Value}'.";
+                continue;
+            }
+
+            tables.Add(new Table(i, capacity, new Point(x, y)));
+        }
+
+        return tables;
+    })
+{
+    Arity = ArgumentArity.OneOrMore
+};
+var waitersOption = new Option<List<Waiter>>(
+    name: "--waiter",
+    description: "Starting location of waiter (format: x,y)",
+    parseArgument: result =>
+    {
+        var waiters = new List<Waiter>();
+
+        for (int i = 0; i < result.Tokens.Count; i++)
+        {
+            var token = result.Tokens[i];
+
+            var parts = token.Value.Split(',');
+            if (parts.Length != 2)
+            {
+                result.ErrorMessage =
+                    $"Invalid format '{token.Value}'. Expected 'x,y'.";
+                continue;
+            }
+
+            if (!int.TryParse(parts[0], out var x) || !int.TryParse(parts[1], out var y))
+            {
+                result.ErrorMessage = $"Invalid coordinates in '{token.Value}'.";
+                continue;
+            }
+
+            waiters.Add(new Waiter(i, $"Waiter {i}", new Point(x, y)));
+        }
+
+        return waiters;
+    })
+{
+    Arity = ArgumentArity.OneOrMore
+};
+var entranceOption = new Option<Point>(
+    name: "--entrance",
+    description: "Entrance location of the restaurant (format: x,y)",
+    parseArgument: result =>
+    {
+        var token = result.Tokens.Single();
+
+        var parts = token.Value.Split(',');
+        if (parts.Length != 2 ||
+            !int.TryParse(parts[0], out var x) ||
+            !int.TryParse(parts[1], out var y))
+        {
+            result.ErrorMessage =
+                $"Invalid entrance location '{token.Value}'. Expected format 'x,y'.";
+            return new Point();
+        }
+
+        return new Point(x, y);
+    })
+{
+    Arity = ArgumentArity.ExactlyOne
+};
+var kitchenOption = new Option<Point>(
+    name: "--kitchen",
+    description: "Entrance location of the kitchen (format: x,y)",
+    parseArgument: result =>
+    {
+        var token = result.Tokens.Single();
+
+        var parts = token.Value.Split(',');
+        if (parts.Length != 2 ||
+            !int.TryParse(parts[0], out var x) ||
+            !int.TryParse(parts[1], out var y))
+        {
+            result.ErrorMessage =
+                $"Invalid entrance location '{token.Value}'. Expected format 'x,y'.";
+            return new Point();
+        }
+
+        return new Point(x, y);
+    })
+{
+    Arity = ArgumentArity.ExactlyOne
+};
+var customerArrivalMinOption = new Option<double>("--arrival-mins", () => 5, "Mean minutes between customer arrivals");
+var stopProbabilityOption = new Option<double>(
+    "--stop-probability",
+    () => 0.5,
+    "Probability that a customer group stops growing at each additional person (0.0–1.0)");
+
+stopProbabilityOption.AddValidator(result =>
+{
+    var value = result.GetValueOrDefault<double>();
+    if (value <= 0.0 || value >= 1.0)
+    {
+        result.ErrorMessage = "Stop probability must be between 0 and 1 (exclusive).";
+    }
+});
+
+
+simpleRestaurantCommand.AddOption(tablesOption);
+simpleRestaurantCommand.AddOption(waitersOption);
+simpleRestaurantCommand.AddOption(entranceOption);
+simpleRestaurantCommand.AddOption(kitchenOption);
+simpleRestaurantCommand.AddOption(customerArrivalMinOption);
+simpleRestaurantCommand.AddOption(stopProbabilityOption);
+
+simpleRestaurantCommand.SetHandler(
+    (List<Table> tables, List<Waiter> waiters, Point entraceLocation, Point kitchenLocation,
+    double customerArrivalMin, double stopProbability) =>
+{
+    Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Verbose()
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .WriteTo.Seq("http://localhost:5341")
+            .CreateLogger();
+
+    // Create a logger factory that uses Serilog
+    loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
+
+    Func<Random, TimeSpan> customerInterArrivalTime = rnd => TimeSpan.FromMinutes(-customerArrivalMin * Math.Log(1.0 - rnd.NextDouble()));
+    Func<Random, CustomerGroup> customerFactory = rnd => new CustomerGroup(SimpleRestaurant.SampleGeometricCustomerGroupSize(rnd, stopProbability), 0);
+
+    Console.WriteLine("====== Running SimpleRestaurant ======");
+    SimpleRestaurant.RunDemo(loggerFactory,
+        tables, waiters, entraceLocation, kitchenLocation, customerInterArrivalTime, customerFactory);
+}, tablesOption, waitersOption, entranceOption, kitchenOption,
+    customerArrivalMinOption, stopProbabilityOption);
+
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");
 demoCommand.AddCommand(simpleGenCommand);
 demoCommand.AddCommand(simpleServerCommand);
 demoCommand.AddCommand(mmckCommand);
+demoCommand.AddCommand(simpleRestaurantCommand);
 
 rootCommand.AddCommand(demoCommand);
 

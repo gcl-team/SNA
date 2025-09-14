@@ -164,8 +164,12 @@ public class SimulationEngine : IScheduler, IRunContext
                     }
 
                     // 3. Execute Event
-                    using (LogContext.PushProperty("TraceId", currentEvent.EventId))
-                    using (LogContext.PushProperty("SpanId", Guid.NewGuid().ToString()))
+                    var traceId = currentEvent.EventId.ToString();
+                    var spanId = Guid.NewGuid().ToString();
+                    var startTime = DateTime.UtcNow;
+                    using (LogContext.PushProperty("TraceId", traceId))
+                    using (LogContext.PushProperty("SpanId", spanId))
+                    using (LogContext.PushProperty("@Start", startTime))
                     {
                         var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
 
@@ -181,11 +185,14 @@ public class SimulationEngine : IScheduler, IRunContext
                         currentEvent.Execute(this);
 
                         stopwatchLog.Stop();
-                        _logger.LogInformation(
-                            "Executed event {EventType} (ID: {EventId}) in {Elapsed:0.000} ms",
-                            currentEvent.GetType().Name,
-                            currentEvent.EventId,
-                            stopwatch.Elapsed.TotalMilliseconds);
+
+                        using (LogContext.PushProperty("@Elapsed", stopwatch.Elapsed.TotalMilliseconds))
+                        {
+                            _logger.LogInformation(
+                                "Executed event {EventType} (ID: {EventId})",
+                                currentEvent.GetType().Name,
+                                currentEvent.EventId);
+                        }
 
                         _tracer?.Trace(new TraceRecord(
                             Point: TracePoint.EventCompleted,
