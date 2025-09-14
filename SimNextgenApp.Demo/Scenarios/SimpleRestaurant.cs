@@ -11,39 +11,23 @@ namespace SimNextgenApp.Demo.Scenarios;
 
 internal class SimpleRestaurant
 {
-    public static void RunDemo(ILoggerFactory loggerFactory)
+    public static void RunDemo(ILoggerFactory loggerFactory,
+        List<Table> availableTables,
+        List<Waiter> availableWaiters,
+        Point entranceLocation,
+        Point kitchenLocation,
+        Func<Random, TimeSpan> customerInterArrivalTime,
+        Func<Random, CustomerGroup> customerFactory)
     {
-        // 1. Define Restaurant Layout and Resources
-        var tables = new List<Table>
-        {
-            new Table(1, 2, new Point(10, 10)),
-            new Table(2, 4, new Point(10, 20)),
-            new Table(3, 1, new Point(20, 20)),
-            new Table(3, 1, new Point(30, 10)),
-            new Table(3, 2, new Point(30, 20)),
-            new Table(3, 3, new Point(30, 30)),
-            new Table(3, 4, new Point(40, 10)),
-            new Table(3, 4, new Point(40, 20)),
-        };
-
-        var waiterStartingPoint = new Point(0, 15);
-        var waiters = Enumerable.Range(1, 3).Select(i => new Waiter(i, $"Waiter {i}", waiterStartingPoint)).ToList();
-
-        // Location constants
-        var entranceLocation = new Point(0, 15);
-        var kitchenLocation = new Point(50, 15);
-
+        // 1. Configure Components
         Func<Point, Point, TimeSpan> walkTimeCalc = (p1, p2) =>
         {
             var distance = Math.Sqrt(Math.Pow(p1.X - p2.X, 2) + Math.Pow(p1.Y - p2.Y, 2));
             return TimeSpan.FromSeconds(distance / 1.5); // 1.5 meters/sec walking speed
         };
 
-        // 2. Configure Components
         // Customer arrival rate and group size distribution
-        Func<Random, TimeSpan> interArrivalTime = rnd => TimeSpan.FromMinutes(Exponential(5, rnd));
-        Func<Random, CustomerGroup> customerFactory = rnd => new CustomerGroup(ChooseGroupSize(rnd), 0);
-        var genCustomerGroupConfig = new GeneratorStaticConfig<CustomerGroup>(interArrivalTime, customerFactory)
+        var genCustomerGroupConfig = new GeneratorStaticConfig<CustomerGroup>(customerInterArrivalTime, customerFactory)
         {
             IsSkippingFirst = false
         };
@@ -62,7 +46,7 @@ internal class SimpleRestaurant
         Func<Random, TimeSpan> eatingTimeFunc = rnd =>
             TimeSpan.FromSeconds(Uniform(900, 1800, rnd));
 
-        // 3. Create the Main Model
+        // 2. Create the Main Model
         var restaurantModel = new RestaurantModel(
             walkTimeCalc,
             menuBrowseTimeFunc, eatingTimeFunc, 100,
@@ -70,8 +54,8 @@ internal class SimpleRestaurant
             queueCustomerGroupConfig,
             queueForKitchenConfig,
             queueForPickupConfig,
-            waiters,
-            tables,
+            availableWaiters,
+            availableTables,
             serverKitchenConfig, 100,
             loggerFactory
             );
@@ -126,14 +110,16 @@ internal class SimpleRestaurant
         logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDelivery:F2} seconds");
     }
 
-    private static int ChooseGroupSize(Random rnd) 
+    public static int SampleGeometricCustomerGroupSize(Random rnd, double p)
     {
-        return rnd.Next(1, 5);
-    }
+        // Generate Uniform(0,1)
+        double u = rnd.NextDouble();
 
-    private static double Exponential(double mean, Random rnd) 
-    {
-        return -mean * Math.Log(1.0 - rnd.NextDouble());
+        // Inverse CDF of geometric
+        int k = (int)Math.Ceiling(Math.Log(1 - u) / Math.Log(1 - p));
+
+        // Optional: cap at maxGroupSize
+        return Math.Min(k, 5);
     }
 
     private static double Uniform(double min, double max, Random rnd)
