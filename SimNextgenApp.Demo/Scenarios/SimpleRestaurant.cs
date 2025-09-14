@@ -86,7 +86,7 @@ internal class SimpleRestaurant
             logger.LogCritical(ex, "Simulation run failed!");
         }
 
-        // 9. Report results and diagnostics
+        // 6. Report results and diagnostics
         logger.LogInformation($"\n--- Simulation Finished --- {simulationResult}");
 
         // --- Waiter Utilization ---
