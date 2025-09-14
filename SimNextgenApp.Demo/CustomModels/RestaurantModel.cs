@@ -68,7 +68,7 @@ internal class RestaurantModel : AbstractSimulationModel
 
         Waiters = new ResourcePool<Waiter>(waiters, $"{name}_Waiter_ResourcePool", loggerFactory);
         KitchenServer = new Server<Order>(serverKitchenConfig, serverKitchenSeed, $"{name}_Kitchen_Server");
-        TableManager = new TableManager(tables);
+        TableManager = new TableManager(tables, loggerFactory);
 
         OrderQueueForKitchen = new SimQueue<Order>(queueForKitchenConfig, $"{name}_ForKitchen_Queue", loggerFactory);
         CookedFoodQueueForPickup = new SimQueue<Order>(queueForPickupConfig, $"{name}_ForKitchen_Queue", loggerFactory);

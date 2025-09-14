@@ -1,9 +1,15 @@
-﻿using SimNextgenApp.Statistics;
+﻿using Microsoft.Extensions.Logging;
+using SimNextgenApp.Modeling.Resource;
+using SimNextgenApp.Statistics;
+using System.Diagnostics;
+using System.Xml.Linq;
 
 namespace SimNextgenApp.Demo.RestaurantSample;
 
 internal class TableManager
 {
+    private readonly ILogger<TableManager> _logger;
+
     private readonly List<Table> _allTables;
 
     private readonly Dictionary<Table, CustomerGroup> _occupiedTables;
@@ -18,8 +24,9 @@ internal class TableManager
     public int OccupiedTableCount => _occupiedTables.Count;
     public int AvailableTableCount => TotalTableCount - OccupiedTableCount;
 
-    public TableManager(IEnumerable<Table> tables)
+    public TableManager(IEnumerable<Table> tables, ILoggerFactory loggerFactory)
     {
+        _logger = loggerFactory.CreateLogger<TableManager>();
         _allTables = [.. tables];
         _occupiedTables = [];
         UtilizationMetric = new TimeBasedMetric(enableHistory: false);
@@ -54,6 +61,8 @@ internal class TableManager
 
         _occupiedTables[table] = group;
         UtilizationMetric.ObserveCount(OccupiedTableCount, currentTime);
+        _logger.LogTrace("Table acquired at {Time}. Customer Group Size: {CustomerGroupSize}; Table Available: {AvailableTable}", 
+            currentTime, group.GroupSize, AvailableTableCount);
     }
 
     /// <summary>
@@ -65,6 +74,7 @@ internal class TableManager
         {
             UtilizationMetric.ObserveCount(OccupiedTableCount, currentTime);
             TableFreed?.Invoke(table);
+            _logger.LogTrace("Table released at {Time}. Table Available: {AvailableTable}", currentTime, AvailableTableCount);
         }
     }
 

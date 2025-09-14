@@ -5,6 +5,7 @@ using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Demo.RestaurantSample;
+using SimNextgenApp.Statistics;
 using System.Drawing;
 
 namespace SimNextgenApp.Demo.Scenarios;
@@ -19,6 +20,8 @@ internal class SimpleRestaurant
         Func<Random, TimeSpan> customerInterArrivalTime,
         Func<Random, CustomerGroup> customerFactory)
     {
+        var logger = loggerFactory.CreateLogger("SimpleRestaurant");
+
         // 1. Configure Components
         Func<Point, Point, TimeSpan> walkTimeCalc = (p1, p2) =>
         {
@@ -70,14 +73,21 @@ internal class SimpleRestaurant
         );
 
         // 5. Create and Run the Engine
-        var engine = new SimulationEngine(profile);
-        var result = engine.Run();
+        var simulationEngine = new SimulationEngine(profile);
+        
+        SimulationResult? simulationResult = null;
+        logger.LogInformation($"Starting simulation run...");
+        try
+        {
+            simulationResult = simulationEngine.Run();
+        }
+        catch (Exception ex)
+        {
+            logger.LogCritical(ex, "Simulation run failed!");
+        }
 
-        // 6. Report Statistics
-        var logger = loggerFactory.CreateLogger("RestaurantReport");
-        logger.LogInformation("\n--- SIMULATION COMPLETE ---");
-        logger.LogInformation($"Final Simulation Time: {result.FinalClockTime:F2} seconds ({result.FinalClockTime / 3600:F2} hours)");
-        logger.LogInformation($"Total Events Processed: {result.ExecutedEventCount}");
+        // 9. Report results and diagnostics
+        logger.LogInformation($"\n--- Simulation Finished --- {simulationResult}");
 
         // --- Waiter Utilization ---
         logger.LogInformation("\n--- Staff Utilization ---");
