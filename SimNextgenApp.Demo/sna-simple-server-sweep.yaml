@@ -4,6 +4,7 @@ metadata:
   generateName: sna-simple-server-job-
 spec:
   entrypoint: sna-demo
+  serviceAccountName: argo-workflow
   templates:
   - name: sna-demo
     steps:
