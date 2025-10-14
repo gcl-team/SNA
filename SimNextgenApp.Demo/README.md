@@ -167,24 +167,24 @@ We have a sample workflow file `sna-simple-server-sweep.yaml` that defines multi
 
 We can submit the workflow using the following command:
 ```bash
-kubectl create -f sna-simple-server-sweep.yaml
+kubectl create -f sna-simple-server-sweep.yaml -n argo
 ```
 
 To monitor the workflow, we can run:
 ```bash
-kubectl get workflows
+kubectl get workflows -n argo
 ```
 
 Once a workflow is running, get its pod logs using:
 ```bash
-kubectl get pods -l workflows.argoproj.io/workflow=<workflow name here>
+kubectl get pods -l workflows.argoproj.io/workflow=<workflow name here> -n argo
 
-kubectl logs <pod name here>
+kubectl logs <pod name here> -n argo
 ```
 
 > 💡 Tip: To clean up finished workflows and their pods, you can delete them with:
 > ```bash
-> kubectl delete workflow <workflow name here>
+> kubectl delete workflow <workflow name here> -n argo
 > ```
 
 ## 🖼️ Using Argo Workflows UI
@@ -232,7 +232,7 @@ The `argo-server` service account needs permission to view workflow resources in
 For local development, the quickest fix is to grant it `cluster-admin` rights with the file `argo-cluster-admin.yaml`:
 
    ```bash
-   kubectl apply -f argo-server-admin-binding.yaml
+   kubectl apply -f argo-server-admin.yaml
    ```
 
 If you still get "Unauthorized" after applying the permissions, the Argo Server may be misconfigured. 
