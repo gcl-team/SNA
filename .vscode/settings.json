@@ -1,5 +1,17 @@
 {
     "cSpell.words": [
         "Nextgen"
+    ],
+    "yaml.customTags": [
+        "!Ref",
+        "!GetAtt",
+        "!Sub",
+        "!Equals",
+        "!Not",
+        "!And",
+        "!Or",
+        "!GetAZs",
+        "!If sequence",
+        "!Select sequence"
     ]
 }
