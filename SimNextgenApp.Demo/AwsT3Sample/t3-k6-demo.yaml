@@ -8,11 +8,6 @@ Parameters:
     NoEcho: true
     AllowedPattern: "[a-zA-Z0-9]*"
 
-  MyIP:
-    Description: "Your public IP address (CIDR format, e.g., 1.2.3.4/32)."
-    Type: String
-    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
-
 Resources:
   # ==========================================
   # 1. IAM ROLE FOR EC2 SESSION MANAGER
@@ -84,7 +79,27 @@ Resources:
   DemoVPC:
     Type: AWS::EC2::VPC
     Properties: { CidrBlock: 10.0.0.0/16, EnableDnsSupport: true, EnableDnsHostnames: true, Tags: [{Key: Name, Value: T3-K6-Demo-VPC}] }
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref DemoVPC }
+    
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties: { VpcId: !Ref DemoVPC, CidrBlock: 10.0.3.0/24, MapPublicIpOnLaunch: false, AvailabilityZone: !Select [0, !GetAZs ''] }
   
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties: { VpcId: !Ref DemoVPC, CidrBlock: 10.0.4.0/24, MapPublicIpOnLaunch: false, AvailabilityZone: !Select [1, !GetAZs ''] }
+  
+  PrivateSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateSubnetA, RouteTableId: !Ref PrivateRouteTable }
+
+  PrivateSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateSubnetB, RouteTableId: !Ref PrivateRouteTable }
+
   InternetGateway:
     Type: AWS::EC2::InternetGateway
   
@@ -96,10 +111,6 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties: { VpcId: !Ref DemoVPC, CidrBlock: 10.0.1.0/24, AvailabilityZone: !Select [0, !GetAZs ''], MapPublicIpOnLaunch: true }
   
-  PublicSubnetB: # Needed for RDS
-    Type: AWS::EC2::Subnet
-    Properties: { VpcId: !Ref DemoVPC, CidrBlock: 10.0.2.0/24, AvailabilityZone: !Select [1, !GetAZs ''], MapPublicIpOnLaunch: true }
-
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties: { VpcId: !Ref DemoVPC }
@@ -112,10 +123,6 @@ Resources:
   SubnetARouteAssoc:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties: { SubnetId: !Ref PublicSubnetA, RouteTableId: !Ref PublicRouteTable }
-  
-  SubnetBRouteAssoc:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties: { SubnetId: !Ref PublicSubnetB, RouteTableId: !Ref PublicRouteTable }
 
   # ==========================================
   # 4. SECURITY GROUPS
@@ -152,7 +159,7 @@ Resources:
     Type: AWS::RDS::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Subnets for RDS
-      SubnetIds: [!Ref PublicSubnetA, !Ref PublicSubnetB]
+      SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
 
   TargetRDS:
     Type: AWS::RDS::DBInstance
@@ -166,9 +173,15 @@ Resources:
       DBSubnetGroupName: !Ref DBSubnetGroup
       VPCSecurityGroups: [!Ref DbSG]
       AvailabilityZone: !Select [0, !GetAZs '']
+      # WARNING: DEMO ONLY - DATA DELETION ENABLED. DO NOT USE FOR PRODUCTION.
       BackupRetentionPeriod: 0
       DeleteAutomatedBackups: true
-      EnablePerformanceInsights: true 
+      # CIS Requirements
+      EnablePerformanceInsights: true                 # CIS Req: Performance Insights for monitoring
+      StorageEncrypted: true                          # CIS Req: Network isolation
+      DeletionProtection: true                        # CIS Req: Prevent accidental deletion
+      PubliclyAccessible: false                       # CIS Req: Network isolation
+      EnableCloudwatchLogsExports: ['postgresql']     # CIS Req: Audit logging
 
   # ==========================================
   # 6. ATTACKER EC2
