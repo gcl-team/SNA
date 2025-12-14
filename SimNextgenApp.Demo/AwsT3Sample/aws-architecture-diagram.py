@@ -26,12 +26,12 @@ node_attr = {
 }
 
 edge_attr = {
-    "fontsize": "12",
+    "fontsize": "14",
     "fontname": "Sans-Serif",
     "penwidth": "2.0"
 }
 
-with Diagram("CIS-Aligned T3 Demo Architecture", show=False, 
+with Diagram("Demo Architecture", show=False, 
              graph_attr=graph_attr, 
              node_attr=node_attr, 
              edge_attr=edge_attr) as diag:
@@ -41,33 +41,32 @@ with Diagram("CIS-Aligned T3 Demo Architecture", show=False,
     # ==========================================
     
     with Cluster("External"):
-        grafana = Grafana("Grafana Cloud\n(Observability)")
+        grafana = Grafana("Grafana")
 
     with Cluster("Security Config"):
-        # Stacking these vertically
-        ssm_role = IAM("SSM Role\n(Session Manager)")
-        grafana_secret = SecretsManager("Grafana\nSecret")
+        ssm_role = IAM("SSM Role")
+        grafana_secret = SecretsManager("Secret Manager")
 
     # ==========================================
     # 3. AWS VPC INFRASTRUCTURE
     # ==========================================
-    with Cluster("Demo VPC (10.0.0.0/16)"):
+    with Cluster("Demo VPC"):
         igw = InternetGateway("Internet Gateway")
         
         # 3a. PUBLIC ZONE (The Entry Point)
-        with Cluster("Public Subnet A\n(Internet Access)"):
+        with Cluster("Public Subnet"):
             # Labeled functionally as discussed
-            attacker = EC2("Load Generator\n(k6 + Node.js Proxy)")
+            attacker = EC2("Load Generator\n(k6 + Node.js API)")
 
         # 3b. PRIVATE ZONE (The Hardened Layer)
-        with Cluster("Private Subnets\n(Isolated Data Layer)"):
+        with Cluster("Private Subnets"):
             # Labeled to highlight the hardening
-            victim_db = RDS("Target DB\n(T3 Unlimited)\n[Encrypted]")
+            victim_db = RDS("Target DB\n(db.t3.medium)")
 
     # ==========================================
     # 4. MONITORING BACKEND
     # ==========================================
-    cw = Cloudwatch("CloudWatch\nMetrics")
+    cw = Cloudwatch("CloudWatch")
 
     # ==========================================
     # 5. DATA FLOWS & CONNECTIONS
@@ -76,29 +75,27 @@ with Diagram("CIS-Aligned T3 Demo Architecture", show=False,
     grafana_secret - Edge(style="invis", minlen="1") - igw
 
     # A. Setup & Access
-    igw >> Edge(color="gray") >> attacker
-    ssm_role - Edge(style="dotted", color="gray") - attacker
+    igw >> Edge(color="black", penwidth="4") >> attacker
+    ssm_role - Edge(style="dotted", color="black", penwidth="4") - attacker
 
     # B. The Attack (The Critical Path)
     attacker >> Edge(
-        label="Expensive SQL\n(Cross Join)", 
         color="firebrick", 
-        penwidth="3.0", 
+        penwidth="4", 
         minlen="2"
     ) >> victim_db
     
     # C. Monitoring Flow
     # 1. RDS pushes telemetry to CloudWatch
-    victim_db >> Edge(style="dashed", color="black", minlen="1") >> cw
+    victim_db >> Edge(style="dashed", color="darkgreen", minlen="1", penwidth="4") >> cw
     
     # 2. Grafana pulls from CloudWatch
     grafana >> Edge(
-        label="Query", 
         color="darkgreen", 
-        penwidth="2.5"
+        penwidth="4"
     ) >> cw
 
     # 3. Identity flow
-    grafana >> Edge(style="dashed", color="gray", label="Read Secret") >> grafana_secret
+    grafana >> Edge(style="dashed", color="black", penwidth="4") >> grafana_secret
 
 diag
