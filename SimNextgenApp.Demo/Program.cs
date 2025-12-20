@@ -271,12 +271,60 @@ simpleRestaurantCommand.SetHandler(
 }, tablesOption, waitersOption, entranceOption, kitchenOption,
     customerArrivalMinOption, stopProbabilityOption);
 
+// ---- Demo: aws-rds-t3-burst ----
+var awsRdsT3BurstCommand = new Command("aws-rds-t3-burst", "Run the AWS RDS T3 Burst demo");
+
+var awsRdsT3BurstDurationOption = new Option<double>(
+    name: "--duration",
+    description: "Total run duration in seconds.",
+    getDefaultValue: () => 400.0
+);
+
+var initialCreditsOption = new Option<double>(
+    name: "--initial-credits",
+    description: "Initial CPU credits for the T3 instance.",
+    getDefaultValue: () => 10.0
+);
+
+var unlimitedCreditsOption = new Option<bool>(
+    name: "--unlimited-credits",
+    description: "Whether the T3 instance has unlimited CPU credits.",
+    getDefaultValue: () => false
+);
+
+awsRdsT3BurstCommand.AddOption(awsRdsT3BurstDurationOption);
+awsRdsT3BurstCommand.AddOption(initialCreditsOption);
+awsRdsT3BurstCommand.AddOption(unlimitedCreditsOption);
+
+awsRdsT3BurstCommand.SetHandler((double duration, double initialCredits, bool isUnlimitedCredits) =>
+{
+    Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Verbose()
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .WriteTo.Seq("http://localhost:5341")
+            .CreateLogger();
+
+    // Create a logger factory that uses Serilog
+    loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
+    
+    Console.WriteLine($"====== Running AWS RDS T3 Burst Demo (Duration={duration} seconds) ======");
+    AwsBurstScenario.RunDemo(
+        loggerFactory,
+        duration,
+        initialCredits,
+        isUnlimitedCredits,
+        genSeed: 1234
+    );
+}, awsRdsT3BurstDurationOption, initialCreditsOption, unlimitedCreditsOption);
+
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");
 demoCommand.AddCommand(simpleGenCommand);
 demoCommand.AddCommand(simpleServerCommand);
 demoCommand.AddCommand(mmckCommand);
 demoCommand.AddCommand(simpleRestaurantCommand);
+demoCommand.AddCommand(awsRdsT3BurstCommand);
 
 rootCommand.AddCommand(demoCommand);
 
