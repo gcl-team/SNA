@@ -479,3 +479,4 @@ $RECYCLE.BIN/
 # Custom
 nuget.config
 *.pem
+output/
