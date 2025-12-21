@@ -301,7 +301,6 @@ awsRdsT3BurstCommand.SetHandler((double duration, double initialCredits, bool is
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
             .Enrich.FromLogContext()
-            .WriteTo.Console()
             .WriteTo.Seq("http://localhost:5341")
             .CreateLogger();
 

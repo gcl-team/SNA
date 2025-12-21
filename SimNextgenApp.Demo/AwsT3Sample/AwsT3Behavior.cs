@@ -69,9 +69,9 @@ internal class AwsT3Behavior(double initialCredits = 5.0, bool isUnlimitedCredit
         // 5. Export Data (CSV)
         // Adjust the time multiplier if you want to align X-Axis visually
         string csvLatencyLine = $"{now:F2},{actualDuration * 1000:F0}";
-        File.AppendAllText($"simulation_latency.csv", csvLatencyLine + Environment.NewLine);
+        File.AppendAllText($"./output/simulation_latency.csv", csvLatencyLine + Environment.NewLine);
         string csvCreditLine = $"{now:F2},{_credits:F4}";
-        File.AppendAllText($"simulation_credits.csv", csvCreditLine + Environment.NewLine);
+        File.AppendAllText($"./output/simulation_credits.csv", csvCreditLine + Environment.NewLine);
 
         return TimeSpan.FromSeconds(actualDuration);
     }

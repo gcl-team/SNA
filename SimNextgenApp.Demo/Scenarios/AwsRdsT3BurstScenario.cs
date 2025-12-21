@@ -77,10 +77,11 @@ internal static class AwsBurstScenario
 
         programLogger.LogInformation("Starting Simulation. Watch console for CSV output...");
         
-        if (File.Exists("simulation_latency.csv")) File.Delete("simulation_latency.csv");
-        if (File.Exists("simulation_credits.csv")) File.Delete("simulation_credits.csv");
-        File.WriteAllText("simulation_latency.csv", "Time,Latency (ms)\n");
-        File.WriteAllText("simulation_credits.csv", "Time,Credits\n");
+        if (!Directory.Exists("./output")) Directory.CreateDirectory("./output");
+        if (File.Exists("./output/simulation_latency.csv")) File.Delete("./output/simulation_latency.csv");
+        if (File.Exists("./output/simulation_credits.csv")) File.Delete("./output/simulation_credits.csv");
+        File.WriteAllText("./output/simulation_latency.csv", "Time (s),Latency (ms)\n");
+        File.WriteAllText("./output/simulation_credits.csv", "Time (s),Credits\n");
 
         engine.Run();
 
