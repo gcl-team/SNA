@@ -1,7 +1,9 @@
+# To run this, install dependencies: pip install -r requirements.txt
+
 from diagrams import Diagram, Cluster, Edge
 from diagrams.aws.compute import EC2
 from diagrams.aws.database import RDS
-from diagrams.aws.network import VPC, InternetGateway, PublicSubnet, PrivateSubnet
+from diagrams.aws.network import InternetGateway
 from diagrams.aws.security import IAM, SecretsManager
 from diagrams.aws.management import Cloudwatch
 from diagrams.onprem.monitoring import Grafana

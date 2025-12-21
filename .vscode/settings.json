@@ -13,5 +13,12 @@
         "!GetAZs",
         "!If sequence",
         "!Select sequence"
-    ]
+    ],
+    "python.analysis.exclude": [
+        "**/SimNextgenApp.Demo/AwsT3Sample/*.py"
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportUnusedExpression": "none",
+        "reportMissingImports": "none"
+    }
 }
