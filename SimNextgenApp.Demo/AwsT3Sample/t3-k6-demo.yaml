@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "Demo: T3 CPU Credit Exhaustion in Postgres with k6 Load Generator"
+
+Parameters:
+  DBPassword:
+    Description: "Password for the RDS master user."
+    Type: String
+    NoEcho: true
+    AllowedPattern: "[a-zA-Z0-9]*"
+
+Resources:
+  # ==========================================
+  # 1. IAM ROLE FOR EC2 SESSION MANAGER
+  # ==========================================
+  SSMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  
+  SSMInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles: [!Ref SSMRole]
+
+  # ==========================================
+  # 2. IAM USER FOR GRAFANA TO READ CLOUDWATCH METRICS
+  # ==========================================
+  GrafanaReadUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "grafana-cloudwatch-reader-${AWS::StackName}"
+      Policies:
+        - PolicyName: CloudWatchReadOnly
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "cloudwatch:GetMetricStatistics"
+                  - "cloudwatch:ListMetrics"
+                  - "cloudwatch:GetMetricData"
+                  - "logs:DescribeLogGroups"
+                  - "logs:GetLogGroupFields"
+                  - "logs:StartQuery"
+                  - "logs:StopQuery"
+                  - "logs:GetQueryResults"
+                  - "logs:GetLogEvents"
+                  - "tag:GetResources"
+                  - "tag:GetTagKeys"
+                  - "tag:GetTagValues"
+                  # Optional: Helps Grafana suggest dimension names
+                  - "rds:DescribeDBInstances"
+                  - "ec2:DescribeInstances"
+                Resource: "*"
+
+  GrafanaKeys:
+    Type: AWS::IAM::AccessKey
+    Properties:
+      UserName: !Ref GrafanaReadUser
+
+  GrafanaCredsSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub "grafana-cloudwatch-credential"
+      Description: "Access Keys for Grafana CloudWatch Data Source"
+      SecretString: !Sub '{"AccessKeyId":"${GrafanaKeys}", "SecretAccessKey":"${GrafanaKeys.SecretAccessKey}"}'
+
+  # ==========================================
+  # 3. NETWORKING
+  # ==========================================
+  DemoVPC:
+    Type: AWS::EC2::VPC
+    Properties: { CidrBlock: 10.0.0.0/16, EnableDnsSupport: true, EnableDnsHostnames: true, Tags: [{Key: Name, Value: T3-K6-Demo-VPC}] }
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref DemoVPC }
+    
+  PrivateSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties: { VpcId: !Ref DemoVPC, CidrBlock: 10.0.3.0/24, MapPublicIpOnLaunch: false, AvailabilityZone: !Select [0, !GetAZs ''] }
+  
+  PrivateSubnetB:
+    Type: AWS::EC2::Subnet
+    Properties: { VpcId: !Ref DemoVPC, CidrBlock: 10.0.4.0/24, MapPublicIpOnLaunch: false, AvailabilityZone: !Select [1, !GetAZs ''] }
+  
+  PrivateSubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateSubnetA, RouteTableId: !Ref PrivateRouteTable }
+
+  PrivateSubnetBRouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PrivateSubnetB, RouteTableId: !Ref PrivateRouteTable }
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties: { VpcId: !Ref DemoVPC, InternetGatewayId: !Ref InternetGateway }
+
+  PublicSubnetA:
+    Type: AWS::EC2::Subnet
+    Properties: { VpcId: !Ref DemoVPC, CidrBlock: 10.0.1.0/24, AvailabilityZone: !Select [0, !GetAZs ''], MapPublicIpOnLaunch: true }
+  
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: { VpcId: !Ref DemoVPC }
+
+  DefaultRoute:
+    Type: AWS::EC2::Route
+    DependsOn: InternetGateway
+    Properties: { RouteTableId: !Ref PublicRouteTable, DestinationCidrBlock: 0.0.0.0/0, GatewayId: !Ref InternetGateway }
+
+  SubnetARouteAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties: { SubnetId: !Ref PublicSubnetA, RouteTableId: !Ref PublicRouteTable }
+
+  # ==========================================
+  # 4. SECURITY GROUPS
+  # ==========================================
+  Ec2SG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Web
+      VpcId: !Ref DemoVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      SecurityGroupEgress: # Allow outbound traffic (to install k6)
+         - IpProtocol: -1
+           CidrIp: 0.0.0.0/0
+  
+  DbSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow Postgres from EC2
+      VpcId: !Ref DemoVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref Ec2SG
+
+  # ==========================================
+  # 5. DATABASE
+  # ==========================================
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for RDS
+      SubnetIds: [!Ref PrivateSubnetA, !Ref PrivateSubnetB]
+
+  TargetRDS:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: t3-k6-demo-victim-db
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.medium
+      Engine: postgres
+      MasterUsername: postgres
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VPCSecurityGroups: [!Ref DbSG]
+      AvailabilityZone: !Select [0, !GetAZs '']
+      # WARNING: DEMO ONLY - DATA DELETION ENABLED. DO NOT USE FOR PRODUCTION.
+      BackupRetentionPeriod: 0
+      DeleteAutomatedBackups: true
+      # CIS Requirements
+      EnablePerformanceInsights: true                 # CIS Req: Performance Insights for monitoring
+      StorageEncrypted: true                          # CIS Req: Network isolation
+      DeletionProtection: true                        # CIS Req: Prevent accidental deletion
+      PubliclyAccessible: false                       # CIS Req: Network isolation
+      EnableCloudwatchLogsExports: ['postgresql']     # CIS Req: Audit logging
+
+  # ==========================================
+  # 6. ATTACKER EC2
+  # ==========================================
+  AttackerInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t3.large
+      ImageId: !Sub '{{resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64}}'
+      IamInstanceProfile: !Ref SSMInstanceProfile
+      SubnetId: !Ref PublicSubnetA
+      SecurityGroupIds: [!Ref Ec2SG]
+      Tags: [{Key: Name, Value: k6-Load-Generator}]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          dnf update -y
+          dnf install nodejs postgresql15 -y
+          dnf install https://dl.k6.io/rpm/repo.rpm -y
+          dnf install k6 -y
+
+          mkdir /home/ec2-user/api
+          cd /home/ec2-user/api
+          npm init -y
+          npm install express pg
+
+          cat <<EOF > index.js
+          const express = require('express');
+          const { Pool } = require('pg');
+          const app = express();
+          const port = 3000;
+          const pool = new Pool({
+            user: 'postgres',
+            host: '${TargetRDS.Endpoint.Address}',
+            database: 'postgres',
+            password: '${DBPassword}',
+            port: 5432,
+            max: 20,
+            ssl: { rejectUnauthorized: false }
+          });
+          app.get('/heavy-query', async (req, res) => {
+            try {
+              const result = await pool.query('SELECT count(*) FROM generate_series(1, 10000) as t1, generate_series(1, 100) as t2');
+              res.json({ status: 'success', data: result.rows[0] });
+            } catch (err) { res.status(500).json({ error: err.message }); }
+          });
+          app.listen(port, () => console.log('API listening'));
+          EOF
+
+          cd /home/ec2-user
+          cat <<EOF > attack.js
+          import http from 'k6/http';
+          import { check, sleep } from 'k6';
+          export const options = {
+            stages: [
+              { duration: '30s', target: 50 },      // Profile 1: Ramp up
+              { duration: '5m', target: 200 },      // Profile 1: Burn
+              { duration: '1m', target: 0 },        // Profile 1: Ramp down
+              // { duration: '30s', target: 200 },  // Profile 2: Ramp up fast
+              // { duration: '60m', target: 200 },  // Profile 2: Burn for 1 hour
+            ],
+          };
+          export default function () {
+            const res = http.get('http://localhost:3000/heavy-query');
+            check(res, { 'status was 200': (r) => r.status == 200 });
+            sleep(0.1);
+          }
+          EOF
+
+          cat <<EOF > start_demo.sh
+          #!/bin/bash
+          echo "Starting Node API..."
+          node /home/ec2-user/api/index.js > /home/ec2-user/api.log 2>&1 &
+          API_PID=\$!
+          echo "API running (PID \$API_PID). Waiting 5s..."
+          sleep 5
+          echo "Starting k6 Attack..."
+          k6 run /home/ec2-user/attack.js
+          echo "Killing API..."
+          kill \$API_PID
+          EOF
+          chmod +x start_demo.sh
+          chown -R ec2-user:ec2-user /home/ec2-user
+
+Outputs:
+  GetGrafanaCredsCommand:
+    Description: "Run this to get AccessKey and SecretKey in JSON format for Grafana"
+    Value: !Sub "aws secretsmanager get-secret-value --secret-id ${GrafanaCredsSecret} --query SecretString --output text"

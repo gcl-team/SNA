@@ -42,6 +42,11 @@ dotnet SimNextgenApp.Demo.dll demo simple-server --arrival-secs 5.0
 dotnet SimNextgenApp.Demo.dll demo mmck --servers 3 --capacity 10 --arrival-secs 2.5
 ```
 
+For AWS T3 Sample, you can choose to run the following Powershell script in the `AwsT3Sample` directory.
+```powershell
+./simulation.ps1 aws-rds-t3-burst --duration 720 --initial-credits 10 --unlimited-credits false
+```
+
 ## 🐳 Running the Demo with Docker
 
 If you have Docker installed, you can build and run the demo inside a container without needing .NET or Visual Studio installed locally.
