@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog;
+using SimNextgenApp.Demo.AwsT3Sample;
 using SimNextgenApp.Demo.RestaurantSample;
 using SimNextgenApp.Demo.Scenarios;
 using System.CommandLine;
@@ -271,10 +272,16 @@ simpleRestaurantCommand.SetHandler(
 }, tablesOption, waitersOption, entranceOption, kitchenOption,
     customerArrivalMinOption, stopProbabilityOption);
 
-// ---- Demo: aws-rds-t3-burst ----
-var awsRdsT3BurstCommand = new Command("aws-rds-t3-burst", "Run the AWS RDS T3 Burst demo");
+// ---- Demo: aws-rds-burst ----
+var awsRdsBurstCommand = new Command("aws-rds-burst", "Run the AWS RDS Burst demo");
 
-var awsRdsT3BurstDurationOption = new Option<double>(
+var instanceTypeOption = new Option<string>(
+    name: "--instance-type",
+    description: "The RDS instance type to simulate (t3.medium, t4g.medium, m5.large).",
+    getDefaultValue: () => "t3.medium"
+);
+
+var awsRdsBurstDurationOption = new Option<double>(
     name: "--duration",
     description: "Total run duration in seconds.",
     getDefaultValue: () => 400.0
@@ -282,21 +289,22 @@ var awsRdsT3BurstDurationOption = new Option<double>(
 
 var initialCreditsOption = new Option<double>(
     name: "--initial-credits",
-    description: "Initial CPU credits for the T3 instance.",
+    description: "Initial CPU credits for the burstable instance.",
     getDefaultValue: () => 10.0
 );
 
 var unlimitedCreditsOption = new Option<bool>(
     name: "--unlimited-credits",
-    description: "Whether the T3 instance has unlimited CPU credits.",
+    description: "Whether the burstable instance has unlimited CPU credits.",
     getDefaultValue: () => false
 );
 
-awsRdsT3BurstCommand.AddOption(awsRdsT3BurstDurationOption);
-awsRdsT3BurstCommand.AddOption(initialCreditsOption);
-awsRdsT3BurstCommand.AddOption(unlimitedCreditsOption);
+awsRdsBurstCommand.AddOption(instanceTypeOption);
+awsRdsBurstCommand.AddOption(awsRdsBurstDurationOption);
+awsRdsBurstCommand.AddOption(initialCreditsOption);
+awsRdsBurstCommand.AddOption(unlimitedCreditsOption);
 
-awsRdsT3BurstCommand.SetHandler((double duration, double initialCredits, bool isUnlimitedCredits) =>
+awsRdsBurstCommand.SetHandler((string instanceType, double duration, double initialCredits, bool isUnlimitedCredits) =>
 {
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
@@ -307,15 +315,22 @@ awsRdsT3BurstCommand.SetHandler((double duration, double initialCredits, bool is
     // Create a logger factory that uses Serilog
     loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
     
-    Console.WriteLine($"====== Running AWS RDS T3 Burst Demo (Duration={duration} seconds) ======");
+    AwsRdsBehaviorBase rdsBehavior = instanceType.ToLower() switch
+    {
+        "t3.medium" => new AwsT3MediumBehavior(initialCredits, isUnlimitedCredits),
+        "t4g.medium" => new AwsT4gMediumBehavior(initialCredits, isUnlimitedCredits),
+        "m5.large" => new AwsM5LargeBehavior(),
+        _ => throw new ArgumentException($"Unsupported instance type: {instanceType}")
+    };
+
+    Console.WriteLine($"====== Running AWS RDS Burst Demo (Instance={instanceType}, Duration={duration} seconds) ======");
     AwsBurstScenario.RunDemo(
         loggerFactory,
         duration,
-        initialCredits,
-        isUnlimitedCredits,
+        rdsBehavior,
         genSeed: 1234
     );
-}, awsRdsT3BurstDurationOption, initialCreditsOption, unlimitedCreditsOption);
+}, instanceTypeOption, awsRdsBurstDurationOption, initialCreditsOption, unlimitedCreditsOption);
 
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");
@@ -323,7 +338,7 @@ demoCommand.AddCommand(simpleGenCommand);
 demoCommand.AddCommand(simpleServerCommand);
 demoCommand.AddCommand(mmckCommand);
 demoCommand.AddCommand(simpleRestaurantCommand);
-demoCommand.AddCommand(awsRdsT3BurstCommand);
+demoCommand.AddCommand(awsRdsBurstCommand);
 
 rootCommand.AddCommand(demoCommand);
 

@@ -2,10 +2,13 @@
 .SYNOPSIS
     Run the SNA simulation and optionally plot results.
 .DESCRIPTION
-    This script builds the SimNextgenApp.Demo project and runs the AWS T3 simulation with the provided arguments.
+    This script builds the SimNextgenApp.Demo project and runs the AWS RDS simulation with the provided arguments.
+    Supported instance types include t3.medium, t4g.medium, and m5.large.
     After the simulation completes, it generates graphs for credits and latency if the graph-cli tool is installed.
 .EXAMPLE
-    ./simulation.ps1 aws-rds-t3-burst --duration 720 --initial-credits 10 --unlimited-credits false
+    ./simulation.ps1 aws-rds-burst --instance-type t3.medium --duration 720 --initial-credits 10 --unlimited-credits false
+.EXAMPLE
+    ./simulation.ps1 aws-rds-burst --instance-type t4g.medium --duration 1200
 .LINK
     https://github.com/gcl-team/SNAS
 #>

@@ -1,8 +1,6 @@
 using Microsoft.Extensions.Logging;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
-using SimNextgenApp.Core.Strategies;
-using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.AwsT3Sample;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Statistics;
@@ -14,15 +12,11 @@ internal static class AwsBurstScenario
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
-        double initialCredits,
-        bool isUnlimitedCredits,
+        AwsRdsBehaviorBase rdsBehavior,
         int genSeed)
     {
         var programLogger = loggerFactory.CreateLogger("AWS-Simulation");
-        programLogger.LogInformation("--- Preparing AWS T3 Burst Simulation ---");
-
-        // 1. Instantiate the Physics Behavior
-        var t3Physics = new AwsT3Behavior(initialCredits, isUnlimitedCredits);
+        programLogger.LogInformation("--- Preparing AWS RDS Burst Simulation ---");
 
         // 2. Configure Generator (High Load)
         // High traffic: 20 req/sec (0.05s inter-arrival) to drain the credits
@@ -35,8 +29,8 @@ internal static class AwsBurstScenario
         );
 
         // 3. Configure Server (Using the Physics Class)
-        // WE PASS THE METHOD from the t3Physics instance
-        var serverConfig = new ServerStaticConfig<MyLoad>(t3Physics.GetServiceTime) 
+        // WE PASS THE METHOD from the rdsBehavior instance
+        var serverConfig = new ServerStaticConfig<MyLoad>(rdsBehavior.GetServiceTime) 
         { 
             Capacity = 1 
         };
