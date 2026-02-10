@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
-        "Nextgen"
+        "Nextgen",
+        "Burstable"
     ],
     "yaml.customTags": [
         "!Ref",
