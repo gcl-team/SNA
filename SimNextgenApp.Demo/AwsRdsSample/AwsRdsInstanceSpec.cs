@@ -1,4 +1,4 @@
-namespace SimNextgenApp.Demo.AwsT3Sample;
+namespace SimNextgenApp.Demo.AwsRdsSample;
 
 /// <summary>
 /// Base record for AWS RDS instance specifications.

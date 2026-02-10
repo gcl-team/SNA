@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
-using SimNextgenApp.Demo.AwsT3Sample;
+using SimNextgenApp.Core.Strategies;
+using SimNextgenApp.Core.Utilities;
+using SimNextgenApp.Demo.AwsRdsSample;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Statistics;
 
@@ -66,18 +68,14 @@ internal static class AwsBurstScenario
         // 6. THE CRITICAL STEP: CONNECT PHYSICS TO TIME
         // =========================================================
         // We inject the engine into our physics object so it can read ClockTime
-        t3Physics.SetContext(engine); 
+        rdsBehavior.SetContext(engine); 
         // =========================================================
 
         programLogger.LogInformation("Starting Simulation. Watch console for CSV output...");
         
-        if (!Directory.Exists("./output")) Directory.CreateDirectory("./output");
-        if (File.Exists("./output/simulation_latency.csv")) File.Delete("./output/simulation_latency.csv");
-        if (File.Exists("./output/simulation_credits.csv")) File.Delete("./output/simulation_credits.csv");
-        File.WriteAllText("./output/simulation_latency.csv", "Time (s),Latency (ms)\n");
-        File.WriteAllText("./output/simulation_credits.csv", "Time (s),Credits\n");
-
         engine.Run();
+
+        rdsBehavior.FinalizeExport("output");
 
         programLogger.LogInformation("Simulation Complete.");
     }

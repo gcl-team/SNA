@@ -1,7 +1,9 @@
+using System.Text;
+using System.IO;
 using SimNextgenApp.Core;
 using SimNextgenApp.Demo.CustomModels;
 
-namespace SimNextgenApp.Demo.AwsT3Sample;
+namespace SimNextgenApp.Demo.AwsRdsSample;
 
 /// <summary>
 /// Simulation of AWS RDS behavior based on instance specifications.
@@ -13,6 +15,8 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private double _lastUpdateTime = 0.0;
 
     private readonly BurstableInstanceSpec? _burstableSpec = spec as BurstableInstanceSpec;
+    private readonly StringBuilder _latencyBuffer = new("Time (s),Latency (ms)\n");
+    private readonly StringBuilder _creditBuffer = new("Time (s),Credits\n");
 
     private double MaxCredits => _burstableSpec?.MaxCredits ?? 0;
     private double EarnRatePerSec => (_burstableSpec?.EarnRatePerHour ?? 0) / 3600.0;
@@ -62,9 +66,14 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 
     private void ExportMetrics(double now, double actualDuration)
     {
-        string csvLatencyLine = $"{now:F2},{actualDuration * 1000:F0}";
-        File.AppendAllText($"./output/simulation_latency.csv", csvLatencyLine + Environment.NewLine);
-        string csvCreditLine = $"{now:F2},{_credits:F4}";
-        File.AppendAllText($"./output/simulation_credits.csv", csvCreditLine + Environment.NewLine);
+        _latencyBuffer.AppendLine($"{now:F2},{actualDuration * 1000:F0}");
+        _creditBuffer.AppendLine($"{now:F2},{_credits:F4}");
+    }
+
+    public void FinalizeExport(string directory)
+    {
+        if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "simulation_latency.csv"), _latencyBuffer.ToString());
+        File.WriteAllText(Path.Combine(directory, "simulation_credits.csv"), _creditBuffer.ToString());
     }
 }

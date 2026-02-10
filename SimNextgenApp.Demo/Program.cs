@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog;
-using SimNextgenApp.Demo.AwsT3Sample;
+using SimNextgenApp.Demo.AwsRdsSample;
 using SimNextgenApp.Demo.RestaurantSample;
 using SimNextgenApp.Demo.Scenarios;
 using System.CommandLine;
