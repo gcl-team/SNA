@@ -45,7 +45,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 
         // 2. Burn Logic (Look Ahead)
         double estimatedBurstCost = spec.FastSecs * BurnRatePerSec;
-        bool isThrottled = IsBurstable && _credits < estimatedBurstCost; 
+        bool isThrottled = IsBurstable && _credits < estimatedBurstCost;
 
         // 3. Determine Service Time
         double baseTime = isThrottled && !isUnlimited ? spec.SlowSecs : spec.FastSecs;

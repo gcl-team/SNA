@@ -6,9 +6,9 @@
     Supported instance types include t3, t4g, and m5 families with various sizes.
     After the simulation completes, it generates graphs for credits and latency if the graph-cli tool is installed.
 .EXAMPLE
-    ./simulation.ps1 aws-rds-burst --family t3 --size medium --duration 720 --initial-credits 10 --unlimited-credits false
+    ./simulation.ps1 aws-rds-burst --family t3 --size medium --duration 720 --initial-credits 10 --unlimited-credits true
 .EXAMPLE
-    ./simulation.ps1 aws-rds-burst --family t4g --size large --duration 1200
+    ./simulation.ps1 aws-rds-burst --family t4g --size large --duration 1200 --unlimited-credits true
 .LINK
     https://github.com/gcl-team/SNAS
 #>
