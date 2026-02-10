@@ -12,7 +12,7 @@ internal static class AwsBurstScenario
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
-        AwsRdsBehaviorBase rdsBehavior,
+        AwsRdsBehavior rdsBehavior,
         int genSeed)
     {
         var programLogger = loggerFactory.CreateLogger("AWS-Simulation");

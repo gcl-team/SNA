@@ -7,7 +7,7 @@
 #     Supported instance types include t3.medium, t4g.medium, and m5.large.
 #     After the simulation completes, it generates graphs for credits and latency if the graph-cli tool is installed.
 # EXAMPLE
-#     ./simulation.sh aws-rds-burst --instance-type t3.medium --duration 720 --initial-credits 10 --unlimited-credits false
+#     ./simulation.sh aws-rds-burst --family t3 --size medium --duration 720 --initial-credits 10 --unlimited-credits false
 
 # ANSI color codes
 CYAN='\033[0;36m'

@@ -275,10 +275,16 @@ simpleRestaurantCommand.SetHandler(
 // ---- Demo: aws-rds-burst ----
 var awsRdsBurstCommand = new Command("aws-rds-burst", "Run the AWS RDS Burst demo");
 
-var instanceTypeOption = new Option<string>(
-    name: "--instance-type",
-    description: "The RDS instance type to simulate (t3.medium, t4g.medium, m5.large).",
-    getDefaultValue: () => "t3.medium"
+var familyOption = new Option<string>(
+    name: "--family",
+    description: "The RDS instance family (t3, t4g, m5).",
+    getDefaultValue: () => "t3"
+);
+
+var sizeOption = new Option<string>(
+    name: "--size",
+    description: "The RDS instance size (micro, small, medium, large, xlarge).",
+    getDefaultValue: () => "medium"
 );
 
 var awsRdsBurstDurationOption = new Option<double>(
@@ -299,12 +305,13 @@ var unlimitedCreditsOption = new Option<bool>(
     getDefaultValue: () => false
 );
 
-awsRdsBurstCommand.AddOption(instanceTypeOption);
+awsRdsBurstCommand.AddOption(familyOption);
+awsRdsBurstCommand.AddOption(sizeOption);
 awsRdsBurstCommand.AddOption(awsRdsBurstDurationOption);
 awsRdsBurstCommand.AddOption(initialCreditsOption);
 awsRdsBurstCommand.AddOption(unlimitedCreditsOption);
 
-awsRdsBurstCommand.SetHandler((string instanceType, double duration, double initialCredits, bool isUnlimitedCredits) =>
+awsRdsBurstCommand.SetHandler((string family, string size, double duration, double initialCredits, bool isUnlimitedCredits) =>
 {
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
@@ -315,22 +322,17 @@ awsRdsBurstCommand.SetHandler((string instanceType, double duration, double init
     // Create a logger factory that uses Serilog
     loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
     
-    AwsRdsBehaviorBase rdsBehavior = instanceType.ToLower() switch
-    {
-        "t3.medium" => new AwsT3MediumBehavior(initialCredits, isUnlimitedCredits),
-        "t4g.medium" => new AwsT4gMediumBehavior(initialCredits, isUnlimitedCredits),
-        "m5.large" => new AwsM5LargeBehavior(),
-        _ => throw new ArgumentException($"Unsupported instance type: {instanceType}")
-    };
+    var spec = AwsRdsRegistry.GetSpec(family, size);
+    var rdsBehavior = new AwsRdsBehavior(spec, initialCredits, isUnlimitedCredits);
 
-    Console.WriteLine($"====== Running AWS RDS Burst Demo (Instance={instanceType}, Duration={duration} seconds) ======");
+    Console.WriteLine($"====== Running AWS RDS Burst Demo (Instance={family}.{size}, Duration={duration} seconds) ======");
     AwsBurstScenario.RunDemo(
         loggerFactory,
         duration,
         rdsBehavior,
         genSeed: 1234
     );
-}, instanceTypeOption, awsRdsBurstDurationOption, initialCreditsOption, unlimitedCreditsOption);
+}, familyOption, sizeOption, awsRdsBurstDurationOption, initialCreditsOption, unlimitedCreditsOption);
 
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");
