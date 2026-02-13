@@ -11,7 +11,7 @@ namespace SimNextgenApp.Demo.AwsRdsSample;
 internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5.0, bool isUnlimited = false)
 {
     private IRunContext? _engineContext;
-    private double _credits = initialCredits;
+    private double _credits = initialCredits < 0 ? 0 : initialCredits;
     private double _lastUpdateTime = 0.0;
 
     private readonly BurstableInstanceSpec? _burstableSpec = spec as BurstableInstanceSpec;
@@ -73,7 +73,18 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     public void FinalizeExport(string directory)
     {
         if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
+
+        string creditsFilePath = Path.Combine(directory, "simulation_credits.csv");
+        if (File.Exists(creditsFilePath))
+        {
+            File.Delete(creditsFilePath);
+        }
+
+        if (IsBurstable)
+        {
+            File.WriteAllText(creditsFilePath, _creditBuffer.ToString());
+        }
+
         File.WriteAllText(Path.Combine(directory, "simulation_latency.csv"), _latencyBuffer.ToString());
-        File.WriteAllText(Path.Combine(directory, "simulation_credits.csv"), _creditBuffer.ToString());
     }
 }
