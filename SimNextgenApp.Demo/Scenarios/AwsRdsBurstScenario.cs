@@ -3,7 +3,7 @@ using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
-using SimNextgenApp.Demo.AwsT3Sample;
+using SimNextgenApp.Demo.AwsRdsSample;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Statistics;
 
@@ -14,15 +14,11 @@ internal static class AwsBurstScenario
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
-        double initialCredits,
-        bool isUnlimitedCredits,
+        AwsRdsBehavior rdsBehavior,
         int genSeed)
     {
         var programLogger = loggerFactory.CreateLogger("AWS-Simulation");
-        programLogger.LogInformation("--- Preparing AWS T3 Burst Simulation ---");
-
-        // 1. Instantiate the Physics Behavior
-        var t3Physics = new AwsT3Behavior(initialCredits, isUnlimitedCredits);
+        programLogger.LogInformation("--- Preparing AWS RDS Burst Simulation ---");
 
         // 2. Configure Generator (High Load)
         // High traffic: 20 req/sec (0.05s inter-arrival) to drain the credits
@@ -35,8 +31,8 @@ internal static class AwsBurstScenario
         );
 
         // 3. Configure Server (Using the Physics Class)
-        // WE PASS THE METHOD from the t3Physics instance
-        var serverConfig = new ServerStaticConfig<MyLoad>(t3Physics.GetServiceTime) 
+        // WE PASS THE METHOD from the rdsBehavior instance
+        var serverConfig = new ServerStaticConfig<MyLoad>(rdsBehavior.GetServiceTime) 
         { 
             Capacity = 1 
         };
@@ -72,18 +68,14 @@ internal static class AwsBurstScenario
         // 6. THE CRITICAL STEP: CONNECT PHYSICS TO TIME
         // =========================================================
         // We inject the engine into our physics object so it can read ClockTime
-        t3Physics.SetContext(engine); 
+        rdsBehavior.SetContext(engine); 
         // =========================================================
 
         programLogger.LogInformation("Starting Simulation. Watch console for CSV output...");
         
-        if (!Directory.Exists("./output")) Directory.CreateDirectory("./output");
-        if (File.Exists("./output/simulation_latency.csv")) File.Delete("./output/simulation_latency.csv");
-        if (File.Exists("./output/simulation_credits.csv")) File.Delete("./output/simulation_credits.csv");
-        File.WriteAllText("./output/simulation_latency.csv", "Time (s),Latency (ms)\n");
-        File.WriteAllText("./output/simulation_credits.csv", "Time (s),Credits\n");
-
         engine.Run();
+
+        rdsBehavior.FinalizeExport("output");
 
         programLogger.LogInformation("Simulation Complete.");
     }

@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
-        "Nextgen"
+        "Nextgen",
+        "Burstable"
     ],
     "yaml.customTags": [
         "!Ref",
@@ -15,7 +16,7 @@
         "!Select sequence"
     ],
     "python.analysis.exclude": [
-        "**/SimNextgenApp.Demo/AwsT3Sample/*.py"
+        "**/SimNextgenApp.Demo/AwsRdsSample/*.py"
     ],
     "python.analysis.diagnosticSeverityOverrides": {
         "reportUnusedExpression": "none",
