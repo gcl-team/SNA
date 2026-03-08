@@ -49,9 +49,32 @@ internal static class SimpleMmck
 
         programLogger.LogInformation($"M/M/c/K System Created: c={mmckSystem.NumberOfServersC}, K={mmckSystem.SystemCapacityK}, Queue Capacity (K-c)={mmckSystem.WaitingLine.Capacity}");
 
+        // 4.5. Validate TimeUnit Precision (OPTIONAL but recommended)
+        programLogger.LogInformation("\n--- Validating TimeUnit Precision ---");
+        var targetTimeUnit = SimulationTimeUnit.Milliseconds;
+
+        var validation = SimulationProfileValidator.ValidateTimeUnit(
+            targetTimeUnit,
+            new Dictionary<string, Func<Random, TimeSpan>>
+            {
+                ["Inter-arrival time"] = interArrivalTimeFunc,
+                ["Service time"] = (rnd) => serviceTimeFunc(null!, rnd)
+            },
+            sampleSize: 1000,
+            truncationThreshold: 0.05
+        );
+
+        SimulationProfileValidator.LogValidationResult(validation, programLogger);
+
+        if (!validation.IsValid)
+        {
+            programLogger.LogWarning($"💡 TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
+            targetTimeUnit = validation.RecommendedUnit; // Auto-switch to recommended unit
+        }
+
         // 5. Create a Run Strategy
-        // Use Milliseconds for sub-second precision (exponential distributions often generate sub-second values)
-        var timeUnit = SimulationTimeUnit.Milliseconds;
+        // Use validated timeUnit for sub-second precision
+        var timeUnit = targetTimeUnit;
 
         long runDurationInUnits = TimeUnitConverter.ConvertToSimulationUnits(
             TimeSpan.FromSeconds(runDuration),

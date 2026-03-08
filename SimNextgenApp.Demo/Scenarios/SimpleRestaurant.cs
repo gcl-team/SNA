@@ -63,9 +63,32 @@ internal class SimpleRestaurant
             loggerFactory
             );
 
+        // 3.5. Validate TimeUnit Precision (OPTIONAL but recommended)
+        logger.LogInformation("\n--- Validating TimeUnit Precision ---");
+        var targetTimeUnit = SimulationTimeUnit.Milliseconds;
+
+        var validation = SimulationProfileValidator.ValidateTimeUnit(
+            targetTimeUnit,
+            new Dictionary<string, Func<Random, TimeSpan>>
+            {
+                ["Customer inter-arrival time"] = customerInterArrivalTime,
+                ["Kitchen service time"] = (rnd) => serviceTimeFunc(null!, rnd)
+            },
+            sampleSize: 1000,
+            truncationThreshold: 0.05
+        );
+
+        SimulationProfileValidator.LogValidationResult(validation, logger);
+
+        if (!validation.IsValid)
+        {
+            logger.LogWarning($"💡 TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
+            targetTimeUnit = validation.RecommendedUnit; // Auto-switch to recommended unit
+        }
+
         // 4. Create Run Strategy and Profile
-        // Use Milliseconds for sub-second precision (arrival/service times may be fractional)
-        var timeUnit = SimulationTimeUnit.Milliseconds;
+        // Use validated timeUnit for sub-second precision
+        var timeUnit = targetTimeUnit;
         var duration = TimeSpan.FromMinutes(60 * 8);
         long durationInUnits = TimeUnitConverter.ConvertToSimulationUnits(duration, timeUnit);
         var runStrategy = new DurationRunStrategy(durationInUnits);

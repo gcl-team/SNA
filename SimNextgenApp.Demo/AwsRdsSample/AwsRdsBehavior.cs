@@ -1,6 +1,7 @@
 using System.Text;
 using System.IO;
 using SimNextgenApp.Core;
+using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.CustomModels;
 
 namespace SimNextgenApp.Demo.AwsRdsSample;
@@ -13,6 +14,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private IRunContext? _engineContext;
     private double _credits = initialCredits < 0 ? 0 : initialCredits;
     private double _lastUpdateTime = 0.0;
+    private double _timeUnitToSecondsMultiplier = 1.0; // Default: assume time units are seconds
 
     private readonly BurstableInstanceSpec? _burstableSpec = spec as BurstableInstanceSpec;
     private readonly StringBuilder _latencyBuffer = new("Time (s),Latency (ms)\n");
@@ -23,18 +25,30 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private double BurnRatePerSec => (spec.VCpus) / 60.0;
     private bool IsBurstable => _burstableSpec != null;
 
-    public void SetContext(IRunContext context)
+    public void SetContext(IRunContext context, SimulationTimeUnit timeUnit)
     {
         _engineContext = context;
+
+        // Calculate conversion factor from simulation time units to seconds
+        _timeUnitToSecondsMultiplier = timeUnit switch
+        {
+            SimulationTimeUnit.Ticks => 1.0 / TimeSpan.TicksPerSecond,
+            SimulationTimeUnit.Microseconds => 1.0 / 1_000_000.0,
+            SimulationTimeUnit.Milliseconds => 1.0 / 1_000.0,
+            SimulationTimeUnit.Seconds => 1.0,
+            SimulationTimeUnit.Minutes => 60.0,
+            SimulationTimeUnit.Hours => 3600.0,
+            SimulationTimeUnit.Days => 86400.0,
+            _ => 1.0
+        };
     }
 
     public TimeSpan GetServiceTime(MyLoad load, Random rnd)
     {
         if (_engineContext == null) throw new InvalidOperationException("Context missing");
 
-        // ClockTime is in simulation units (Seconds in this case, as set in AwsRdsBurstScenario)
-        // Convert to double for credit calculations
-        double now = _engineContext.ClockTime;
+        // ClockTime is in simulation units, convert to seconds for credit calculations (AWS credit logic is per-second)
+        double now = _engineContext.ClockTime * _timeUnitToSecondsMultiplier;
         double timeDelta = now - _lastUpdateTime;
 
         // 1. Earn Credits

@@ -67,9 +67,32 @@ internal static class SimpleGenerator
                 load);
         };
 
+        // 3.5. Validate TimeUnit Precision (OPTIONAL but recommended)
+        var consoleLogger = loggerFactory.CreateLogger("Validation");
+        consoleLogger.LogInformation("\n--- Validating TimeUnit Precision ---");
+        var targetTimeUnit = SimulationTimeUnit.Milliseconds;
+
+        var validation = SimulationProfileValidator.ValidateTimeUnit(
+            targetTimeUnit,
+            new Dictionary<string, Func<Random, TimeSpan>>
+            {
+                ["Inter-arrival time"] = interArrivalTimeFunc
+            },
+            sampleSize: 1000,
+            truncationThreshold: 0.05
+        );
+
+        SimulationProfileValidator.LogValidationResult(validation, consoleLogger);
+
+        if (!validation.IsValid)
+        {
+            consoleLogger.LogWarning($"TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
+            targetTimeUnit = validation.RecommendedUnit; // Auto-switch to recommended unit
+        }
+
         // 4. Create the tracer using the GLOBAL Serilog logger.
-        // Use Milliseconds for sub-second precision
-        var timeUnit = SimulationTimeUnit.Milliseconds;
+        // Use validated timeUnit for sub-second precision
+        var timeUnit = targetTimeUnit;
         long duration = TimeUnitConverter.ConvertToSimulationUnits(TimeSpan.FromSeconds(50.0), timeUnit);
         var runStrategy = new DurationRunStrategy(duration);
 
