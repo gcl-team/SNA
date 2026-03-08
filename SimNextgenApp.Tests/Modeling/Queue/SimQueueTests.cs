@@ -19,7 +19,7 @@ public class SimQueueTests
     private readonly QueueStaticConfig<DummyLoad> _defaultInfiniteConfig;
     private readonly QueueStaticConfig<DummyLoad> _defaultFiniteConfig;
 
-    private double _currentTestTime = 0.0;
+    private long _currentTestTime = 0;
 
     public SimQueueTests()
     {
@@ -126,7 +126,7 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue();
-        _currentTestTime = 0.0;
+        _currentTestTime = 0;
 
         // Act
         queue.Initialize(_mockEngineContext.Object);
@@ -154,7 +154,7 @@ public class SimQueueTests
         var queue = CreateQueue(_defaultFiniteConfig);
         queue.Initialize(_mockEngineContext.Object);
         var load = new DummyLoad();
-        _currentTestTime = 5.0;
+        _currentTestTime = 5;
 
         // Act
         bool result = queue.TryScheduleEnqueue(load, _mockEngineContext.Object);
@@ -173,7 +173,7 @@ public class SimQueueTests
         // Arrange
         var queue = CreateQueue(_defaultInfiniteConfig);
         queue.Initialize(_mockEngineContext.Object);
-        _currentTestTime = 5.0;
+        _currentTestTime = 5;
         var loadToEnqueue = new DummyLoad("L3");
 
         // Act
@@ -196,11 +196,11 @@ public class SimQueueTests
         // Arrange
         var queue = CreateQueue(_defaultFiniteConfig);
         queue.Initialize(_mockEngineContext.Object);
-        _currentTestTime = 5.0;
+        _currentTestTime = 5;
 
         // 1. Arrange State: Fill the queue to capacity using its internal handler.
-        queue.HandleEnqueue(new DummyLoad("L1"), 1.0);
-        queue.HandleEnqueue(new DummyLoad("L2"), 2.0);
+        queue.HandleEnqueue(new DummyLoad("L1"), 1);
+        queue.HandleEnqueue(new DummyLoad("L2"), 2);
         Assert.Equal(0, queue.Vacancy); // Verify our setup is correct: the queue is full.
 
         var loadToBalk = new DummyLoad("L3");
@@ -225,7 +225,7 @@ public class SimQueueTests
         Assert.True(eventFired, "The LoadBalked event was not fired.");
 
         // 3. No EnqueueEvent should have been scheduled with the scheduler.
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<EnqueueEvent<DummyLoad>>(), It.IsAny<double>()), Times.Never);
+        _mockScheduler.Verify(s => s.Schedule(It.IsAny<EnqueueEvent<DummyLoad>>(), It.IsAny<long>()), Times.Never);
     }
 
     [Fact(DisplayName = "TryScheduleEnqueue should throw for a null load.")]
@@ -256,7 +256,7 @@ public class SimQueueTests
         // Arrange
         var queue = CreateQueue();
         queue.Initialize(_mockEngineContext.Object);
-        _currentTestTime = 10.0;
+        _currentTestTime = 10;
         bool newDequeueState = false;
 
         // Act
@@ -291,7 +291,7 @@ public class SimQueueTests
         var load = new DummyLoad();
 
         // Act
-        queue.HandleEnqueue(load, 10.0);
+        queue.HandleEnqueue(load, 10);
 
         // Assert
         Assert.Equal(1, queue.Occupancy);
@@ -306,11 +306,11 @@ public class SimQueueTests
         var queue = CreateQueue();
         var load1 = new DummyLoad("L1");
         var load2 = new DummyLoad("L2");
-        queue.HandleEnqueue(load1, 5.0);
-        queue.HandleEnqueue(load2, 6.0);
+        queue.HandleEnqueue(load1, 5);
+        queue.HandleEnqueue(load2, 6);
 
         // Act
-        queue.HandleDequeue(10.0);
+        queue.HandleDequeue(10);
 
         // Assert
         Assert.Equal(1, queue.Occupancy);
@@ -328,7 +328,7 @@ public class SimQueueTests
         Assert.True(queue.ToDequeue); // Default is true
 
         // Act
-        queue.HandleUpdateToDequeue(false, 10.0);
+        queue.HandleUpdateToDequeue(false, 10);
 
         // Assert
         Assert.False(queue.ToDequeue);
@@ -339,11 +339,11 @@ public class SimQueueTests
     {
         // Arrange
         var queue = CreateQueue();
-        queue.HandleEnqueue(new DummyLoad(), 5.0);
-        queue.HandleUpdateToDequeue(false, 6.0); // Disable dequeuing
+        queue.HandleEnqueue(new DummyLoad(), 5);
+        queue.HandleUpdateToDequeue(false, 6); // Disable dequeuing
 
         // Act
-        queue.HandleDequeue(10.0);
+        queue.HandleDequeue(10);
 
         // Assert
         Assert.Equal(1, queue.Occupancy); // State is unchanged
@@ -367,15 +367,15 @@ public class SimQueueTests
         queue.Initialize(_mockEngineContext.Object);
 
         // Simulate some activity before warmup
-        _currentTestTime = 5.0;
+        _currentTestTime = 5;
         queue.HandleEnqueue(new DummyLoad("L1"), _currentTestTime);
-        _currentTestTime = 10.0;
+        _currentTestTime = 10;
         queue.HandleEnqueue(new DummyLoad("L2"), _currentTestTime);
 
         // Sanity check the pre-warmup state
         Assert.Equal(2, queue.Occupancy);
 
-        double warmupTime = 20.0;
+        long warmupTime = 20;
         _currentTestTime = warmupTime;
 
         // Act

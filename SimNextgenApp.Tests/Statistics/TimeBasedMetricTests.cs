@@ -12,12 +12,12 @@ public class TimeBasedMetricTests
         var metric = new TimeBasedMetric();
 
         // Assert
-        AssertHelpers.AreEqual(0.0, metric.InitialTime);
-        AssertHelpers.AreEqual(0.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(0, metric.InitialTime);
+        AssertHelpers.AreEqual(0, metric.CurrentTime);
         AssertHelpers.AreEqual(0.0, metric.CurrentCount);
         AssertHelpers.AreEqual(0.0, metric.TotalIncrementObserved);
         AssertHelpers.AreEqual(0.0, metric.TotalDecrementObserved);
-        AssertHelpers.AreEqual(0.0, metric.TotalActiveDuration);
+        AssertHelpers.AreEqual(0, metric.TotalActiveDuration);
         AssertHelpers.AreEqual(0.0, metric.CumulativeCountTimeProduct);
         Assert.False(metric.IsHistoryEnabled);
         Assert.NotNull(metric.TimePerCount);
@@ -30,19 +30,18 @@ public class TimeBasedMetricTests
     public void Constructor_WithInitialTimeAndHistory_SetsPropertiesCorrectly()
     {
         // Arrange & Act
-        var metric = new TimeBasedMetric(initialTime: 10.0, enableHistory: true);
+        var metric = new TimeBasedMetric(initialTime: 10, enableHistory: true);
 
         // Assert
-        AssertHelpers.AreEqual(10.0, metric.InitialTime);
-        AssertHelpers.AreEqual(10.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(10, metric.InitialTime);
+        AssertHelpers.AreEqual(10, metric.CurrentTime);
         Assert.True(metric.IsHistoryEnabled);
         Assert.NotNull(metric.History);
     }
 
     [Theory(DisplayName = "Constructor should throw for invalid initial time.")]
-    [InlineData(-1.0)]
-    [InlineData(-0.001)]
-    public void Constructor_NegativeInitialTime_ThrowsArgumentOutOfRangeException(double invalidTime)
+    [InlineData(-1)]
+    public void Constructor_NegativeInitialTime_ThrowsArgumentOutOfRangeException(long invalidTime)
     {
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => 
             new TimeBasedMetric(initialTime: invalidTime)
@@ -55,34 +54,34 @@ public class TimeBasedMetricTests
     public void ObserveCount_SingleObservation_UpdatesMetricsCorrectly()
     {
         // Arrange
-        var metric = new TimeBasedMetric(initialTime: 0.0);
+        var metric = new TimeBasedMetric(initialTime: 0);
 
         // Act
-        metric.ObserveCount(count: 5.0, clockTime: 10.0);
+        metric.ObserveCount(count: 5.0, clockTime: 10);
 
         // Assert
-        AssertHelpers.AreEqual(10.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(10, metric.CurrentTime);
         AssertHelpers.AreEqual(5.0, metric.CurrentCount);
         AssertHelpers.AreEqual(5.0, metric.TotalIncrementObserved);                 // From 0 to 5
         AssertHelpers.AreEqual(0.0, metric.TotalDecrementObserved);
-        AssertHelpers.AreEqual(10.0, metric.TotalActiveDuration);                   // Duration from 0 to 10
+        AssertHelpers.AreEqual(10, metric.TotalActiveDuration);                   // Duration from 0 to 10
         AssertHelpers.AreEqual(0.0 * 10.0, metric.CumulativeCountTimeProduct);      // Count was 0 for 10s
         AssertHelpers.AreEqual(0.0, metric.AverageCount);                           // (0*10)/10
 
         Assert.True(metric.TimePerCount.ContainsKey(0), "TimePerCount should contain key 0");
-        AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]);
+        AssertHelpers.AreEqual(10, metric.TimePerCount[0]);
     }
 
     [Fact(DisplayName = "ObserveCount with multiple observations accumulates metrics correctly.")]
     public void ObserveCount_MultipleObservations_AccumulatesMetricsCorrectly()
     {
         // Arrange
-        var metric = new TimeBasedMetric(initialTime: 0.0);
+        var metric = new TimeBasedMetric(initialTime: 0);
 
         // Act
-        metric.ObserveCount(5.0, 10.0);     // Count 0 for 10s, then becomes 5
-        metric.ObserveCount(8.0, 15.0);     // Count 5 for 5s (15-10), then becomes 8
-        metric.ObserveCount(6.0, 20.0);     // Count 8 for 5s (20-15), then becomes 6
+        metric.ObserveCount(5.0, 10);     // Count 0 for 10s, then becomes 5
+        metric.ObserveCount(8.0, 15);     // Count 5 for 5s (15-10), then becomes 8
+        metric.ObserveCount(6.0, 20);     // Count 8 for 5s (20-15), then becomes 6
 
         // Assert
         AssertHelpers.AreEqual(20.0, metric.CurrentTime);
@@ -97,7 +96,7 @@ public class TimeBasedMetricTests
         // Time 0-10: Count 0. Duration = 10. Product = 0 * 10 = 0
         // Time 10-15: Count 5. Duration = 5. Product = 5 * 5 = 25
         // Time 15-20: Count 8. Duration = 5. Product = 8 * 5 = 40
-        AssertHelpers.AreEqual(10.0 + 5.0 + 5.0, metric.TotalActiveDuration); // 20
+        AssertHelpers.AreEqual(10 + 5 + 5, metric.TotalActiveDuration); // 20
         AssertHelpers.AreEqual(0 + 25 + 40, metric.CumulativeCountTimeProduct); // 65
 
         AssertHelpers.AreEqual(65.0 / 20.0, metric.AverageCount); // 3.25
@@ -107,32 +106,32 @@ public class TimeBasedMetricTests
         // Count 5: 5s
         // Count 8: 5s
         AssertHelpers.AreEqual(3, metric.TimePerCount.Count);
-        AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]);
-        AssertHelpers.AreEqual(5.0, metric.TimePerCount[5]);
-        AssertHelpers.AreEqual(5.0, metric.TimePerCount[8]);
+        AssertHelpers.AreEqual(10, metric.TimePerCount[0]);
+        AssertHelpers.AreEqual(5, metric.TimePerCount[5]);
+        AssertHelpers.AreEqual(5, metric.TimePerCount[8]);
     }
 
     [Fact(DisplayName = "ObserveCount with multiple observations at same time accumulates metrics correctly.")]
     public void ObserveCount_ObservationAtSameTime_AccumulatesMetricsCorrectly()
     {
         // Arrange
-        var metric = new TimeBasedMetric(initialTime: 0.0);
-        metric.ObserveCount(5.0, 10.0); // Initial state: CurrentTime=10, CurrentCount=5, TotalActiveDuration=10, CCTP=0
+        var metric = new TimeBasedMetric(initialTime: 0);
+        metric.ObserveCount(5.0, 10); // Initial state: CurrentTime=10, CurrentCount=5, TotalActiveDuration=10, CCTP=0
 
         // Act
-        metric.ObserveCount(7.0, 10.0); // Observe again at the same time
+        metric.ObserveCount(7.0, 10); // Observe again at the same time
 
         // Assert
-        AssertHelpers.AreEqual(10.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(10, metric.CurrentTime);
         AssertHelpers.AreEqual(7.0, metric.CurrentCount);                           // Count updated
         AssertHelpers.AreEqual(5.0 + (7.0 - 5.0), metric.TotalIncrementObserved);   // Increment 5 (0->5) + 2 (5->7) = 7
-        AssertHelpers.AreEqual(10.0, metric.TotalActiveDuration);                   // Duration should not change
+        AssertHelpers.AreEqual(10, metric.TotalActiveDuration);                   // Duration should not change
         AssertHelpers.AreEqual(0.0, metric.CumulativeCountTimeProduct);             // CCTP should not change
         AssertHelpers.AreEqual(0.0, metric.AverageCount);                           // (0*10)/10
 
         // TimePerCount should still reflect duration for count 0, as no new duration passed
         AssertHelpers.AreEqual(1, metric.TimePerCount.Count);
-        AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]);
+        AssertHelpers.AreEqual(10, metric.TimePerCount[0]);
     }
 
 
@@ -140,11 +139,11 @@ public class TimeBasedMetricTests
     public void ObserveChange_PositiveChange_AccumulatesMetricsCorrectly()
     {
         // Arrange
-        var metric = new TimeBasedMetric(initialTime: 0.0);
-        metric.ObserveCount(count: 5.0, clockTime: 10.0); // Count 0 for 10s, CCTP=0. Then count becomes 5. TotalIncrement=5.
+        var metric = new TimeBasedMetric(initialTime: 0);
+        metric.ObserveCount(count: 5.0, clockTime: 10); // Count 0 for 10s, CCTP=0. Then count becomes 5. TotalIncrement=5.
 
         // Act
-        metric.ObserveChange(change: 3.0, clockTime: 15.0); // Count 5 for 5s, CCTP += 5*5=25. Then count becomes 8. TotalIncrement += 3.
+        metric.ObserveChange(change: 3.0, clockTime: 15); // Count 5 for 5s, CCTP += 5*5=25. Then count becomes 8. TotalIncrement += 3.
 
         // Assert
         AssertHelpers.AreEqual(15.0, metric.CurrentTime);
@@ -159,14 +158,14 @@ public class TimeBasedMetricTests
     public void ObserveChange_NegativeChange_AccumulatesMetricsCorrectly()
     {
         // Arrange
-        var metric = new TimeBasedMetric(initialTime: 0.0);
-        metric.ObserveCount(count: 10.0, clockTime: 5.0); // Count 0 for 5s. TotalIncrement=10.
+        var metric = new TimeBasedMetric(initialTime: 0);
+        metric.ObserveCount(count: 10.0, clockTime: 5); // Count 0 for 5s. TotalIncrement=10.
 
         // Act
-        metric.ObserveChange(change: -4.0, clockTime: 12.0); // Count 10 for 7s. CCTP += 10*7=70. Then count becomes 6. TotalDecrement=4.
+        metric.ObserveChange(change: -4.0, clockTime: 12); // Count 10 for 7s. CCTP += 10*7=70. Then count becomes 6. TotalDecrement=4.
 
         // Assert
-        AssertHelpers.AreEqual(12.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(12, metric.CurrentTime);
         AssertHelpers.AreEqual(6.0, metric.CurrentCount); // 10 - 4
         AssertHelpers.AreEqual(10.0, metric.TotalIncrementObserved);
         AssertHelpers.AreEqual(4.0, metric.TotalDecrementObserved);
@@ -182,12 +181,12 @@ public class TimeBasedMetricTests
         var metric = new TimeBasedMetric();
 
         // Act
-        metric.ObserveCount(4.7, 10.0); // Count 0 for 10s.
-        metric.ObserveCount(5.2, 20.0); // Count 4.7 for 10s.
+        metric.ObserveCount(4.7, 10); // Count 0 for 10s.
+        metric.ObserveCount(5.2, 20); // Count 4.7 for 10s.
 
         // Assert
-        AssertHelpers.AreEqual(10.0, metric.TimePerCount[0]); // For count 0
-        AssertHelpers.AreEqual(10.0, metric.TimePerCount[5]); // For count 4.7, which rounds to 5
+        AssertHelpers.AreEqual(10, metric.TimePerCount[0]); // For count 0
+        AssertHelpers.AreEqual(10, metric.TimePerCount[5]); // For count 4.7, which rounds to 5
     }
 
     [Fact(DisplayName = "Rates (Increment/Decrement) should be calculated correctly.")]
@@ -258,24 +257,24 @@ public class TimeBasedMetricTests
     {
         // Arrange
         var metric = new TimeBasedMetric(enableHistory: true);
-        metric.ObserveCount(5.0, 10.0);
+        metric.ObserveCount(5.0, 10);
         double countAtWarmup = 3.0;
 
         // Act
-        metric.WarmedUp(20.0, countAtWarmup);
+        metric.WarmedUp(20, countAtWarmup);
 
         // Assert
-        Assert.Equal(20.0, metric.InitialTime);
-        Assert.Equal(20.0, metric.CurrentTime);
+        Assert.Equal(20, metric.InitialTime);
+        Assert.Equal(20, metric.CurrentTime);
         Assert.Equal(countAtWarmup, metric.CurrentCount);
         Assert.Equal(0.0, metric.TotalIncrementObserved);
-        Assert.Equal(0.0, metric.TotalActiveDuration);
+        Assert.Equal(0, metric.TotalActiveDuration);
         Assert.True(metric.IsHistoryEnabled);
         Assert.Empty(metric.TimePerCount);
 
         // Verify history is reset and contains the new baseline
         var historyItem = Assert.Single(metric.History);
-        Assert.Equal(20.0, historyItem.Time);
+        Assert.Equal(20, historyItem.Time);
         Assert.Equal(countAtWarmup, historyItem.CountValue);
     }
 
@@ -385,13 +384,13 @@ public class TimeBasedMetricTests
 
         // Bin 1: [0, 2)
         AssertHelpers.AreEqual(0.0, histogram[0].CountLowerBound);
-        AssertHelpers.AreEqual(10.0 + 10.0, histogram[0].TotalTime); // Time for count 0 and 1
+        AssertHelpers.AreEqual(10 + 10, histogram[0].TotalTime); // Time for count 0 and 1
         AssertHelpers.AreEqual((10.0 + 10.0) / 30.0, histogram[0].Probability);
         AssertHelpers.AreEqual((10.0 + 10.0) / 30.0, histogram[0].CumulativeProbability);
 
         // Bin 2: [2, 4)
         AssertHelpers.AreEqual(2.0, histogram[1].CountLowerBound);
-        AssertHelpers.AreEqual(10.0, histogram[1].TotalTime); // Time for count 3
+        AssertHelpers.AreEqual(10, histogram[1].TotalTime); // Time for count 3
         AssertHelpers.AreEqual(10.0 / 30.0, histogram[1].Probability);
         AssertHelpers.AreEqual((20.0 + 10.0) / 30.0, histogram[1].CumulativeProbability);
     }

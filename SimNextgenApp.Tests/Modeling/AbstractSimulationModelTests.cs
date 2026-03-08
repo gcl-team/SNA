@@ -70,7 +70,7 @@ internal class ConcreteTestModel : AbstractSimulationModel
         Debug.WriteLine($"TestModel {Name} Initialized.");
     }
 
-    public override void WarmedUp(double simulationTime)
+    public override void WarmedUp(long simulationTime)
     {
         Debug.WriteLine($"TestModel {Name} WarmedUp at {simulationTime}.");
     }
