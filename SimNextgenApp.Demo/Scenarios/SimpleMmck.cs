@@ -50,7 +50,18 @@ internal static class SimpleMmck
         programLogger.LogInformation($"M/M/c/K System Created: c={mmckSystem.NumberOfServersC}, K={mmckSystem.SystemCapacityK}, Queue Capacity (K-c)={mmckSystem.WaitingLine.Capacity}");
 
         // 5. Create a Run Strategy
-        var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
+        // Use Milliseconds for sub-second precision (exponential distributions often generate sub-second values)
+        var timeUnit = SimulationTimeUnit.Milliseconds;
+
+        long runDurationInUnits = TimeUnitConverter.ConvertToSimulationUnits(
+            TimeSpan.FromSeconds(runDuration),
+            timeUnit
+        );
+        long? warmupDurationInUnits = warmupDuration > 0
+            ? TimeUnitConverter.ConvertToSimulationUnits(TimeSpan.FromSeconds(warmupDuration), timeUnit)
+            : null;
+
+        var runStrategy = new DurationRunStrategy(runDurationInUnits, warmupDurationInUnits);
 
         // 6. Create a Memory Tracer to capture simulation events
         //    The MemoryTracer records every event that is scheduled and executed.
@@ -62,7 +73,7 @@ internal static class SimpleMmck
             model: mmckSystem,
             runStrategy: runStrategy,
             "M/M/c/K Profile",
-            SimulationTimeUnit.Seconds,
+            timeUnit, // Use Milliseconds for precision
             loggerFactory: loggerFactory,
             tracer: tracer
         );
@@ -106,7 +117,8 @@ internal static class SimpleMmck
             var serverReporter = new ServerConsoleReporter<MyLoad>(
                 mmckSystem.ServiceChannels[s],
                 mmckSystem.ServiceChannelObservers[s],
-                programLogger);
+                programLogger,
+                timeUnit); // Use the same unit as the simulation
             serverReporter.Report();
         }
 

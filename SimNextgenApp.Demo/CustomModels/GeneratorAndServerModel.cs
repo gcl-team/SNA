@@ -47,7 +47,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         ServicePointObserver = new ServerObserver<MyLoad>(this.ServicePoint);
     }
 
-    private void HandleLoadGenerated(MyLoad load, double generationTime)
+    private void HandleLoadGenerated(MyLoad load, long generationTime)
     {
         load.CreationTime = generationTime;
         _modelLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime:F2} -> {load}. Attempting service...");
@@ -76,7 +76,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         LoadGenerator.Initialize(engineContext); // Generator will schedule its GeneratorStartEvent
     }
 
-    public override void WarmedUp(double simulationTime)
+    public override void WarmedUp(long simulationTime)
     {
         LoadGenerator.WarmedUp(simulationTime);
         ServicePoint.WarmedUp(simulationTime);

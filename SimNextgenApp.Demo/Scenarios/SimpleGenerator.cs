@@ -68,7 +68,10 @@ internal static class SimpleGenerator
         };
 
         // 4. Create the tracer using the GLOBAL Serilog logger.
-        var runStrategy = new DurationRunStrategy(50.0);
+        // Use Milliseconds for sub-second precision
+        var timeUnit = SimulationTimeUnit.Milliseconds;
+        long duration = TimeUnitConverter.ConvertToSimulationUnits(TimeSpan.FromSeconds(50.0), timeUnit);
+        var runStrategy = new DurationRunStrategy(duration);
 
         // 5. The SeqTracer records every event that is scheduled and executed.
         var tracer = new SeqTracer(Log.Logger);
@@ -79,7 +82,7 @@ internal static class SimpleGenerator
             model: myGenerator,
             runStrategy: runStrategy,
             "Simple Generator Profile",
-            SimulationTimeUnit.Seconds,
+            timeUnit,
             loggerFactory: loggerFactory,
             tracer: tracer
         );

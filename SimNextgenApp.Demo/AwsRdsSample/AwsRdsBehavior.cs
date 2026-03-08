@@ -32,6 +32,8 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     {
         if (_engineContext == null) throw new InvalidOperationException("Context missing");
 
+        // ClockTime is in simulation units (Seconds in this case, as set in AwsRdsBurstScenario)
+        // Convert to double for credit calculations
         double now = _engineContext.ClockTime;
         double timeDelta = now - _lastUpdateTime;
 

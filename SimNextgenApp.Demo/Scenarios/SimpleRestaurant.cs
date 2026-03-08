@@ -64,11 +64,15 @@ internal class SimpleRestaurant
             );
 
         // 4. Create Run Strategy and Profile
-        var runStrategy = new DurationRunStrategy(TimeSpan.FromMinutes(60 * 8).TotalSeconds);
+        // Use Milliseconds for sub-second precision (arrival/service times may be fractional)
+        var timeUnit = SimulationTimeUnit.Milliseconds;
+        var duration = TimeSpan.FromMinutes(60 * 8);
+        long durationInUnits = TimeUnitConverter.ConvertToSimulationUnits(duration, timeUnit);
+        var runStrategy = new DurationRunStrategy(durationInUnits);
         var profile = new SimulationProfile(
             model: restaurantModel,
             runStrategy: runStrategy,
-            timeUnit: SimulationTimeUnit.Seconds,
+            timeUnit: timeUnit,
             loggerFactory: loggerFactory
         );
 

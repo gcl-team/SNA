@@ -104,7 +104,7 @@ internal class RestaurantModel : AbstractSimulationModel
         CookedFoodQueueForPickup.LoadDequeued += HandleFoodPickup;
     }
 
-    private void Waiters_ResourceReleased(Waiter arg1, double arg2)
+    private void Waiters_ResourceReleased(Waiter arg1, long arg2)
     {
         // Check 1: Any customer groups waiting for a table?
         TrySeatWaitingCustomer();
@@ -171,7 +171,7 @@ internal class RestaurantModel : AbstractSimulationModel
         }
     }
 
-    internal void HandleWaitingCustomerDequeued(CustomerGroup group, double dequeueTime)
+    internal void HandleWaitingCustomerDequeued(CustomerGroup group, long dequeueTime)
     {
         Table? availableTable = TableManager.FindAvailableTable(group.GroupSize);
 
@@ -247,7 +247,7 @@ internal class RestaurantModel : AbstractSimulationModel
         OrderToDeliveryTimes.Add(context.ClockTime - order.TimeSubmitted);
     }
 
-    internal void HandleCookingComplete(Order order, double finishedCookingTime)
+    internal void HandleCookingComplete(Order order, long finishedCookingTime)
     {
         Waiter? availableWaiter = Waiters.TryAcquire(_runContext);
 
@@ -278,7 +278,7 @@ internal class RestaurantModel : AbstractSimulationModel
         }
     }
 
-    internal void HandleFoodPickup(Order order, double pickupTime)
+    internal void HandleFoodPickup(Order order, long pickupTime)
     {
         // A waiter is free and there's food waiting.
         Waiter? availableWaiter = Waiters.TryAcquire(_runContext);
@@ -332,7 +332,7 @@ internal class RestaurantModel : AbstractSimulationModel
         TrySeatWaitingCustomer();
     }
 
-    public override void WarmedUp(double simulationTime)
+    public override void WarmedUp(long simulationTime)
     {
         CustomerWaitTimesForTable.Clear();
         OrderToDeliveryTimes.Clear();

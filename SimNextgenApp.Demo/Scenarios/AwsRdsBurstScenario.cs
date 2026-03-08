@@ -53,12 +53,20 @@ internal static class AwsBurstScenario
         );
 
         // 5. Create Engine
+        // Use Seconds as the time unit (inter-arrival is 0.05s, AWS credit calculations are per-second)
+        var timeUnit = SimulationTimeUnit.Seconds;
+
+        long runDurationInUnits = TimeUnitConverter.ConvertToSimulationUnits(
+            TimeSpan.FromSeconds(runDuration),
+            timeUnit
+        );
+
         var profile = new SimulationProfile(
-            model, 
-            new DurationRunStrategy(runDuration, 0), 
-            "AWS T3 Crash", 
-            SimulationTimeUnit.Seconds, 
-            loggerFactory, 
+            model,
+            new DurationRunStrategy(runDurationInUnits, null),
+            "AWS RDS Burstable Simulation",
+            timeUnit,
+            loggerFactory,
             new MemoryTracer()
         );
 

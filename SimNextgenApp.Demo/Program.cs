@@ -250,7 +250,7 @@ simpleRestaurantCommand.AddOption(customerArrivalMinOption);
 simpleRestaurantCommand.AddOption(stopProbabilityOption);
 
 simpleRestaurantCommand.SetHandler(
-    (List<Table> tables, List<Waiter> waiters, Point entraceLocation, Point kitchenLocation,
+    (List<Table> tables, List<Waiter> waiters, Point entranceLocation, Point kitchenLocation,
     double customerArrivalMin, double stopProbability) =>
 {
     Log.Logger = new LoggerConfiguration()
@@ -268,7 +268,7 @@ simpleRestaurantCommand.SetHandler(
 
     Console.WriteLine("====== Running SimpleRestaurant ======");
     SimpleRestaurant.RunDemo(loggerFactory,
-        tables, waiters, entraceLocation, kitchenLocation, customerInterArrivalTime, customerFactory);
+        tables, waiters, entranceLocation, kitchenLocation, customerInterArrivalTime, customerFactory);
 }, tablesOption, waitersOption, entranceOption, kitchenOption,
     customerArrivalMinOption, stopProbabilityOption);
 

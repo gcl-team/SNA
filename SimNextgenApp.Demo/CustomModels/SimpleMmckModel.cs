@@ -95,7 +95,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
         }
     }
 
-    private void HandleLoadGeneratedByGenerator(MyLoad load, double generationTime)
+    private void HandleLoadGeneratedByGenerator(MyLoad load, long generationTime)
     {
         load.CreationTime = generationTime;
         _modelLogger.LogInformation($"--- [LOAD ARRIVAL] SimTime: {generationTime:F2} -> {load}.");
@@ -170,7 +170,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
         };
     }
 
-    public override void WarmedUp(double simulationTime)
+    public override void WarmedUp(long simulationTime)
     {
         LoadGenerator.WarmedUp(simulationTime);
         WaitingLine.WarmedUp(simulationTime);
