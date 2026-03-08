@@ -101,7 +101,7 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// </remarks>
     public override void WarmedUp(long simulationTime)
     {
-        StartTime = (long)simulationTime;
+        StartTime = simulationTime;
         LoadsGeneratedCount = 0;
     }
 
