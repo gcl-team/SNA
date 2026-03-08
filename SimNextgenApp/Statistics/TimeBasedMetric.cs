@@ -313,7 +313,7 @@ public class TimeBasedMetric
             for (int i = 0; i < histogram.Count; i++)
             {
                 var bin = histogram[i];
-                double probability = bin.TotalTime / TotalActiveDuration;
+                double probability = (double)bin.TotalTime / TotalActiveDuration;
                 cumulativeProbability += probability;
 
                 // Create new instance if HistogramBin is immutable, or modify if mutable
