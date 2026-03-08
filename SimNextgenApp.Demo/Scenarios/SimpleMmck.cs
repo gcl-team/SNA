@@ -68,7 +68,7 @@ internal static class SimpleMmck
 
         if (!validation.IsValid)
         {
-            programLogger.LogWarning($"💡 TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
+            programLogger.LogWarning($"TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
             targetTimeUnit = validation.RecommendedUnit; // Auto-switch to recommended unit
         }
 

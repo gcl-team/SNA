@@ -82,7 +82,7 @@ internal class SimpleRestaurant
 
         if (!validation.IsValid)
         {
-            logger.LogWarning($"💡 TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
+            logger.LogWarning($"TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
             targetTimeUnit = validation.RecommendedUnit; // Auto-switch to recommended unit
         }
 
