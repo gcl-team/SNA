@@ -84,7 +84,7 @@ public class TimeBasedMetricTests
         metric.ObserveCount(6.0, 20);     // Count 8 for 5s (20-15), then becomes 6
 
         // Assert
-        AssertHelpers.AreEqual(20.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(20, metric.CurrentTime);
         AssertHelpers.AreEqual(6.0, metric.CurrentCount);
 
         // Increments: (5-0) + (8-5) = 5 + 3 = 8
@@ -146,10 +146,10 @@ public class TimeBasedMetricTests
         metric.ObserveChange(change: 3.0, clockTime: 15); // Count 5 for 5s, CCTP += 5*5=25. Then count becomes 8. TotalIncrement += 3.
 
         // Assert
-        AssertHelpers.AreEqual(15.0, metric.CurrentTime);
+        AssertHelpers.AreEqual(15, metric.CurrentTime);
         AssertHelpers.AreEqual(8.0, metric.CurrentCount); // 5 + 3
         AssertHelpers.AreEqual(5.0 + 3.0, metric.TotalIncrementObserved); // Initial 5 + change 3
-        AssertHelpers.AreEqual(10.0 + 5.0, metric.TotalActiveDuration); // 15
+        AssertHelpers.AreEqual(10 + 5, metric.TotalActiveDuration); // 15
         AssertHelpers.AreEqual(0.0 + (5.0 * 5.0), metric.CumulativeCountTimeProduct); // 25
         AssertHelpers.AreEqual(25.0 / 15.0, metric.AverageCount);
     }
@@ -169,7 +169,7 @@ public class TimeBasedMetricTests
         AssertHelpers.AreEqual(6.0, metric.CurrentCount); // 10 - 4
         AssertHelpers.AreEqual(10.0, metric.TotalIncrementObserved);
         AssertHelpers.AreEqual(4.0, metric.TotalDecrementObserved);
-        AssertHelpers.AreEqual(5.0 + 7.0, metric.TotalActiveDuration); // 12
+        AssertHelpers.AreEqual(5 + 7, metric.TotalActiveDuration); // 12
         AssertHelpers.AreEqual(0.0 + (10.0 * 7.0), metric.CumulativeCountTimeProduct); // 70
         AssertHelpers.AreEqual(70.0 / 12.0, metric.AverageCount);
     }
@@ -290,9 +290,9 @@ public class TimeBasedMetricTests
 
         // Assert
         Assert.Equal(2, metric.History.Count);
-        AssertHelpers.AreEqual(10.0, metric.History[0].Time);
+        AssertHelpers.AreEqual(10, metric.History[0].Time);
         AssertHelpers.AreEqual(5.0, metric.History[0].CountValue);
-        AssertHelpers.AreEqual(15.0, metric.History[1].Time);
+        AssertHelpers.AreEqual(15, metric.History[1].Time);
         AssertHelpers.AreEqual(3.0, metric.History[1].CountValue);
     }
 
