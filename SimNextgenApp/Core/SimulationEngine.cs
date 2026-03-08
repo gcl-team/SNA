@@ -11,15 +11,20 @@ namespace SimNextgenApp.Core;
 
 /// <summary>
 /// Manages the execution of a discrete event simulation run.
-/// Owns the simulation clock and the Future Event List (FEL), and processes events in chronological order.
+/// Owns the simulation clock (tracked in simulation time units as defined by the SimulationProfile)
+/// and the Future Event List (FEL), and processes events in chronological order.
 /// </summary>
+/// <remarks>
+/// The simulation clock uses pure integer time representation. The meaning of one unit
+/// (e.g., seconds, milliseconds, days) is determined by the SimulationProfile's TimeUnit setting.
+/// This allows simulations to run at any time scale without being tied to a specific physical unit.
+/// </remarks>
 public class SimulationEngine : IScheduler, IRunContext
 {
     private readonly ILogger<SimulationEngine> _logger;
     private readonly ISimulationTracer? _tracer;
 
     private readonly SimulationProfile _profile;
-    private readonly long _ticksPerSimulationUnit;
     private readonly PriorityQueue<AbstractEvent, (long Time, long Sequence)> _fel;
     private readonly Lock _felLock = new();
     private long _clockTime = 0;
@@ -34,7 +39,8 @@ public class SimulationEngine : IScheduler, IRunContext
     public ISimulationModel Model { get; }
 
     /// <summary>
-    /// Gets the current simulation clock time in simulation time units.
+    /// Gets the current simulation clock time as an integer count of simulation time units.
+    /// The unit (seconds, milliseconds, etc.) is defined by the simulation profile's TimeUnit setting.
     /// </summary>
     public long ClockTime => _clockTime;
 
@@ -61,7 +67,8 @@ public class SimulationEngine : IScheduler, IRunContext
     }
 
     /// <summary>
-    /// Gets the simulation time of the next scheduled event, or long.MaxValue if no events are scheduled.
+    /// Gets the simulation time of the next scheduled event (in simulation time units),
+    /// or long.MaxValue if no events are scheduled.
     /// This property is thread-safe.
     /// </summary>
     public long HeadEventTime
@@ -78,10 +85,11 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <summary>
     /// Initializes a new instance of the <see cref="SimulationEngine"/> class.
     /// </summary>
-    /// <param name="baseTimeUnit">Defines the meaning of one unit of the simulation 'long' ClockTime in terms of standard TimeSpan units.</param>
-    /// <param name="model">The simulation model instance to execute.</param>
-    /// <param name="loggerFactory">Factory for creating loggers.</param>
-    /// <exception cref="ArgumentNullException">Thrown if model or loggerFactory is null.</exception>
+    /// <param name="profile">
+    /// The simulation profile containing the model, run strategy, time unit configuration,
+    /// and other simulation settings.
+    /// </param>
+    /// <exception cref="ArgumentNullException">Thrown if profile is null.</exception>
     public SimulationEngine(SimulationProfile profile)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
@@ -89,7 +97,6 @@ public class SimulationEngine : IScheduler, IRunContext
         _logger = _profile.LoggerFactory?.CreateLogger<SimulationEngine>() ?? new NullLogger<SimulationEngine>();
         _tracer = _profile.Tracer;
 
-        _ticksPerSimulationUnit = TimeUnitConverter.GetTicksPerSimulationUnit(_profile.TimeUnit);
         Model = _profile.Model;
 
         _fel = new PriorityQueue<AbstractEvent, (long Time, long Sequence)>();
@@ -226,7 +233,8 @@ public class SimulationEngine : IScheduler, IRunContext
             ExecutedEventCount: _executedEventCount,
             RealTimeDuration: realTimeDuration,
             ModelId: Model.Id,
-            ModelName: Model.Name
+            ModelName: Model.Name,
+            TimeUnit: _profile.TimeUnit
         );
     }
 
@@ -279,11 +287,8 @@ public class SimulationEngine : IScheduler, IRunContext
         if (delay < TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(delay), "Delay cannot be negative.");
 
-        if (_ticksPerSimulationUnit <= 0)
-            throw new InvalidOperationException("Ticks per simulation unit is not configured properly.");
-
-        // Convert TimeSpan delay to simulation time units (long)
-        long delayInSimUnits = delay.Ticks / _ticksPerSimulationUnit;
+        // Convert TimeSpan delay to simulation units based on the profile's TimeUnit setting
+        long delayInSimUnits = TimeUnitConverter.ConvertToSimulationUnits(delay, _profile.TimeUnit);
         long eventExecutionTime = ClockTime + delayInSimUnits;
 
         _logger.LogDebug("Scheduling event {EventType} with delay {Delay} ({DelayInSimUnits} simulation units). FEL count before scheduling: {FELCount}",

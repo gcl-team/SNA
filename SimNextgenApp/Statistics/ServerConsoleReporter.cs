@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
 
 namespace SimNextgenApp.Statistics;
@@ -8,12 +9,16 @@ public class ServerConsoleReporter<TLoad> : IReporter
     private readonly ServerObserver<TLoad> _observer;
     private readonly Server<TLoad> _server;
     private readonly ILogger _logger;
+    private readonly SimulationTimeUnit _timeUnit;
+    private readonly string _unitDisplayName;
 
-    public ServerConsoleReporter(Server<TLoad> server, ServerObserver<TLoad> observer, ILogger logger)
+    public ServerConsoleReporter(Server<TLoad> server, ServerObserver<TLoad> observer, ILogger logger, SimulationTimeUnit timeUnit)
     {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         _observer = observer ?? throw new ArgumentNullException(nameof(observer));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _timeUnit = timeUnit;
+        _unitDisplayName = TimeUnitConverter.GetUnitDisplayName(timeUnit);
     }
 
     /// <inheritdoc />
@@ -31,8 +36,8 @@ public class ServerConsoleReporter<TLoad> : IReporter
         _logger.LogInformation("\n--- Detailed Server Busy Units Metric (post-warmup) ---");
         _logger.LogInformation($"Total Increments (servers becoming busy): {busyServerMetric.TotalIncrementObserved}");
         _logger.LogInformation($"Total Decrements (servers becoming free): {busyServerMetric.TotalDecrementObserved}");
-        _logger.LogInformation($"Decrement Rate (Throughput): {busyServerMetric.DecrementRate:F4} per unit time");
-        _logger.LogInformation($"Estimated Avg Sojourn Time (Little's Law): {busyServerMetric.AverageSojournTime:F3}");
+        _logger.LogInformation($"Decrement Rate (Throughput): {busyServerMetric.DecrementRate:F4} per {_unitDisplayName}");
+        _logger.LogInformation($"Estimated Avg Sojourn Time (Little's Law): {busyServerMetric.AverageSojournTime:F3} {_unitDisplayName}");
 
         try
         {
@@ -58,7 +63,7 @@ public class ServerConsoleReporter<TLoad> : IReporter
 
             foreach (var kvp in busyServerMetric.TimePerCount.OrderBy(k => k.Key))
             {
-                _logger.LogInformation($"  Count {kvp.Key}: {kvp.Value:F2} time units ({kvp.Value / totalDuration:P2})");
+                _logger.LogInformation($"  Count {kvp.Key}: {kvp.Value:F2} {_unitDisplayName} ({kvp.Value / totalDuration:P2})");
             }
         }
         else

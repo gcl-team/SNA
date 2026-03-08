@@ -13,8 +13,15 @@ namespace SimNextgenApp.Core;
 public interface IRunContext
 {
     /// <summary>
-    /// Gets the current simulation time in simulation time units.
+    /// Gets the current simulation clock time as an integer count of simulation time units.
+    /// The meaning of one unit is defined by the <see cref="SimulationProfile"/>'s TimeUnit setting
+    /// (e.g., if TimeUnit is Seconds, ClockTime=5000 means 5000 seconds).
     /// </summary>
+    /// <remarks>
+    /// This value is always a non-negative integer representing elapsed simulation time in the
+    /// units specified by the simulation profile. It is NOT tied to any physical time unit like
+    /// clock ticks or milliseconds - the unit is entirely determined by the simulation configuration.
+    /// </remarks>
     long ClockTime { get; }
 
     /// <summary>

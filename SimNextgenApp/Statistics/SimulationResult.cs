@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using SimNextgenApp.Core.Utilities;
 
 namespace SimNextgenApp.Statistics;
 
@@ -12,6 +13,7 @@ namespace SimNextgenApp.Statistics;
 /// <param name="RealTimeDuration">The actual real-world time it took to execute the simulation run.</param>
 /// <param name="ModelId">The ID of the model that was run.</param>
 /// <param name="ModelName">The name of the model that was run.</param>
+/// <param name="TimeUnit">The simulation time unit used for this run.</param>
 public record SimulationResult(
     Guid ProfileRunId,
     string ProfileName,
@@ -19,7 +21,8 @@ public record SimulationResult(
     long ExecutedEventCount,
     TimeSpan RealTimeDuration,
     long ModelId,
-    string ModelName
+    string ModelName,
+    SimulationTimeUnit TimeUnit
 )
 {
     /// <summary>
@@ -29,11 +32,16 @@ public record SimulationResult(
     public override string ToString()
     {
         var sb = new System.Text.StringBuilder();
+
+        // Convert simulation time to human-readable format
+        double timeValue = TimeUnitConverter.ConvertFromSimulationUnits(FinalClockTime, TimeUnit);
+        string unitName = TimeUnitConverter.GetUnitDisplayName(TimeUnit);
+
         sb.AppendLine("");
         sb.AppendLine("------------------- Simulation Run Results -------------------");
         sb.AppendLine($"  Profile Name:           {ProfileName} (ID: {ProfileRunId})");
         sb.AppendLine($"  Model Name:             {ModelName} (ID: {ModelId})");
-        sb.AppendLine($"  Final Simulation Time:  {FinalClockTime:N0} time units");
+        sb.AppendLine($"  Final Simulation Time:  {timeValue:N2} {unitName}");
         sb.AppendLine($"  Executed Event Count:   {ExecutedEventCount:N0}");
         sb.AppendLine($"  Real-Time Execution:    {RealTimeDuration.TotalMilliseconds:F2} ms");
         sb.AppendLine("--------------------------------------------------------------");
@@ -55,14 +63,15 @@ public record SimulationResult(
     /// </summary>
     public static string GetCsvHeader()
     {
-        return "ProfileId,ProfileName,ModelId,ModelName,FinalClockTime,ExecutedEventCount,RealTimeDurationMs";
+        return "ProfileId,ProfileName,ModelId,ModelName,FinalClockTime,TimeUnit,ExecutedEventCount,RealTimeDurationMs";
     }
 
     /// <summary>
-    // Returns the result as a single CSV data row.
+    /// Returns the result as a single CSV data row.
     /// </summary>
     public string ToCsvRow()
     {
-        return $"{ProfileRunId},{ProfileName},{ModelId},{ModelName},{FinalClockTime},{ExecutedEventCount},{RealTimeDuration.TotalMilliseconds}";
+        string unitSymbol = TimeUnitConverter.GetUnitSymbol(TimeUnit);
+        return $"{ProfileRunId},{ProfileName},{ModelId},{ModelName},{FinalClockTime},{unitSymbol},{ExecutedEventCount},{RealTimeDuration.TotalMilliseconds}";
     }
 }
