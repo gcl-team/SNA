@@ -41,7 +41,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
         ServicePoint.LoadDeparted += (load, departureTime) =>
         {
             load.ServiceEndTime = departureTime;
-            _modelLogger.LogInformation($"--- [LOAD DEPARTED] SimTime: {departureTime:F2} -> {load}. Service time: {load.ServiceEndTime - load.ServiceStartTime:F2} ---");
+            _modelLogger.LogInformation($"--- [LOAD DEPARTED] SimTime: {departureTime} -> {load}. Service time: {load.ServiceEndTime - load.ServiceStartTime} ---");
         };
 
         ServicePointObserver = new ServerObserver<MyLoad>(this.ServicePoint);
@@ -50,7 +50,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
     private void HandleLoadGenerated(MyLoad load, long generationTime)
     {
         load.CreationTime = generationTime;
-        _modelLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime:F2} -> {load}. Attempting service...");
+        _modelLogger.LogInformation($"--- [LOAD GENERATED] SimTime: {generationTime} -> {load}. Attempting service...");
 
         // We pass the engine context so the Server can schedule future events (e.g., ServerServiceCompleteEvent).
         bool accepted = ServicePoint.TryStartService(load, _runContext);

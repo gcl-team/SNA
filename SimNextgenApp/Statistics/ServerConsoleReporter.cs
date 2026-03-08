@@ -9,7 +9,6 @@ public class ServerConsoleReporter<TLoad> : IReporter
     private readonly ServerObserver<TLoad> _observer;
     private readonly Server<TLoad> _server;
     private readonly ILogger _logger;
-    private readonly SimulationTimeUnit _timeUnit;
     private readonly string _unitDisplayName;
 
     public ServerConsoleReporter(Server<TLoad> server, ServerObserver<TLoad> observer, ILogger logger, SimulationTimeUnit timeUnit)
@@ -17,7 +16,6 @@ public class ServerConsoleReporter<TLoad> : IReporter
         _server = server ?? throw new ArgumentNullException(nameof(server));
         _observer = observer ?? throw new ArgumentNullException(nameof(observer));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        _timeUnit = timeUnit;
         _unitDisplayName = TimeUnitConverter.GetUnitDisplayName(timeUnit);
     }
 

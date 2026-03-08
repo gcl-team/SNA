@@ -64,7 +64,7 @@ public record SimulationResult(
     /// </summary>
     public static string GetCsvHeader()
     {
-        return "ProfileId,ProfileName,ModelId,ModelName,FinalClockTime,TimeUnit,ExecutedEventCount,RealTimeDurationMs";
+        return "ProfileRunId,ProfileName,ModelId,ModelName,FinalClockTime,TimeUnit,ExecutedEventCount,RealTimeDurationMs";
     }
 
     /// <summary>

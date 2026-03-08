@@ -72,7 +72,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
         {
             server.LoadDeparted += (departedLoad, departureTime) =>
             {
-                _modelLogger.LogInformation($"--- [SERVER {server.Name} FREE] SimTime: {departureTime:F2}. Triggering dequeue attempt.");
+                _modelLogger.LogInformation($"--- [SERVER {server.Name} FREE] SimTime: {departureTime}. Triggering dequeue attempt.");
                 // Just poke the queue. The queue will handle the rest.
                 WaitingLine.TriggerDequeueAttempt(_runContext!);
             };
@@ -89,7 +89,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
                 // The server is now free. Poke the queue to see if it has anyone waiting.
                 // The internal logic in the queue will then decide if it should dequeue an item.
                 // If it does, the Dequeue event will fire.
-                _modelLogger.LogInformation($"--- [SERVER FREE] SimTime: {departureTime:F2}. Server '{server.Name}' pokes queue.");
+                _modelLogger.LogInformation($"--- [SERVER FREE] SimTime: {departureTime}. Server '{server.Name}' pokes queue.");
                 WaitingLine.TriggerDequeueAttempt(_runContext!);
             };
         }
@@ -98,7 +98,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
     private void HandleLoadGeneratedByGenerator(MyLoad load, long generationTime)
     {
         load.CreationTime = generationTime;
-        _modelLogger.LogInformation($"--- [LOAD ARRIVAL] SimTime: {generationTime:F2} -> {load}.");
+        _modelLogger.LogInformation($"--- [LOAD ARRIVAL] SimTime: {generationTime} -> {load}.");
 
         // The context is guaranteed to be non-null after Initialize
         var context = _runContext!;

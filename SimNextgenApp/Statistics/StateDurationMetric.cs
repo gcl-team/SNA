@@ -7,8 +7,8 @@ namespace SimNextgenApp.Statistics;
 /// <typeparam name="TState">The type of the state being tracked, should be an Enum.</typeparam>
 public class StateDurationMetric<TState> where TState : Enum
 {
-    private List<(long Time, TState State)> _history;
-    private Dictionary<TState, long> _stateDurationsInternal;
+    private List<(long Time, TState State)> _history = [];
+    private Dictionary<TState, long> _stateDurationsInternal = [];
 
     /// <summary>
     /// The simulation time (in simulation time units) at which tracking started or was last reset (warmed up).
@@ -46,7 +46,7 @@ public class StateDurationMetric<TState> where TState : Enum
             : Array.Empty<(long Time, TState State)>();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="StateTracker{TState}"/> class.
+    /// Initializes a new instance of the <see cref="StateDurationMetric{TState}"/> class.
     /// </summary>
     /// <param name="initialState">The initial state of the entity.</param>
     /// <param name="initialTime">The simulation time (in simulation time units) at which tracking begins. Defaults to 0.</param>

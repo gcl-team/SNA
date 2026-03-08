@@ -62,7 +62,7 @@ internal static class SimpleGenerator
                                                 // For now, we just log it.
             var consoleLogger = loggerFactory.CreateLogger("LoadHandler");
             consoleLogger.LogInformation(
-                "--- [LOAD GENERATED] SimTime: {SimTime:F2} -> {LoadDetails} ---",
+                "--- [LOAD GENERATED] SimTime: {SimTime} -> {LoadDetails} ---",
                 generationTime,
                 load);
         };
