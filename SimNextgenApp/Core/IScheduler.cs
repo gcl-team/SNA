@@ -13,14 +13,14 @@ public interface IScheduler
     /// Gets the current simulation time in simulation time units.
     /// This is the time of the event currently being processed.
     /// </summary>
-    double ClockTime { get; }
+    long ClockTime { get; }
 
     /// <summary>
     /// Schedules a simulation event to occur at a specific future simulation time.
     /// </summary>
     /// <param name="ev">The event object to schedule.</param>
     /// <param name="time">The absolute simulation time (using simulation time units) at which the event should execute.</param>
-    void Schedule(AbstractEvent ev, double time);
+    void Schedule(AbstractEvent ev, long time);
 
     /// <summary>
     /// Schedules a simulation event to occur after a specified delay from the current simulation time.

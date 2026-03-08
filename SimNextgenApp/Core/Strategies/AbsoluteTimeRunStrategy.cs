@@ -5,18 +5,18 @@ namespace SimNextgenApp.Core.Strategies;
 /// </summary>
 public class AbsoluteTimeRunStrategy : IRunStrategy
 {
-    private readonly double _stopTime;
+    private readonly long _stopTime;
 
     /// <inheritdoc/>
-    public double? WarmupEndTime { get; }
+    public long? WarmupEndTime { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="AbsoluteTimeRunStrategy"/> class.
     /// </summary>
-    /// <param name="stopTime">The absolute simulation clock time at which to stop (e.g., stop at time 5000.0).</param>
+    /// <param name="stopTime">The absolute simulation clock time at which to stop (e.g., stop at time 5000).</param>
     /// <param name="warmupEndTime">Optional absolute simulation time when the warm-up period ends. Must be less than stopTime if provided.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if stopTime is non-positive, or if warmupEndTime is negative or greater than or equal to stopTime.</exception>
-    public AbsoluteTimeRunStrategy(double stopTime, double? warmupEndTime = null)
+    public AbsoluteTimeRunStrategy(long stopTime, long? warmupEndTime = null)
     {
         if (stopTime <= 0) // Assuming simulation time must be positive for a stop time
         {

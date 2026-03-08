@@ -54,22 +54,22 @@ public interface ISimQueue<TLoad> : IWarmupAware
     /// <summary>
     /// Occurs when a load has been successfully enqueued.
     /// </summary>
-    event Action<TLoad, double>? LoadEnqueued;
+    event Action<TLoad, long>? LoadEnqueued;
 
     /// <summary>
     /// Occurs when a load has been successfully dequeued.
     /// </summary>
-    event Action<TLoad, double>? LoadDequeued;
+    event Action<TLoad, long>? LoadDequeued;
 
     /// <summary>
     /// Occurs when an item attempts to enqueue but is balked due to a full queue.
     /// </summary>
-    event Action<TLoad, double>? LoadBalked;
+    event Action<TLoad, long>? LoadBalked;
 
     /// <summary>
     /// Occurs when the queue state changes, such as occupancy or its ToDequeue status.
     /// </summary>
-    event Action<double>? StateChanged;
+    event Action<long>? StateChanged;
 
     /// <summary>
     /// Attempts to enqueue the load by scheduling an EnqueueEvent for the current time.

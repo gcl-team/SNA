@@ -10,9 +10,9 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
     private readonly List<TResource> _idleResources;
     private readonly ILogger<ResourcePool<TResource>> _logger;
 
-    public event Action<TResource, double>? ResourceAcquired;
-    public event Action<TResource, double>? ResourceReleased;
-    public event Action<double>? RequestFailed;
+    public event Action<TResource, long>? ResourceAcquired;
+    public event Action<TResource, long>? ResourceReleased;
+    public event Action<long>? RequestFailed;
 
     public int TotalCapacity { get; }
     public int AvailableCount => _idleResources.Count;
@@ -46,7 +46,7 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
     /// <inheritdoc/>
     public TResource? TryAcquire(IRunContext engineContext)
     {
-        double currentTime = engineContext.ClockTime;
+        long currentTime = engineContext.ClockTime;
 
         if (AvailableCount > 0)
         {
@@ -71,7 +71,7 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
     {
         ArgumentNullException.ThrowIfNull(resource);
 
-        double currentTime = engineContext.ClockTime;
+        long currentTime = engineContext.ClockTime;
 
         if (_idleResources.Count >= TotalCapacity)
         {
@@ -105,7 +105,7 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
     }
 
     /// <inheritdoc/>
-    public override void WarmedUp(double simulationTime)
+    public override void WarmedUp(long simulationTime)
     {
         UtilizationMetric.WarmedUp(simulationTime, 0);
         UtilizationMetric.ObserveCount(BusyCount, simulationTime);

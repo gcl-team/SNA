@@ -15,7 +15,7 @@ public interface IRunContext
     /// <summary>
     /// Gets the current simulation time in simulation time units.
     /// </summary>
-    double ClockTime { get; }
+    long ClockTime { get; }
 
     /// <summary>
     /// Gets the number of events that have been executed so far in the simulation run.

@@ -5,19 +5,19 @@ namespace SimNextgenApp.Core.Strategies;
 /// </summary>
 public class DurationRunStrategy : IRunStrategy
 {
-    private readonly double _runDuration;
+    private readonly long _runDuration;
 
     /// <inheritdoc/>
-    public double? WarmupEndTime { get; }
+    public long? WarmupEndTime { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DurationRunStrategy"/> class.
     /// </summary>
-    /// <param name="runDuration">The total duration the simulation should run for (e.g., 1000.0 time units).</param>
+    /// <param name="runDuration">The total duration the simulation should run for (e.g., 1000 time units).</param>
     /// <param name="warmupDuration">Optional duration for the warm-up period. If specified, ISimulationModel.WarmedUp
     /// will be called when ClockTime reaches this value. Must be less than runDuration if provided.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if runDuration is non-positive, or if warmupDuration is negative or greater than or equal to runDuration.</exception>
-    public DurationRunStrategy(double runDuration, double? warmupDuration = null)
+    public DurationRunStrategy(long runDuration, long? warmupDuration = null)
     {
         if (runDuration <= 0)
         {

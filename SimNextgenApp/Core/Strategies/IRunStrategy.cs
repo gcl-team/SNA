@@ -12,8 +12,8 @@ public interface IRunStrategy
     /// The SimulationEngine will call ISimulationModel.WarmedUp() when
     /// ClockTime first reaches or exceeds this value.
     /// </summary>
-    /// <example>Return 1000.0 to indicate warm-up ends at simulation time 1000.</example>
-    double? WarmupEndTime { get; } // Use double, nullable
+    /// <example>Return 1000 to indicate warm-up ends at simulation time 1000.</example>
+    long? WarmupEndTime { get; } // Use long, nullable
 
     /// <summary>
     /// Determines whether the simulation engine should continue processing the next event.

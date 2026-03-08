@@ -6,17 +6,17 @@ namespace SimNextgenApp.Statistics;
 /// </summary>
 public class TimeBasedMetric
 {
-    private List<(double Time, double CountValue)> _history;
+    private List<(long Time, double CountValue)> _history;
 
     /// <summary>
     /// The starting time of the observation period.
     /// </summary>
-    public double InitialTime { get; private set; }
+    public long InitialTime { get; private set; }
 
     /// <summary>
     /// The current simulation time at the latest observation.
     /// </summary>
-    public double CurrentTime { get; private set; }
+    public long CurrentTime { get; private set; }
 
     /// <summary>
     /// The count value recorded at the current simulation time.
@@ -37,17 +37,17 @@ public class TimeBasedMetric
     /// Total simulation time elapsed during which metrics were actively recorded
     /// (sum of durations between observations).
     /// </summary>
-    public double TotalActiveDuration { get; private set; }
+    public long TotalActiveDuration { get; private set; }
 
     /// <summary>
     /// The average increment per unit of active simulation time.
     /// </summary>
-    public double IncrementRate => TotalActiveDuration == 0 ? 0 : TotalIncrementObserved / TotalActiveDuration;
+    public double IncrementRate => TotalActiveDuration == 0 ? 0 : (double)TotalIncrementObserved / TotalActiveDuration;
 
     /// <summary>
     /// The average decrement per unit of active simulation time.
     /// </summary>
-    public double DecrementRate => TotalActiveDuration == 0 ? 0 : TotalDecrementObserved / TotalActiveDuration;
+    public double DecrementRate => TotalActiveDuration == 0 ? 0 : (double)TotalDecrementObserved / TotalActiveDuration;
 
     /// <summary>
     /// Ratio of the total active duration (where metrics were recorded) to the
@@ -55,7 +55,7 @@ public class TimeBasedMetric
     /// A value of 1 indicates observations covered the entire span.
     /// </summary>
     public double ObservationCoverageRatio => (CurrentTime == InitialTime)
-      ? 0 : TotalActiveDuration / (CurrentTime - InitialTime);
+      ? 0 : (double)TotalActiveDuration / (CurrentTime - InitialTime);
 
     /// <summary>
     /// The cumulative sum of (count × elapsed time while at that count),
@@ -94,8 +94,8 @@ public class TimeBasedMetric
     /// Tracks the total observed time spent at each (rounded) integer count level.
     /// Key: Rounded count value. Value: Total duration spent at that count.
     /// </summary>
-    public IReadOnlyDictionary<int, double> TimePerCount => TimeForCountInternal;
-    private SortedDictionary<int, double> TimeForCountInternal { get; set; }
+    public IReadOnlyDictionary<int, long> TimePerCount => TimeForCountInternal;
+    private SortedDictionary<int, long> TimeForCountInternal { get; set; }
 
 
     /// <summary>
@@ -104,12 +104,12 @@ public class TimeBasedMetric
     /// Returned only if history tracking is enabled; otherwise, an empty list.
     /// The list is sorted by time.
     /// </summary>
-    public IReadOnlyList<(double Time, double CountValue)> History =>
+    public IReadOnlyList<(long Time, double CountValue)> History =>
         IsHistoryEnabled && _history != null
             ? _history.OrderBy(p => p.Time).ToList().AsReadOnly()
-            : Array.Empty<(double Time, double CountValue)>();
+            : Array.Empty<(long Time, double CountValue)>();
 
-    public TimeBasedMetric(double initialTime = 0.0, bool enableHistory = false)
+    public TimeBasedMetric(long initialTime = 0, bool enableHistory = false)
     {
         // Enforce initialTime is not negative, though DES time usually starts at 0
         if (initialTime < 0)
@@ -128,7 +128,7 @@ public class TimeBasedMetric
     /// <param name="count">The current observed count value.</param>
     /// <param name="clockTime">The simulation clock time at which the count is observed. Must not be less than CurrentTime.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if clockTime is less than CurrentTime.</exception>
-    public void ObserveCount(double count, double clockTime)
+    public void ObserveCount(double count, long clockTime)
     {
         if (clockTime < CurrentTime)
         {
@@ -153,7 +153,7 @@ public class TimeBasedMetric
 
             // Update time spent at the (previous) CurrentCount
             int countKey = (int)Math.Round(CurrentCount);
-            TimeForCountInternal.TryGetValue(countKey, out double currentDuration);
+            TimeForCountInternal.TryGetValue(countKey, out long currentDuration);
             TimeForCountInternal[countKey] = currentDuration + duration;
         }
 
@@ -173,7 +173,7 @@ public class TimeBasedMetric
     /// </summary>
     /// <param name="change">The change amount to apply to the current count (positive for increment, negative for decrement).</param>
     /// <param name="clockTime">The simulation clock time at which the change is observed. Must not be less than CurrentTime.</param>
-    public void ObserveChange(double change, double clockTime)
+    public void ObserveChange(double change, long clockTime)
     {
         ObserveCount(CurrentCount + change, clockTime);
     }
@@ -185,7 +185,7 @@ public class TimeBasedMetric
     /// </summary>
     /// <param name="clockTime">The simulation time from which to start fresh measurement. Must not be negative.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if clockTime is negative.</exception>
-    public void WarmedUp(double clockTime, double currentCountAtWarmup)
+    public void WarmedUp(long clockTime, double currentCountAtWarmup)
     {
         if (clockTime < 0)
             throw new ArgumentOutOfRangeException(nameof(clockTime), "Clock time for warm-up cannot be negative.");
@@ -283,13 +283,13 @@ public class TimeBasedMetric
         while (currentBinLowerBound <= maxObservedCount)
         {
             double currentBinUpperBound = currentBinLowerBound + countIntervalWidth;
-            double accumulatedTimeInBin = 0;
+            long accumulatedTimeInBin = 0;
 
             // Accumulate total time for counts within [currentBinLowerBound, currentBinUpperBound)
             while (keyIndex < sortedKeys.Count && sortedKeys[keyIndex] < currentBinUpperBound)
             {
                 // Ensure the key actually exists, though it should if sortedKeys[keyIndex] came from TimeForCountInternal
-                if (TimeForCountInternal.TryGetValue(sortedKeys[keyIndex], out double timeAtThisCount))
+                if (TimeForCountInternal.TryGetValue(sortedKeys[keyIndex], out long timeAtThisCount))
                 {
                     accumulatedTimeInBin += timeAtThisCount;
                 }
@@ -329,7 +329,7 @@ public class TimeBasedMetric
         return histogram;
     }
 
-    private void Init(double initialTime, bool enabledHistory)
+    private void Init(long initialTime, bool enabledHistory)
     {
         InitialTime = initialTime;
         CurrentTime = initialTime;
@@ -351,7 +351,7 @@ public class TimeBasedMetric
 /// Represents a single bin (interval) in a histogram,
 /// containing statistics about the time spent within a specific count range.
 /// </summary>
-public class HistogramBin(double countLowerBound, double totalTime, double probability, double cumulativeProbability)
+public class HistogramBin(double countLowerBound, long totalTime, double probability, double cumulativeProbability)
 {
     /// <summary>
     /// The lower bound of the count interval represented by this bin.
@@ -362,7 +362,7 @@ public class HistogramBin(double countLowerBound, double totalTime, double proba
     /// The total time observed (e.g. in hours or other simulation time units)
     /// for counts falling within this bin's interval.
     /// </summary>
-    public double TotalTime { get; init; } = totalTime;
+    public long TotalTime { get; init; } = totalTime;
 
     /// <summary>
     /// The probability of observations falling within this bin,

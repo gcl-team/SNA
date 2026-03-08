@@ -2,5 +2,5 @@
 
 internal interface IOperatableServer<TLoad>
 {
-    void HandleServiceCompletion(TLoad load, double currentTime);
+    void HandleServiceCompletion(TLoad load, long currentTime);
 }

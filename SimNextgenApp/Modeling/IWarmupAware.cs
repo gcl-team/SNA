@@ -12,5 +12,5 @@ public interface IWarmupAware
     /// accumulators to ignore the transient warm-up phase.
     /// </summary>
     /// <param name="simulationTime">The current simulation clock time at the moment the warm-up period ends.</param>
-    void WarmedUp(double simulationTime);
+    void WarmedUp(long simulationTime);
 }

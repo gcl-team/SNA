@@ -8,7 +8,7 @@ public class EventCountRunStrategy : IRunStrategy
     private readonly long _maxEventCount;
 
     /// <inheritdoc/>
-    public double? WarmupEndTime { get; }
+    public long? WarmupEndTime { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EventCountRunStrategy"/> class.
@@ -16,7 +16,7 @@ public class EventCountRunStrategy : IRunStrategy
     /// <param name="maxEventCount">The total number of simulation events to execute before stopping.</param>
     /// <param name="warmupEndTime">Optional absolute simulation time when the warm-up period ends.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if maxEventCount is non-positive, or if warmupEndTime is negative.</exception>
-    public EventCountRunStrategy(long maxEventCount, double? warmupEndTime = null)
+    public EventCountRunStrategy(long maxEventCount, long? warmupEndTime = null)
     {
         if (maxEventCount <= 0)
         {

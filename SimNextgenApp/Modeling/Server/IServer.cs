@@ -50,11 +50,11 @@ public interface IServer<TLoad> : IWarmupAware
     /// Actions to execute when a load departs from the server after completing service.
     /// Provides the departed load and its service completion time.
     /// </summary>
-    event Action<TLoad, double> LoadDeparted;
+    event Action<TLoad, long> LoadDeparted;
 
     /// <summary>
     /// Actions to execute when the server's state changes (e.g., becomes busy, becomes idle, load departs).
     /// Provides the current simulation time.
     /// </summary>
-    event Action<double> StateChanged;
+    event Action<long> StateChanged;
 }

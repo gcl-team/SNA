@@ -63,7 +63,7 @@ public abstract class AbstractSimulationModel : ISimulationModel, IWarmupAware
     /// to define actions needed after the warm-up period (e.g., resetting statistics).
     /// If no warm-up specific action is needed, provide an empty implementation.
     /// </remarks>
-    public virtual void WarmedUp(double simulationTime) 
+    public virtual void WarmedUp(long simulationTime) 
     {
         // Default implementation does nothing.
         // Derived classes can override this to perform actions after warm-up.

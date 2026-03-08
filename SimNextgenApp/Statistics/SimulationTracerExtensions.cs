@@ -24,7 +24,7 @@ public static class SimulationTracerExtensions
                 detailsString = " | " + string.Join(", ", record.Details.Select(kvp => $"{kvp.Key}: {kvp.Value}"));
             }
 
-            writer.WriteLine($"[TRACE] {record.Point,-18} | Time: {record.ClockTime:F2} | Event: {record.EventType,-25} (ID: {record.EventId}){detailsString}");
+            writer.WriteLine($"[TRACE] {record.Point,-18} | Time: {record.ClockTime:N0} | Event: {record.EventType,-25} (ID: {record.EventId}){detailsString}");
         }
         writer.WriteLine("----------------------------");
     }

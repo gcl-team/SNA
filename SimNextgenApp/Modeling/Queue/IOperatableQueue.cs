@@ -2,7 +2,7 @@
 
 internal interface IOperatableQueue<TLoad>
 {
-    void HandleEnqueue(TLoad load, double currentTime);
-    void HandleDequeue(double currentTime);
-    void HandleUpdateToDequeue(bool toDequeue, double currentTime);
+    void HandleEnqueue(TLoad load, long currentTime);
+    void HandleDequeue(long currentTime);
+    void HandleUpdateToDequeue(bool toDequeue, long currentTime);
 }

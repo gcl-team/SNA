@@ -17,11 +17,11 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     private readonly Random _random;
     private readonly ILogger<Generator<TLoad>> _logger;
 
-    public double? StartTime { get; private set; }
+    public long? StartTime { get; private set; }
     public bool IsActive { get; private set; }
     public int LoadsGeneratedCount { get; private set; }
 
-    public event Action<TLoad, double>? LoadGenerated;
+    public event Action<TLoad, long>? LoadGenerated;
 
     /// <summary>
     /// Gets the configuration settings for the generator.
@@ -91,7 +91,7 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
 
         _logger.LogInformation("Generator '{GeneratorName}' (ID: {ModelId}) initializing. Scheduling start event at time 0.0.", Name, Id);
 
-        engineContext.Scheduler.Schedule(new GeneratorStartEvent<TLoad>(this), 0.0);
+        engineContext.Scheduler.Schedule(new GeneratorStartEvent<TLoad>(this), 0);
     }
 
     /// <inheritdoc/>
@@ -99,9 +99,9 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// For the generator, this resets the <see cref="LoadsGeneratedCount"/> to zero and sets the <see cref="LastActivationTime"/>.
     /// This ensures that statistics are only collected for the post-warm-up period.
     /// </remarks>
-    public override void WarmedUp(double simulationTime)
+    public override void WarmedUp(long simulationTime)
     {
-        StartTime = simulationTime;
+        StartTime = (long)simulationTime;
         LoadsGeneratedCount = 0;
     }
 
@@ -116,7 +116,7 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     {
         if (!IsActive)
         {
-            double currentTime = engineContext.ClockTime;
+            long currentTime = engineContext.ClockTime;
             _logger.LogDebug("Generator '{GeneratorName}' activating at time {ActivationTime}.", Name, currentTime);
 
             IsActive = true;
@@ -128,7 +128,7 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
             if (Configuration.IsSkippingFirst)
             {
                 TimeSpan delay = Configuration.InterArrivalTime!(random);
-                engineContext.Scheduler.Schedule(new GeneratorArriveEvent<TLoad>(this), currentTime + delay.TotalSeconds);
+                engineContext.Scheduler.Schedule(new GeneratorArriveEvent<TLoad>(this), delay);
             }
             else
             {
@@ -160,7 +160,7 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     {
         if (IsActive)
         {
-            double currentTime = engineContext.ClockTime;
+            long currentTime = engineContext.ClockTime;
             var random = RandomProvider;
             TLoad load = Configuration.LoadFactory!(random);
             TimeSpan nextDelay = Configuration.InterArrivalTime!(random);
@@ -176,5 +176,5 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     void IOperatableGenerator<TLoad>.HandleDeactivation(IRunContext engineContext) => HandleDeactivation(engineContext);
     void IOperatableGenerator<TLoad>.HandleLoadGeneration(IRunContext engineContext) => HandleLoadGeneration(engineContext);
 
-    private void OnLoadGenerated(TLoad load, double time) => LoadGenerated?.Invoke(load, time);
+    private void OnLoadGenerated(TLoad load, long time) => LoadGenerated?.Invoke(load, time);
 }

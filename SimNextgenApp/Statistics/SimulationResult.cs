@@ -15,7 +15,7 @@ namespace SimNextgenApp.Statistics;
 public record SimulationResult(
     Guid ProfileRunId,
     string ProfileName,
-    double FinalClockTime,
+    long FinalClockTime,
     long ExecutedEventCount,
     TimeSpan RealTimeDuration,
     long ModelId,
@@ -33,7 +33,7 @@ public record SimulationResult(
         sb.AppendLine("------------------- Simulation Run Results -------------------");
         sb.AppendLine($"  Profile Name:           {ProfileName} (ID: {ProfileRunId})");
         sb.AppendLine($"  Model Name:             {ModelName} (ID: {ModelId})");
-        sb.AppendLine($"  Final Simulation Time:  {FinalClockTime:F4}");
+        sb.AppendLine($"  Final Simulation Time:  {FinalClockTime:N0} time units");
         sb.AppendLine($"  Executed Event Count:   {ExecutedEventCount:N0}");
         sb.AppendLine($"  Real-Time Execution:    {RealTimeDuration.TotalMilliseconds:F2} ms");
         sb.AppendLine("--------------------------------------------------------------");
