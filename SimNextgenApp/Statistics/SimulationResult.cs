@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Globalization;
+using System.Text.Json;
 using SimNextgenApp.Core.Utilities;
 
 namespace SimNextgenApp.Statistics;
@@ -69,10 +70,42 @@ public record SimulationResult(
     /// <summary>
     /// Returns the result as a single CSV data row.
     /// The TimeUnit column contains the enum name (e.g., "Milliseconds") for round-trip parsing.
+    /// Output is RFC 4180 compliant with proper escaping and invariant culture for numeric values.
     /// </summary>
     public string ToCsvRow()
     {
-        // Output enum name for machine parsing, not display symbol
-        return $"{ProfileRunId},{ProfileName},{ModelId},{ModelName},{FinalClockTime},{TimeUnit},{ExecutedEventCount},{RealTimeDuration.TotalMilliseconds}";
+        // Use invariant culture for numeric values to ensure round-trip parsing across cultures
+        return string.Join(",",
+            EscapeCsvField(ProfileRunId.ToString()),
+            EscapeCsvField(ProfileName),
+            EscapeCsvField(ModelId.ToString(CultureInfo.InvariantCulture)),
+            EscapeCsvField(ModelName),
+            EscapeCsvField(FinalClockTime.ToString(CultureInfo.InvariantCulture)),
+            EscapeCsvField(TimeUnit.ToString()),
+            EscapeCsvField(ExecutedEventCount.ToString(CultureInfo.InvariantCulture)),
+            EscapeCsvField(RealTimeDuration.TotalMilliseconds.ToString(CultureInfo.InvariantCulture))
+        );
+    }
+
+    /// <summary>
+    /// Escapes a CSV field according to RFC 4180:
+    /// - Fields containing comma, quote, or newline are enclosed in double quotes
+    /// - Double quotes within fields are escaped by doubling them
+    /// </summary>
+    private static string EscapeCsvField(string field)
+    {
+        if (string.IsNullOrEmpty(field))
+            return field;
+
+        // Check if field needs quoting (contains comma, quote, newline, or carriage return)
+        bool needsQuoting = field.Contains(',') || field.Contains('"') || field.Contains('\n') || field.Contains('\r');
+
+        if (needsQuoting)
+        {
+            // Escape internal quotes by doubling them, then wrap in quotes
+            return $"\"{field.Replace("\"", "\"\"")}\"";
+        }
+
+        return field;
     }
 }
