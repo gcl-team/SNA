@@ -63,7 +63,36 @@ public static class TimeUnitConverter
         return unit switch
         {
             SimulationTimeUnit.Ticks => TimeSpan.FromTicks(simulationUnits),
-            SimulationTimeUnit.Microseconds => TimeSpan.FromTicks(simulationUnits * 10), // 1 microsecond = 10 ticks
+            SimulationTimeUnit.Microseconds => TimeSpan.FromTicks(checked(simulationUnits * 10)), // 1 microsecond = 10 ticks
+            SimulationTimeUnit.Milliseconds => TimeSpan.FromMilliseconds(simulationUnits),
+            SimulationTimeUnit.Seconds => TimeSpan.FromSeconds(simulationUnits),
+            SimulationTimeUnit.Minutes => TimeSpan.FromMinutes(simulationUnits),
+            SimulationTimeUnit.Hours => TimeSpan.FromHours(simulationUnits),
+            SimulationTimeUnit.Days => TimeSpan.FromDays(simulationUnits),
+            _ => throw new ArgumentOutOfRangeException(nameof(unit), $"Unsupported simulation time unit: {unit}")
+        };
+    }
+
+    /// <summary>
+    /// Converts simulation time units back to a TimeSpan duration, preserving fractional values.
+    /// Use this overload when working with averages or other computed statistics that may
+    /// have fractional simulation units, to avoid truncation bias.
+    /// </summary>
+    /// <param name="simulationUnits">The number of simulation time units (may include fractional part).</param>
+    /// <param name="unit">The simulation time unit of the input value.</param>
+    /// <returns>The duration as a TimeSpan, preserving fractional precision.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the unit is not supported.</exception>
+    /// <example>
+    /// // Convert average of 5500.75 millisecond units back to TimeSpan:
+    /// TimeSpan duration = ConvertFromSimulationUnits(5500.75, SimulationTimeUnit.Milliseconds);
+    /// // Result: TimeSpan representing 5.50075 seconds (fractional part preserved)
+    /// </example>
+    public static TimeSpan ConvertFromSimulationUnits(double simulationUnits, SimulationTimeUnit unit)
+    {
+        return unit switch
+        {
+            SimulationTimeUnit.Ticks => TimeSpan.FromTicks(checked((long)simulationUnits)),
+            SimulationTimeUnit.Microseconds => TimeSpan.FromTicks(checked((long)(simulationUnits * 10))), // 1 microsecond = 10 ticks
             SimulationTimeUnit.Milliseconds => TimeSpan.FromMilliseconds(simulationUnits),
             SimulationTimeUnit.Seconds => TimeSpan.FromSeconds(simulationUnits),
             SimulationTimeUnit.Minutes => TimeSpan.FromMinutes(simulationUnits),

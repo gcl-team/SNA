@@ -135,7 +135,7 @@ internal class SimpleRestaurant
         logger.LogInformation("\n--- Queue Statistics ---");
         // Average customer waiting time for a table (stored in simulation units)
         var avgWaitTime = restaurantModel.CustomerWaitTimesForTable.Count > 0 ? restaurantModel.CustomerWaitTimesForTable.Average() : 0.0;
-        var avgWaitTimeSpan = TimeUnitConverter.ConvertFromSimulationUnits((long)avgWaitTime, timeUnit);
+        var avgWaitTimeSpan = TimeUnitConverter.ConvertFromSimulationUnits(avgWaitTime, timeUnit);
         var avgWaitTimeSeconds = avgWaitTimeSpan.TotalSeconds;
         logger.LogInformation($"Avg. Customer Wait Time for Table: {avgWaitTimeSeconds:F2} seconds");
 
@@ -147,7 +147,7 @@ internal class SimpleRestaurant
         logger.LogInformation("\n--- Service Times ---");
         // Average time from order placement to food delivery (stored in simulation units)
         var avgOrderToDeliveryTime = restaurantModel.OrderToDeliveryTimes.Count > 0 ? restaurantModel.OrderToDeliveryTimes.Average() : 0.0;
-        var avgOrderToDeliveryTimeSpan = TimeUnitConverter.ConvertFromSimulationUnits((long)avgOrderToDeliveryTime, timeUnit);
+        var avgOrderToDeliveryTimeSpan = TimeUnitConverter.ConvertFromSimulationUnits(avgOrderToDeliveryTime, timeUnit);
         var avgOrderToDeliverySeconds = avgOrderToDeliveryTimeSpan.TotalSeconds;
         logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDeliverySeconds:F2} seconds");
     }
