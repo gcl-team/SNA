@@ -80,7 +80,9 @@ public static class TimeUnitConverter
     /// </summary>
     /// <param name="simulationUnits">The number of simulation time units (may include fractional part).</param>
     /// <param name="unit">The simulation time unit of the input value.</param>
-    /// <returns>The duration as a TimeSpan, preserving fractional precision.</returns>
+    /// <returns>The duration as a TimeSpan, preserving fractional precision where possible.
+    /// For Ticks and Microseconds, fractional values are rounded to the nearest integer tick
+    /// using banker's rounding (MidpointRounding.ToEven) to minimize statistical bias.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the unit is not supported.</exception>
     /// <example>
     /// // Convert average of 5500.75 millisecond units back to TimeSpan:
@@ -91,8 +93,8 @@ public static class TimeUnitConverter
     {
         return unit switch
         {
-            SimulationTimeUnit.Ticks => TimeSpan.FromTicks(checked((long)simulationUnits)),
-            SimulationTimeUnit.Microseconds => TimeSpan.FromTicks(checked((long)(simulationUnits * 10))), // 1 microsecond = 10 ticks
+            SimulationTimeUnit.Ticks => TimeSpan.FromTicks(checked((long)Math.Round(simulationUnits, MidpointRounding.ToEven))),
+            SimulationTimeUnit.Microseconds => TimeSpan.FromTicks(checked((long)Math.Round(simulationUnits * 10, MidpointRounding.ToEven))), // 1 microsecond = 10 ticks
             SimulationTimeUnit.Milliseconds => TimeSpan.FromMilliseconds(simulationUnits),
             SimulationTimeUnit.Seconds => TimeSpan.FromSeconds(simulationUnits),
             SimulationTimeUnit.Minutes => TimeSpan.FromMinutes(simulationUnits),

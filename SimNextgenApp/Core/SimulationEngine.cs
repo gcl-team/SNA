@@ -280,6 +280,7 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <param name="delay">The delay after which the event should execute, relative to the current simulation time.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="ev"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="delay"/> is negative.</exception>
+    /// <exception cref="OverflowException">Thrown if scheduling the event would exceed the maximum simulation time (long.MaxValue).</exception>
     public void Schedule(AbstractEvent ev, TimeSpan delay)
     {
         ArgumentNullException.ThrowIfNull(ev);
@@ -289,7 +290,19 @@ public class SimulationEngine : IScheduler, IRunContext
 
         // Convert TimeSpan delay to simulation units based on the profile's TimeUnit setting
         long delayInSimUnits = TimeUnitConverter.ConvertToSimulationUnits(delay, _profile.TimeUnit);
-        long eventExecutionTime = ClockTime + delayInSimUnits;
+
+        // Use checked arithmetic to detect overflow when computing execution time
+        long eventExecutionTime;
+        try
+        {
+            eventExecutionTime = checked(ClockTime + delayInSimUnits);
+        }
+        catch (OverflowException)
+        {
+            throw new OverflowException(
+                $"Cannot schedule event: ClockTime ({ClockTime}) + delay ({delayInSimUnits} {_profile.TimeUnit}) exceeds long.MaxValue. " +
+                "Consider using a coarser time unit (e.g., Milliseconds instead of Ticks) or shorter simulation duration.");
+        }
 
         _logger.LogDebug("Scheduling event {EventType} with delay {Delay} ({DelayInSimUnits} simulation units). FEL count before scheduling: {FELCount}",
             ev.GetType().Name, delay, delayInSimUnits, _fel.Count);
