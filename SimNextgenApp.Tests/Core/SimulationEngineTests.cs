@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
@@ -8,7 +7,6 @@ using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
 using SimNextgenApp.Statistics;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Core;
 

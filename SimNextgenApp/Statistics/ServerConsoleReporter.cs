@@ -63,7 +63,7 @@ public class ServerConsoleReporter<TLoad> : IReporter
 
             foreach (var kvp in busyServerMetric.TimePerCount.OrderBy(k => k.Key))
             {
-                _logger.LogInformation($"  Count {kvp.Key}: {kvp.Value:F2} {_unitDisplayName} ({kvp.Value / totalDuration:P2})");
+                _logger.LogInformation($"  Count {kvp.Key}: {kvp.Value:N0} {_unitDisplayName} ({kvp.Value / totalDuration:P2})");
             }
         }
         else
@@ -84,7 +84,7 @@ public class ServerConsoleReporter<TLoad> : IReporter
                 _logger.LogInformation("  -------------------------------------------------------------");
                 foreach (var bin in histogram)
                 {
-                    _logger.LogInformation($"  {bin.CountLowerBound,-9:F1} | {bin.TotalTime,-10:F2} | {bin.Probability,-11:P2} | {bin.CumulativeProbability,-10:P2}");
+                    _logger.LogInformation($"  {bin.CountLowerBound,-9:F1} | {bin.TotalTime,-10:N0} | {bin.Probability,-11:P2} | {bin.CumulativeProbability,-10:P2}");
                 }
             }
             else

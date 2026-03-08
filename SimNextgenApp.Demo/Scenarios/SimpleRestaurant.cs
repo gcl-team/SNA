@@ -132,9 +132,10 @@ internal class SimpleRestaurant
 
         // --- Queueing Statistics ---
         logger.LogInformation("\n--- Queue Statistics ---");
-        // Average customer waiting time for a table
-        var avgWaitTime = restaurantModel.CustomerWaitTimesForTable.Any() ? restaurantModel.CustomerWaitTimesForTable.Average() : 0.0;
-        logger.LogInformation($"Avg. Customer Wait Time for Table: {avgWaitTime:F2} seconds");
+        // Average customer waiting time for a table (stored as milliseconds in simulation units)
+        var avgWaitTimeMs = restaurantModel.CustomerWaitTimesForTable.Count > 0 ? restaurantModel.CustomerWaitTimesForTable.Average() : 0.0;
+        var avgWaitTimeSeconds = avgWaitTimeMs / 1000.0; // Convert milliseconds to seconds
+        logger.LogInformation($"Avg. Customer Wait Time for Table: {avgWaitTimeSeconds:F2} seconds ({avgWaitTimeMs:N0} ms)");
 
         // Average queue length for orders in the kitchen
         var kitchenQueue = restaurantModel.OrderQueueForKitchen;
@@ -142,9 +143,10 @@ internal class SimpleRestaurant
 
         // --- Service Time Statistics ---
         logger.LogInformation("\n--- Service Times ---");
-        // Average time from order placement to food delivery
-        var avgOrderToDelivery = restaurantModel.OrderToDeliveryTimes.Any() ? restaurantModel.OrderToDeliveryTimes.Average() : 0.0;
-        logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDelivery:F2} seconds");
+        // Average time from order placement to food delivery (stored as milliseconds in simulation units)
+        var avgOrderToDeliveryMs = restaurantModel.OrderToDeliveryTimes.Count > 0 ? restaurantModel.OrderToDeliveryTimes.Average() : 0.0;
+        var avgOrderToDeliverySeconds = avgOrderToDeliveryMs / 1000.0; // Convert milliseconds to seconds
+        logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDeliverySeconds:F2} seconds ({avgOrderToDeliveryMs:N0} ms)");
     }
 
     public static int SampleGeometricCustomerGroupSize(Random rnd, double p)

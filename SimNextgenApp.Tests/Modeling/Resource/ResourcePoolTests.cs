@@ -3,8 +3,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SimNextgenApp.Core;
 using SimNextgenApp.Modeling.Resource;
-using System.ComponentModel;
-
 namespace SimNextgenApp.Tests.Modeling.Resource;
 
 public class ResourcePoolTests

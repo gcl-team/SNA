@@ -39,8 +39,9 @@ internal class RestaurantModel : AbstractSimulationModel
 
 
     // --- Statistics ---
-    public List<double> CustomerWaitTimesForTable { get; } = new();
-    public List<double> OrderToDeliveryTimes { get; } = new();
+    // Durations stored in simulation time units (ticks) for precision
+    public List<long> CustomerWaitTimesForTable { get; } = new();
+    public List<long> OrderToDeliveryTimes { get; } = new();
 
     public RestaurantModel(
         Func<Point, Point, TimeSpan> walkTimeCalculator,
@@ -210,7 +211,7 @@ internal class RestaurantModel : AbstractSimulationModel
     internal void HandleSeatingComplete(CustomerGroup group, Table table, Waiter waiter, IRunContext context)
     {
         var logger = _loggerFactory.CreateLogger<RestaurantModel>();
-        logger.LogInformation($"--- [SEATING COMPLETE] SimTime: {context.ClockTime:F2} -> Group {group.Id} seated at Table {table.Id} by {waiter.Name}.");
+        logger.LogInformation($"--- [SEATING COMPLETE] SimTime: {context.ClockTime:N0} ms -> Group {group.Id} seated at Table {table.Id} by {waiter.Name}.");
 
         // Step 1: Update the state of the resources used in the completed activity.
         // The waiter's task of seating is done, so they are now free.
@@ -231,7 +232,7 @@ internal class RestaurantModel : AbstractSimulationModel
     internal void HandleReadyToOrder(CustomerGroup group, Table table, IRunContext context)
     {
         var logger = _loggerFactory.CreateLogger<RestaurantModel>();
-        logger.LogInformation($"--- [READY TO ORDER] SimTime: {context.ClockTime:F2} -> Group {group.Id} seated at Table {table.Id}.");
+        logger.LogInformation($"--- [READY TO ORDER] SimTime: {context.ClockTime:N0} ms -> Group {group.Id} seated at Table {table.Id}.");
 
         // Step 1: Submit the order to the kitchen queue.
         var order = new Order(group, table, TimeSpan.FromSeconds(20), context.ClockTime);
@@ -242,9 +243,6 @@ internal class RestaurantModel : AbstractSimulationModel
             // If the kitchen has a free chef, start cooking immediately.
             OrderQueueForKitchen.TriggerDequeueAttempt(context);
         }
-
-        // The total time is the difference between food arrival and order submission.
-        OrderToDeliveryTimes.Add(context.ClockTime - order.TimeSubmitted);
     }
 
     internal void HandleCookingComplete(Order order, long finishedCookingTime)
@@ -306,7 +304,7 @@ internal class RestaurantModel : AbstractSimulationModel
         var group = order.ForGroup;
         var table = order.AtTable;
 
-        logger.LogInformation($"--- [FOOD SERVED] SimTime: {context.ClockTime:F2} -> Group {group.Id} seated at Table {table.Id} served with order {order.Id}.");
+        logger.LogInformation($"--- [FOOD SERVED] SimTime: {context.ClockTime:N0} ms -> Group {group.Id} seated at Table {table.Id} served with order {order.Id}.");
 
         OrderToDeliveryTimes.Add(context.ClockTime - order.TimeSubmitted);
 
@@ -323,7 +321,7 @@ internal class RestaurantModel : AbstractSimulationModel
     internal void HandleEatingComplete(Table table, IRunContext context)
     {
         var logger = _loggerFactory.CreateLogger<RestaurantModel>();
-        logger.LogInformation($"--- [EATING COMPLETE] SimTime: {context.ClockTime:F2} -> Table {table.Id} is now free.");
+        logger.LogInformation($"--- [EATING COMPLETE] SimTime: {context.ClockTime:N0} ms -> Table {table.Id} is now free.");
 
         // Step 1: Free up the table.
         TableManager.ReleaseTable(table, context.ClockTime);

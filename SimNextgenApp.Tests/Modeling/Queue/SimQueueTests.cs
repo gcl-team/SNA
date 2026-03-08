@@ -5,8 +5,6 @@ using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 using SimNextgenApp.Modeling.Queue;
-using SimNextgenApp.Statistics;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Modeling.Queue;
 

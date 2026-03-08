@@ -33,15 +33,15 @@ public record SimulationResult(
     {
         var sb = new System.Text.StringBuilder();
 
-        // Convert simulation time to human-readable format
-        double timeValue = TimeUnitConverter.ConvertFromSimulationUnits(FinalClockTime, TimeUnit);
+        // FinalClockTime is already in the correct units (specified by TimeUnit)
+        // Format directly as long to avoid precision loss
         string unitName = TimeUnitConverter.GetUnitDisplayName(TimeUnit);
 
         sb.AppendLine("");
         sb.AppendLine("------------------- Simulation Run Results -------------------");
         sb.AppendLine($"  Profile Name:           {ProfileName} (ID: {ProfileRunId})");
         sb.AppendLine($"  Model Name:             {ModelName} (ID: {ModelId})");
-        sb.AppendLine($"  Final Simulation Time:  {timeValue:N2} {unitName}");
+        sb.AppendLine($"  Final Simulation Time:  {FinalClockTime:N0} {unitName}");
         sb.AppendLine($"  Executed Event Count:   {ExecutedEventCount:N0}");
         sb.AppendLine($"  Real-Time Execution:    {RealTimeDuration.TotalMilliseconds:F2} ms");
         sb.AppendLine("--------------------------------------------------------------");
@@ -68,10 +68,11 @@ public record SimulationResult(
 
     /// <summary>
     /// Returns the result as a single CSV data row.
+    /// The TimeUnit column contains the enum name (e.g., "Milliseconds") for round-trip parsing.
     /// </summary>
     public string ToCsvRow()
     {
-        string unitSymbol = TimeUnitConverter.GetUnitSymbol(TimeUnit);
-        return $"{ProfileRunId},{ProfileName},{ModelId},{ModelName},{FinalClockTime},{unitSymbol},{ExecutedEventCount},{RealTimeDuration.TotalMilliseconds}";
+        // Output enum name for machine parsing, not display symbol
+        return $"{ProfileRunId},{ProfileName},{ModelId},{ModelName},{FinalClockTime},{TimeUnit},{ExecutedEventCount},{RealTimeDuration.TotalMilliseconds}";
     }
 }

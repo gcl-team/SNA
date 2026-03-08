@@ -1,5 +1,4 @@
 using SimNextgenApp.Statistics;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Statistics;
 

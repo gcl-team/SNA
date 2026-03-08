@@ -4,7 +4,6 @@ using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling.Server;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Modeling.Server;
 

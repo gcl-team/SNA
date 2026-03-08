@@ -1,7 +1,6 @@
 using Moq;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Core.Strategies;
 

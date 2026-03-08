@@ -89,7 +89,7 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     {
         ArgumentNullException.ThrowIfNull(engineContext);
 
-        _logger.LogInformation("Generator '{GeneratorName}' (ID: {ModelId}) initializing. Scheduling start event at time 0.0.", Name, Id);
+        _logger.LogInformation("Generator '{GeneratorName}' (ID: {ModelId}) initializing. Scheduling start event at time 0.", Name, Id);
 
         engineContext.Scheduler.Schedule(new GeneratorStartEvent<TLoad>(this), 0);
     }

@@ -4,7 +4,6 @@ using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 using SimNextgenApp.Modeling.Generator;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Modeling.Generator;
 

@@ -192,10 +192,11 @@ public class StateDurationMetric<TState> where TState : Enum
 
     /// <summary>
     /// Gets the total duration spent in a specific state up to the last recorded event (CurrentTime).
+    /// Returns the exact integer duration in simulation time units to maintain precision.
     /// </summary>
     /// <param name="stateToQuery">The state to get the duration for.</param>
-    /// <returns>The total duration (in simulation time units) spent in the specified state.</returns>
-    public double GetTotalDurationInState(TState stateToQuery)
+    /// <returns>The total duration (in simulation time units) spent in the specified state as an exact long value.</returns>
+    public long GetTotalDurationInState(TState stateToQuery)
     {
         _stateDurationsInternal.TryGetValue(stateToQuery, out long duration);
         // Note: This does NOT add ongoing duration for the CurrentState.

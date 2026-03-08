@@ -8,7 +8,7 @@ namespace SimNextgenApp.Core.Utilities;
 public static class TimeUnitConverter
 {
     /// <summary>
-    /// Converts a TimeSpan duration to simulation time units.
+    /// Converts a TimeSpan duration to simulation time units using pure integer arithmetic.
     /// This is the primary method for scheduling events - it converts user-friendly TimeSpan
     /// values into the integer units used by the simulation clock.
     /// </summary>
@@ -17,6 +17,8 @@ public static class TimeUnitConverter
     /// <returns>The duration expressed as an integer count of simulation units.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the unit is not supported.</exception>
     /// <remarks>
+    /// Uses pure integer tick arithmetic (duration.Ticks / TicksPerUnit) to avoid floating-point
+    /// precision loss and ensure deterministic, platform-independent conversions.
     /// Fractional parts are truncated to integers. For sub-unit precision, use a finer time unit.
     /// For example, if you need millisecond precision but are using Seconds, switch to Milliseconds.
     /// </remarks>
@@ -27,42 +29,19 @@ public static class TimeUnitConverter
     /// </example>
     public static long ConvertToSimulationUnits(TimeSpan duration, SimulationTimeUnit unit)
     {
+        // Use pure integer tick arithmetic to avoid floating-point precision loss
+        // TimeSpan.Ticks = number of 100-nanosecond intervals
         return unit switch
         {
             SimulationTimeUnit.Ticks => duration.Ticks,
-            SimulationTimeUnit.Microseconds => (long)duration.TotalMicroseconds,
-            SimulationTimeUnit.Milliseconds => (long)duration.TotalMilliseconds,
-            SimulationTimeUnit.Seconds => (long)duration.TotalSeconds,
-            SimulationTimeUnit.Minutes => (long)duration.TotalMinutes,
-            SimulationTimeUnit.Hours => (long)duration.TotalHours,
-            SimulationTimeUnit.Days => (long)duration.TotalDays,
+            SimulationTimeUnit.Microseconds => duration.Ticks / 10,  // 1 microsecond = 10 ticks
+            SimulationTimeUnit.Milliseconds => duration.Ticks / TimeSpan.TicksPerMillisecond,
+            SimulationTimeUnit.Seconds => duration.Ticks / TimeSpan.TicksPerSecond,
+            SimulationTimeUnit.Minutes => duration.Ticks / TimeSpan.TicksPerMinute,
+            SimulationTimeUnit.Hours => duration.Ticks / TimeSpan.TicksPerHour,
+            SimulationTimeUnit.Days => duration.Ticks / TimeSpan.TicksPerDay,
             _ => throw new ArgumentOutOfRangeException(nameof(unit), $"Unsupported simulation time unit: {unit}")
         };
-    }
-
-    /// <summary>
-    /// Converts simulation time units back to a fractional value in the same units.
-    /// Primarily used for display purposes to show human-readable time values.
-    /// </summary>
-    /// <param name="simulationUnits">The simulation clock time in integer units.</param>
-    /// <param name="unit">The simulation time unit (kept for API clarity, though not used in conversion).</param>
-    /// <returns>The time value as a double in the same units (for display formatting).</returns>
-    /// <remarks>
-    /// Since simulation time is already in the specified unit, this just converts long to double.
-    /// The real value is in making it explicit what unit the value represents.
-    /// </remarks>
-    /// <example>
-    /// // If ClockTime = 5500 milliseconds:
-    /// double time = ConvertFromSimulationUnits(5500, SimulationTimeUnit.Milliseconds);
-    /// // Result: 5500.0 (milliseconds)
-    ///
-    /// // For display: $"{time:F2} {GetUnitDisplayName(unit)}" → "5500.00 ms"
-    /// </example>
-    public static double ConvertFromSimulationUnits(long simulationUnits, SimulationTimeUnit unit)
-    {
-        // Simulation units are already in the target unit, just return as double for formatting
-        _ = unit; // Suppress unused parameter warning - kept for API clarity
-        return simulationUnits;
     }
 
     /// <summary>

@@ -212,10 +212,10 @@ public class StateDurationMetricTests
         metric.UpdateState(TestMachineState.Busy, 10);
 
         // Act
-        var duration = metric.GetTotalDurationInState(TestMachineState.Maintenance);
+        long duration = metric.GetTotalDurationInState(TestMachineState.Maintenance);
 
         // Assert
-        AssertHelpers.AreEqual(0.0, duration);
+        Assert.Equal(0L, duration);
     }
 
     [Fact(DisplayName = "GetTotalDurationInState should return the correct total recorded duration.")]
@@ -223,17 +223,17 @@ public class StateDurationMetricTests
     {
         // Arrange
         var metric = new StateDurationMetric<TestMachineState>(TestMachineState.Idle, 0);
-        metric.UpdateState(TestMachineState.Busy, 10);  // Idle: 10s
-        metric.UpdateState(TestMachineState.Idle, 15);  // Busy: 5s
-        metric.UpdateState(TestMachineState.Busy, 25);  // Idle: 10s (total Idle = 10+10=20)
+        metric.UpdateState(TestMachineState.Busy, 10);  // Idle: 10 time units
+        metric.UpdateState(TestMachineState.Idle, 15);  // Busy: 5 time units
+        metric.UpdateState(TestMachineState.Busy, 25);  // Idle: 10 time units (total Idle = 10+10=20)
 
         // Act
-        var idleDuration = metric.GetTotalDurationInState(TestMachineState.Idle);
-        var busyDuration = metric.GetTotalDurationInState(TestMachineState.Busy);
+        long idleDuration = metric.GetTotalDurationInState(TestMachineState.Idle);
+        long busyDuration = metric.GetTotalDurationInState(TestMachineState.Busy);
 
         // Assert
-        AssertHelpers.AreEqual(20.0, idleDuration);
-        AssertHelpers.AreEqual(5.0, busyDuration);
+        Assert.Equal(20L, idleDuration);
+        Assert.Equal(5L, busyDuration);
     }
 
     [Fact(DisplayName = "GetProportionOfTimeInState returns correct proportions for each state at a given asOfTime.")]
