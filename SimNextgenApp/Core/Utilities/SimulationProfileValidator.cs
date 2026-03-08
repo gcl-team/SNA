@@ -81,12 +81,12 @@ public static class SimulationProfileValidator
                 MinOriginalSeconds = minOriginalSeconds,
                 MaxOriginalSeconds = maxOriginalSeconds,
                 RecommendedUnit = recommendedUnit,
-                Message = $"⚠️  WARNING: TimeUnit precision issue detected!\n" +
+                Message = $"WARNING: TimeUnit precision issue detected!\n" +
                          $"   Current TimeUnit: {unitName}\n" +
                          $"   Truncation rate: {truncationRate:P1} ({truncatedCount}/{sampleSize} samples truncate to 0)\n" +
                          $"   Sample range: {minOriginalSeconds:F6}s to {maxOriginalSeconds:F3}s\n" +
                          $"   Converted range: {minConverted} to {maxConverted} {unitName}\n" +
-                         $"   ✅ RECOMMENDATION: Use SimulationTimeUnit.{recommendedUnit} instead.\n" +
+                         $"   RECOMMENDATION: Use SimulationTimeUnit.{recommendedUnit} instead.\n" +
                          $"   This will preserve sub-{unitName} precision and prevent events from collapsing to time 0."
             };
         }
@@ -103,7 +103,7 @@ public static class SimulationProfileValidator
             MinOriginalSeconds = minOriginalSeconds,
             MaxOriginalSeconds = maxOriginalSeconds,
             RecommendedUnit = timeUnit,
-            Message = $"✅ TimeUnit validation passed: {TimeUnitConverter.GetUnitDisplayName(timeUnit)} provides sufficient precision.\n" +
+            Message = $"TimeUnit validation passed: {TimeUnitConverter.GetUnitDisplayName(timeUnit)} provides sufficient precision.\n" +
                      $"   Sample range: {minOriginalSeconds:F6}s to {maxOriginalSeconds:F3}s\n" +
                      $"   Converted range: {minConverted} to {maxConverted} {TimeUnitConverter.GetUnitDisplayName(timeUnit)}\n" +
                      $"   Truncation rate: {truncationRate:P2} ({truncatedCount}/{sampleSize} samples)"
@@ -156,7 +156,7 @@ public static class SimulationProfileValidator
             var failedDistributions = results.Where(r => !r.Result.IsValid).ToList();
             var messageLines = new List<string>
             {
-                $"⚠️  WARNING: TimeUnit precision issue detected in {failedDistributions.Count} distribution(s)!",
+                $"WARNING: TimeUnit precision issue detected in {failedDistributions.Count} distribution(s)!",
                 $"   Current TimeUnit: {TimeUnitConverter.GetUnitDisplayName(timeUnit)}",
                 ""
             };
@@ -169,7 +169,7 @@ public static class SimulationProfileValidator
                 messageLines.Add("");
             }
 
-            messageLines.Add($"   ✅ RECOMMENDATION: Use SimulationTimeUnit.{recommendedUnit} for all distributions.");
+            messageLines.Add($"   RECOMMENDATION: Use SimulationTimeUnit.{recommendedUnit} for all distributions.");
 
             return new ValidationResult
             {
@@ -189,7 +189,7 @@ public static class SimulationProfileValidator
             TruncationRate = 0,
             SampleSize = sampleSize * distributions.Count,
             RecommendedUnit = timeUnit,
-            Message = $"✅ TimeUnit validation passed for all {distributions.Count} distribution(s): " +
+            Message = $"TimeUnit validation passed for all {distributions.Count} distribution(s): " +
                      $"{TimeUnitConverter.GetUnitDisplayName(timeUnit)} provides sufficient precision."
         };
     }
