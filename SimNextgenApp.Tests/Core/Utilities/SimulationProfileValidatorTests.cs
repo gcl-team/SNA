@@ -142,30 +142,40 @@ public class SimulationProfileValidatorTests
         Assert.Equal(SimulationTimeUnit.Seconds, result.RecommendedUnit); // Should recommend Seconds
     }
 
-    [Fact(DisplayName = "ValidateTimeUnit with exactly threshold truncation returns invalid")]
-    public void ValidateTimeUnit_WithExactlyThresholdTruncation_ReturnsInvalid()
+    [Fact(DisplayName = "ValidateTimeUnit with exactly threshold truncation returns valid")]
+    public void ValidateTimeUnit_WithExactlyThresholdTruncation_ReturnsValid()
     {
-        // Arrange: Mixed distribution where exactly 5% truncate to 0
-        // With fixed seed (42), we can control the outcome
+        // Arrange: Use a deterministic counter-based distribution to ensure exactly 5% truncation
+        // Every 20th sample (5%) will truncate to 0, all others won't
+        int callCount = 0;
         Func<Random, TimeSpan> distribution = rnd =>
         {
-            // Generate values where 5 out of 100 will be < 1 second (truncate to 0)
-            double value = rnd.NextDouble();
-            return value < 0.05
-                ? TimeSpan.FromSeconds(0.5) // 5% will be 0.5s -> truncates to 0
-                : TimeSpan.FromSeconds(1.0 + value); // 95% will be >= 1s
+            callCount++;
+            // Every 20th call returns a value that truncates to 0
+            if (callCount % 20 == 0)
+            {
+                return TimeSpan.FromSeconds(0.5); // Truncates to 0 in seconds
+            }
+            else
+            {
+                return TimeSpan.FromSeconds(1.0 + rnd.NextDouble()); // >= 1 second
+            }
         };
 
-        // Act
+        // Act: Set threshold to exactly 0.05 (5%) to test the boundary condition
+        // The validator uses strict comparison: truncationRate > threshold
+        // So at exactly 5%, it should be VALID
         var result = SimulationProfileValidator.ValidateTimeUnit(
             SimulationTimeUnit.Seconds,
             distribution,
             sampleSize: 100,
             truncationThreshold: 0.05);
 
-        // Assert: At threshold (0.05), should be INVALID (> threshold means invalid)
-        // Note: Due to fixed seed randomness, exact count may vary, but should be close to threshold
-        Assert.True(result.TruncationRate >= 0.05); // At or above threshold
+        // Assert: With exactly 5% truncation and threshold of 5%, should be VALID
+        Assert.Equal(0.05, result.TruncationRate);
+        Assert.Equal(5, result.TruncatedCount);
+        Assert.True(result.IsValid,
+            $"Expected IsValid=true when truncation rate equals threshold (both 0.05)");
     }
 
     [Fact(DisplayName = "ValidateTimeUnit with just below threshold returns valid")]

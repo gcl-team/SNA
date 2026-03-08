@@ -45,6 +45,35 @@ public static class TimeUnitConverter
     }
 
     /// <summary>
+    /// Converts simulation time units back to a TimeSpan duration.
+    /// This is the inverse of ConvertToSimulationUnits and is useful for reporting metrics
+    /// or converting stored simulation values back to real-world time.
+    /// </summary>
+    /// <param name="simulationUnits">The number of simulation time units.</param>
+    /// <param name="unit">The simulation time unit of the input value.</param>
+    /// <returns>The duration as a TimeSpan.</returns>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if the unit is not supported.</exception>
+    /// <example>
+    /// // Convert 5500 millisecond units back to TimeSpan:
+    /// TimeSpan duration = ConvertFromSimulationUnits(5500, SimulationTimeUnit.Milliseconds);
+    /// // Result: TimeSpan representing 5.5 seconds
+    /// </example>
+    public static TimeSpan ConvertFromSimulationUnits(long simulationUnits, SimulationTimeUnit unit)
+    {
+        return unit switch
+        {
+            SimulationTimeUnit.Ticks => TimeSpan.FromTicks(simulationUnits),
+            SimulationTimeUnit.Microseconds => TimeSpan.FromTicks(simulationUnits * 10), // 1 microsecond = 10 ticks
+            SimulationTimeUnit.Milliseconds => TimeSpan.FromMilliseconds(simulationUnits),
+            SimulationTimeUnit.Seconds => TimeSpan.FromSeconds(simulationUnits),
+            SimulationTimeUnit.Minutes => TimeSpan.FromMinutes(simulationUnits),
+            SimulationTimeUnit.Hours => TimeSpan.FromHours(simulationUnits),
+            SimulationTimeUnit.Days => TimeSpan.FromDays(simulationUnits),
+            _ => throw new ArgumentOutOfRangeException(nameof(unit), $"Unsupported simulation time unit: {unit}")
+        };
+    }
+
+    /// <summary>
     /// Gets a human-readable display name for a simulation time unit.
     /// </summary>
     /// <param name="unit">The simulation time unit.</param>

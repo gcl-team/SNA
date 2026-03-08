@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
+using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.RestaurantSample;
 using SimNextgenApp.Modeling;
 using SimNextgenApp.Modeling.Generator;
@@ -15,6 +16,7 @@ internal class RestaurantModel : AbstractSimulationModel
 {
     private IRunContext _runContext = null!;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly SimulationTimeUnit _timeUnit;
 
     // --- Components ---
     public Generator<CustomerGroup> CustomerArrivals { get; }
@@ -39,7 +41,7 @@ internal class RestaurantModel : AbstractSimulationModel
 
 
     // --- Statistics ---
-    // Durations stored in simulation time units (ticks) for precision
+    // Durations stored in simulation time units for precision; interpretation depends on SimulationProfile.TimeUnit
     public List<long> CustomerWaitTimesForTable { get; } = new();
     public List<long> OrderToDeliveryTimes { get; } = new();
 
@@ -53,10 +55,13 @@ internal class RestaurantModel : AbstractSimulationModel
         IEnumerable<Waiter> waiters,
         IEnumerable<Table> tables,
         ServerStaticConfig<Order> serverKitchenConfig, int serverKitchenSeed,
-        ILoggerFactory loggerFactory, string name = "Restaurant")
+        ILoggerFactory loggerFactory,
+        SimulationTimeUnit timeUnit = SimulationTimeUnit.Milliseconds,
+        string name = "Restaurant")
         : base(name)
     {
         _loggerFactory = loggerFactory;
+        _timeUnit = timeUnit;
 
         _walkTimeCalculator = walkTimeCalculator;
 
@@ -211,7 +216,8 @@ internal class RestaurantModel : AbstractSimulationModel
     internal void HandleSeatingComplete(CustomerGroup group, Table table, Waiter waiter, IRunContext context)
     {
         var logger = _loggerFactory.CreateLogger<RestaurantModel>();
-        logger.LogInformation($"--- [SEATING COMPLETE] SimTime: {context.ClockTime:N0} ms -> Group {group.Id} seated at Table {table.Id} by {waiter.Name}.");
+        var timeUnitSymbol = TimeUnitConverter.GetUnitSymbol(_timeUnit);
+        logger.LogInformation($"--- [SEATING COMPLETE] SimTime: {context.ClockTime:N0} {timeUnitSymbol} -> Group {group.Id} seated at Table {table.Id} by {waiter.Name}.");
 
         // Step 1: Update the state of the resources used in the completed activity.
         // The waiter's task of seating is done, so they are now free.
@@ -232,7 +238,8 @@ internal class RestaurantModel : AbstractSimulationModel
     internal void HandleReadyToOrder(CustomerGroup group, Table table, IRunContext context)
     {
         var logger = _loggerFactory.CreateLogger<RestaurantModel>();
-        logger.LogInformation($"--- [READY TO ORDER] SimTime: {context.ClockTime:N0} ms -> Group {group.Id} seated at Table {table.Id}.");
+        var timeUnitSymbol = TimeUnitConverter.GetUnitSymbol(_timeUnit);
+        logger.LogInformation($"--- [READY TO ORDER] SimTime: {context.ClockTime:N0} {timeUnitSymbol} -> Group {group.Id} seated at Table {table.Id}.");
 
         // Step 1: Submit the order to the kitchen queue.
         var order = new Order(group, table, TimeSpan.FromSeconds(20), context.ClockTime);
@@ -304,7 +311,8 @@ internal class RestaurantModel : AbstractSimulationModel
         var group = order.ForGroup;
         var table = order.AtTable;
 
-        logger.LogInformation($"--- [FOOD SERVED] SimTime: {context.ClockTime:N0} ms -> Group {group.Id} seated at Table {table.Id} served with order {order.Id}.");
+        var timeUnitSymbol = TimeUnitConverter.GetUnitSymbol(_timeUnit);
+        logger.LogInformation($"--- [FOOD SERVED] SimTime: {context.ClockTime:N0} {timeUnitSymbol} -> Group {group.Id} seated at Table {table.Id} served with order {order.Id}.");
 
         OrderToDeliveryTimes.Add(context.ClockTime - order.TimeSubmitted);
 
@@ -321,7 +329,8 @@ internal class RestaurantModel : AbstractSimulationModel
     internal void HandleEatingComplete(Table table, IRunContext context)
     {
         var logger = _loggerFactory.CreateLogger<RestaurantModel>();
-        logger.LogInformation($"--- [EATING COMPLETE] SimTime: {context.ClockTime:N0} ms -> Table {table.Id} is now free.");
+        var timeUnitSymbol = TimeUnitConverter.GetUnitSymbol(_timeUnit);
+        logger.LogInformation($"--- [EATING COMPLETE] SimTime: {context.ClockTime:N0} {timeUnitSymbol} -> Table {table.Id} is now free.");
 
         // Step 1: Free up the table.
         TableManager.ReleaseTable(table, context.ClockTime);

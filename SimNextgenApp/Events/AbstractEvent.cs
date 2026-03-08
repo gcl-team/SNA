@@ -52,6 +52,6 @@ public abstract class AbstractEvent
     public override string ToString()
     {
         // Basic representation, derived classes can add associated entity IDs etc.
-        return $"{GetType().Name}#{EventId} @ {ExecutionTime:F4}";
+        return $"{GetType().Name}#{EventId} @ {ExecutionTime:N0}";
     }
 }
