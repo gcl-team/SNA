@@ -53,22 +53,68 @@ internal static class AwsBurstScenario
         );
 
         // 5. Create Engine
+        // Start with Seconds (validation will auto-correct if needed)
+        var timeUnit = SimulationTimeUnit.Seconds;
+
+        long runDurationInUnits = TimeUnitConverter.ConvertToSimulationUnits(
+            TimeSpan.FromSeconds(runDuration),
+            timeUnit
+        );
+
         var profile = new SimulationProfile(
-            model, 
-            new DurationRunStrategy(runDuration, 0), 
-            "AWS T3 Crash", 
-            SimulationTimeUnit.Seconds, 
-            loggerFactory, 
+            model,
+            new DurationRunStrategy(runDurationInUnits, null),
+            "AWS RDS Burstable Simulation",
+            timeUnit,
+            loggerFactory,
             new MemoryTracer()
         );
 
         var engine = new SimulationEngine(profile);
 
+        // 5.5. Validate TimeUnit Precision (OPTIONAL but recommended)
+        programLogger.LogInformation("\n--- Validating TimeUnit Precision ---");
+        var validation = SimulationProfileValidator.ValidateTimeUnit(
+            timeUnit,
+            new Dictionary<string, Func<Random, TimeSpan>>
+            {
+                ["Inter-arrival time"] = interArrivalFunc
+            },
+            sampleSize: 1000,
+            truncationThreshold: 0.05
+        );
+
+        SimulationProfileValidator.LogValidationResult(validation, programLogger);
+
+        if (!validation.IsValid)
+        {
+            programLogger.LogWarning($"TIP: Auto-switching from {timeUnit} to {validation.RecommendedUnit} to prevent precision loss.");
+
+            // Re-create profile with recommended unit
+            timeUnit = validation.RecommendedUnit;
+            runDurationInUnits = TimeUnitConverter.ConvertToSimulationUnits(
+                TimeSpan.FromSeconds(runDuration),
+                timeUnit
+            );
+
+            profile = new SimulationProfile(
+                model,
+                new DurationRunStrategy(runDurationInUnits, null),
+                "AWS RDS Burstable Simulation",
+                timeUnit,
+                loggerFactory,
+                new MemoryTracer()
+            );
+
+            engine = new SimulationEngine(profile);
+        }
+
         // =========================================================
         // 6. THE CRITICAL STEP: CONNECT PHYSICS TO TIME
         // =========================================================
         // We inject the engine into our physics object so it can read ClockTime
-        rdsBehavior.SetContext(engine); 
+        // and tell it what time unit is being used so it can convert to seconds
+        rdsBehavior.SetContext(engine, timeUnit);
         // =========================================================
 
         programLogger.LogInformation("Starting Simulation. Watch console for CSV output...");

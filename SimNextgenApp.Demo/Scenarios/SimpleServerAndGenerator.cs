@@ -39,6 +39,31 @@ internal static class SimpleServerAndGenerator
             Capacity = serverCapacity
         };
 
+        // 2.5. Validate TimeUnit Precision (OPTIONAL but recommended)
+        // This validation helper checks if the chosen TimeUnit will cause precision issues
+        programLogger.LogInformation("\n--- Validating TimeUnit Precision ---");
+        var targetTimeUnit = SimulationTimeUnit.Milliseconds; // Use milliseconds for sub-second precision
+
+        var validation = SimulationProfileValidator.ValidateTimeUnit(
+            targetTimeUnit,
+            new Dictionary<string, Func<Random, TimeSpan>>
+            {
+                ["Inter-arrival time"] = interArrivalTimeFunc,
+                ["Service time"] = (rnd) => serviceTimeFunc(null!, rnd) // Wrap to match signature
+            },
+            sampleSize: 1000,
+            truncationThreshold: 0.05 // Warn if >5% of samples truncate to 0
+        );
+
+        SimulationProfileValidator.LogValidationResult(validation, programLogger);
+
+        if (!validation.IsValid)
+        {
+            programLogger.LogWarning($"TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
+            // User can choose to continue anyway or switch to recommended unit
+            targetTimeUnit = validation.RecommendedUnit; // Auto-switch to recommended unit
+        }
+
         // 3. Create the Composite Model
         var simpleSystem = new GeneratorAndServerModel(
             generatorConfig, 123,
@@ -46,8 +71,19 @@ internal static class SimpleServerAndGenerator
             loggerFactory);
 
         // 4. Create a Run Strategy
-        double runDuration = 100.0;
-        double warmupDuration = 20.0;
+        // Convert durations from user-friendly seconds to simulation units
+        double runDurationSeconds = 100.0;
+        double warmupDurationSeconds = 20.0;
+
+        long runDuration = TimeUnitConverter.ConvertToSimulationUnits(
+            TimeSpan.FromSeconds(runDurationSeconds),
+            targetTimeUnit
+        );
+        long warmupDuration = TimeUnitConverter.ConvertToSimulationUnits(
+            TimeSpan.FromSeconds(warmupDurationSeconds),
+            targetTimeUnit
+        );
+
         var runStrategy = new DurationRunStrategy(runDuration, warmupDuration);
 
         // 5. Create a Memory Tracer to capture simulation events
@@ -60,7 +96,7 @@ internal static class SimpleServerAndGenerator
             model: simpleSystem,
             runStrategy: runStrategy,
             "Simple Server and Generator Profile",
-            SimulationTimeUnit.Seconds,
+            targetTimeUnit, // Use the validated (and possibly auto-corrected) time unit
             loggerFactory: loggerFactory,
             tracer: tracer
         );
@@ -88,7 +124,8 @@ internal static class SimpleServerAndGenerator
         var serverReporter = new ServerConsoleReporter<MyLoad>(
             simpleSystem.ServicePoint,
             simpleSystem.ServicePointObserver,
-            programLogger);
+            programLogger,
+            targetTimeUnit); // Use the same unit as the simulation
         serverReporter.Report();
 
         programLogger.LogInformation($"\n--- System Stats ---");

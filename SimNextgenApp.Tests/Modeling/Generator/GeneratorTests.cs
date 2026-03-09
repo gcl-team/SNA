@@ -4,7 +4,6 @@ using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 using SimNextgenApp.Modeling.Generator;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Modeling.Generator;
 
@@ -20,7 +19,7 @@ public class GeneratorTests
     private Func<Random, TimeSpan> _defaultInterArrivalTimeFunc;
     private Func<Random, DummyLoad> _defaultLoadFactoryFunc;
     private int _loadFactoryCallCount;
-    private double _currentTestTime = 0.0;
+    private long _currentTestTime = 0;
 
     public GeneratorTests()
     {
@@ -101,7 +100,7 @@ public class GeneratorTests
         generator.Initialize(_mockEngine.Object);
 
         // Assert
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<AbstractEvent>(), 0.0), Times.Once);
+        _mockScheduler.Verify(s => s.Schedule(It.IsAny<AbstractEvent>(), 0), Times.Once);
     }
 
     [Fact(DisplayName = "ScheduleStartGenerating should schedule a GeneratorStartEvent at the current clock time.")]
@@ -109,13 +108,13 @@ public class GeneratorTests
     {
         // Arrange
         var generator = CreateGenerator();
-        _currentTestTime = 10.0;
+        _currentTestTime = 10;
 
         // Act
         generator.ScheduleStartGenerating(_mockEngine.Object);
 
         // Assert
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<GeneratorStartEvent<DummyLoad>>(), 10.0), Times.Once);
+        _mockScheduler.Verify(s => s.Schedule(It.IsAny<GeneratorStartEvent<DummyLoad>>(), 10), Times.Once);
     }
 
     [Fact(DisplayName = "ScheduleStartGenerating should throw ArgumentNullException for a null context.")]
@@ -133,13 +132,13 @@ public class GeneratorTests
     {
         // Arrange
         var generator = CreateGenerator();
-        _currentTestTime = 20.0;
+        _currentTestTime = 20;
 
         // Act
         generator.ScheduleStopGenerating(_mockEngine.Object);
 
         // Assert
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<GeneratorStopEvent<DummyLoad>>(), 20.0), Times.Once);
+        _mockScheduler.Verify(s => s.Schedule(It.IsAny<GeneratorStopEvent<DummyLoad>>(), 20), Times.Once);
     }
 
     [Fact(DisplayName = "Executing GeneratorStartEvent should activate and schedule immediate arrival (not skipping first).")]
@@ -149,7 +148,7 @@ public class GeneratorTests
         var config = _defaultConfig with { IsSkippingFirst = false };
         var generator = CreateGenerator(config);
         var startEvent = new GeneratorStartEvent<DummyLoad>(generator);
-        _currentTestTime = 10.0;
+        _currentTestTime = 10;
 
         // Act
         startEvent.Execute(_mockEngine.Object);
@@ -157,7 +156,7 @@ public class GeneratorTests
         // Assert
         Assert.True(generator.IsActive);
         // The next event is scheduled for the current time
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<GeneratorArriveEvent<DummyLoad>>(), 10.0), Times.Once);
+        _mockScheduler.Verify(s => s.Schedule(It.IsAny<GeneratorArriveEvent<DummyLoad>>(), 10), Times.Once);
     }
 
     [Fact(DisplayName = "Executing GeneratorStartEvent should do nothing if generator is already active.")]
@@ -175,7 +174,7 @@ public class GeneratorTests
 
         // Assert
         // Verify no *new* arrival event was scheduled
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<GeneratorArriveEvent<DummyLoad>>(), It.IsAny<double>()), Times.Never);
+        _mockScheduler.Verify(s => s.Schedule(It.IsAny<GeneratorArriveEvent<DummyLoad>>(), It.IsAny<long>()), Times.Never);
     }
 
     [Fact(DisplayName = "Executing GeneratorStopEvent should deactivate the generator.")]
@@ -204,7 +203,7 @@ public class GeneratorTests
         _mockScheduler.Invocations.Clear();
 
         var arriveEvent = new GeneratorArriveEvent<DummyLoad>(generator);
-        _currentTestTime = 20.0;
+        _currentTestTime = 20;
 
         DummyLoad? generatedLoad = null;
         generator.LoadGenerated += (load, time) => generatedLoad = load;
@@ -230,7 +229,7 @@ public class GeneratorTests
 
         // Assert
         Assert.Equal(0, generator.LoadsGeneratedCount);
-        _mockScheduler.Verify(s => s.Schedule(It.IsAny<AbstractEvent>(), It.IsAny<double>()), Times.Never);
+        _mockScheduler.Verify(s => s.Schedule(It.IsAny<AbstractEvent>(), It.IsAny<long>()), Times.Never);
     }
 
     [Fact(DisplayName = "WarmedUp should reset StartTime and LoadsGeneratedCount while remaining active.")]
@@ -239,14 +238,14 @@ public class GeneratorTests
         // Arrange
         var generator = CreateGenerator();
         generator.Initialize(_mockEngine.Object);
-        _mockEngine.SetupGet(c => c.ClockTime).Returns(30.0);
+        _mockEngine.SetupGet(c => c.ClockTime).Returns(30);
         generator.HandleActivation(_mockEngine.Object);
 
         // Act
-        generator.WarmedUp(simulationTime: 100.0);
+        generator.WarmedUp(simulationTime: 100);
 
         // Assert
-        Assert.Equal(100.0, generator.StartTime);
+        Assert.Equal(100, generator.StartTime);
         Assert.Equal(0, generator.LoadsGeneratedCount);
         Assert.True(generator.IsActive); // WarmedUp should not change IsActive state
     }

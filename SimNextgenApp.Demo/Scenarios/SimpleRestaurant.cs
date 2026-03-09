@@ -49,7 +49,30 @@ internal class SimpleRestaurant
         Func<Random, TimeSpan> eatingTimeFunc = rnd =>
             TimeSpan.FromSeconds(Uniform(900, 1800, rnd));
 
-        // 2. Create the Main Model
+        // 2. Validate TimeUnit Precision (OPTIONAL but recommended)
+        logger.LogInformation("\n--- Validating TimeUnit Precision ---");
+        var targetTimeUnit = SimulationTimeUnit.Milliseconds;
+
+        var validation = SimulationProfileValidator.ValidateTimeUnit(
+            targetTimeUnit,
+            new Dictionary<string, Func<Random, TimeSpan>>
+            {
+                ["Customer inter-arrival time"] = customerInterArrivalTime,
+                ["Kitchen service time"] = (rnd) => serviceTimeFunc(null!, rnd)
+            },
+            sampleSize: 1000,
+            truncationThreshold: 0.05
+        );
+
+        SimulationProfileValidator.LogValidationResult(validation, logger);
+
+        if (!validation.IsValid)
+        {
+            logger.LogWarning($"TIP: Switching to {validation.RecommendedUnit} will prevent precision loss.");
+            targetTimeUnit = validation.RecommendedUnit; // Auto-switch to recommended unit
+        }
+
+        // 3. Create the Main Model with the validated time unit
         var restaurantModel = new RestaurantModel(
             walkTimeCalc,
             menuBrowseTimeFunc, eatingTimeFunc, 100,
@@ -60,15 +83,20 @@ internal class SimpleRestaurant
             availableWaiters,
             availableTables,
             serverKitchenConfig, 100,
-            loggerFactory
+            loggerFactory,
+            targetTimeUnit
             );
 
         // 4. Create Run Strategy and Profile
-        var runStrategy = new DurationRunStrategy(TimeSpan.FromMinutes(60 * 8).TotalSeconds);
+        // Use validated timeUnit for sub-second precision
+        var timeUnit = targetTimeUnit;
+        var duration = TimeSpan.FromMinutes(60 * 8);
+        long durationInUnits = TimeUnitConverter.ConvertToSimulationUnits(duration, timeUnit);
+        var runStrategy = new DurationRunStrategy(durationInUnits);
         var profile = new SimulationProfile(
             model: restaurantModel,
             runStrategy: runStrategy,
-            timeUnit: SimulationTimeUnit.Seconds,
+            timeUnit: timeUnit,
             loggerFactory: loggerFactory
         );
 
@@ -105,9 +133,11 @@ internal class SimpleRestaurant
 
         // --- Queueing Statistics ---
         logger.LogInformation("\n--- Queue Statistics ---");
-        // Average customer waiting time for a table
-        var avgWaitTime = restaurantModel.CustomerWaitTimesForTable.Any() ? restaurantModel.CustomerWaitTimesForTable.Average() : 0.0;
-        logger.LogInformation($"Avg. Customer Wait Time for Table: {avgWaitTime:F2} seconds");
+        // Average customer waiting time for a table (stored in simulation units)
+        var avgWaitTime = restaurantModel.CustomerWaitTimesForTable.Count > 0 ? restaurantModel.CustomerWaitTimesForTable.Average() : 0.0;
+        var avgWaitTimeSpan = TimeUnitConverter.ConvertFromSimulationUnits(avgWaitTime, timeUnit);
+        var avgWaitTimeSeconds = avgWaitTimeSpan.TotalSeconds;
+        logger.LogInformation($"Avg. Customer Wait Time for Table: {avgWaitTimeSeconds:F2} seconds");
 
         // Average queue length for orders in the kitchen
         var kitchenQueue = restaurantModel.OrderQueueForKitchen;
@@ -115,9 +145,11 @@ internal class SimpleRestaurant
 
         // --- Service Time Statistics ---
         logger.LogInformation("\n--- Service Times ---");
-        // Average time from order placement to food delivery
-        var avgOrderToDelivery = restaurantModel.OrderToDeliveryTimes.Any() ? restaurantModel.OrderToDeliveryTimes.Average() : 0.0;
-        logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDelivery:F2} seconds");
+        // Average time from order placement to food delivery (stored in simulation units)
+        var avgOrderToDeliveryTime = restaurantModel.OrderToDeliveryTimes.Count > 0 ? restaurantModel.OrderToDeliveryTimes.Average() : 0.0;
+        var avgOrderToDeliveryTimeSpan = TimeUnitConverter.ConvertFromSimulationUnits(avgOrderToDeliveryTime, timeUnit);
+        var avgOrderToDeliverySeconds = avgOrderToDeliveryTimeSpan.TotalSeconds;
+        logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDeliverySeconds:F2} seconds");
     }
 
     public static int SampleGeometricCustomerGroupSize(Random rnd, double p)

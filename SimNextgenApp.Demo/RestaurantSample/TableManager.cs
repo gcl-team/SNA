@@ -52,7 +52,7 @@ internal class TableManager
     /// <summary>
     /// Marks a table as occupied by a specific customer group.
     /// </summary>
-    public void OccupyTable(Table table, CustomerGroup group, double currentTime)
+    public void OccupyTable(Table table, CustomerGroup group, long currentTime)
     {
         if (_occupiedTables.ContainsKey(table))
         {
@@ -68,7 +68,7 @@ internal class TableManager
     /// <summary>
     /// Releases a table, making it available for new customers.
     /// </summary>
-    public void ReleaseTable(Table table, double currentTime)
+    public void ReleaseTable(Table table, long currentTime)
     {
         if (_occupiedTables.Remove(table))
         {
@@ -78,7 +78,7 @@ internal class TableManager
         }
     }
 
-    public void WarmedUp(double simulationTime)
+    public void WarmedUp(long simulationTime)
     {
         UtilizationMetric.WarmedUp(simulationTime, OccupiedTableCount);
     }

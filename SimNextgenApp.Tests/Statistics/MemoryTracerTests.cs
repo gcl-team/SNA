@@ -21,7 +21,7 @@ public class MemoryTracerTests
     {
         // Arrange
         var tracer = new MemoryTracer();
-        var record = new TraceRecord(TracePoint.EventExecuting, 1.0, 1, "TestEvent");
+        var record = new TraceRecord(TracePoint.EventExecuting, 1, 1, "TestEvent");
 
         // Act
         tracer.Trace(record);
@@ -36,8 +36,8 @@ public class MemoryTracerTests
     {
         // Arrange
         var tracer = new MemoryTracer();
-        var record1 = new TraceRecord(TracePoint.EventExecuting, 1.0, 1, "Event1");
-        var record2 = new TraceRecord(TracePoint.EventCompleted, 1.5, 1, "Event1");
+        var record1 = new TraceRecord(TracePoint.EventExecuting, 1, 1, "Event1");
+        var record2 = new TraceRecord(TracePoint.EventCompleted, 2, 1, "Event1");
 
         // Act
         tracer.Trace(record1);

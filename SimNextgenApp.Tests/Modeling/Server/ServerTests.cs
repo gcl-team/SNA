@@ -4,7 +4,6 @@ using SimNextgenApp.Core;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling.Server;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Modeling.Server;
 
@@ -15,7 +14,7 @@ public class ServerTests
 
     private Mock<IScheduler> _mockScheduler;
     private readonly Mock<IRunContext> _mockContext;
-    private double _currentTestTime;
+    private long _currentTestTime;
 
     private readonly ServerStaticConfig<DummyLoad> _defaultConfig;
     private readonly Func<DummyLoad, Random, TimeSpan> _defaultServiceTimeFunc = (load, rnd) => TimeSpan.FromSeconds(10);
@@ -73,7 +72,7 @@ public class ServerTests
         // Arrange
         var server = CreateServer();
         var load = CreateDummyLoad();
-        _currentTestTime = 10.0;
+        _currentTestTime = 10;
 
         bool isStateChangedFired = false;
         server.StateChanged += _ => isStateChangedFired = true;
@@ -87,7 +86,7 @@ public class ServerTests
         // 1. Verify internal state change
         Assert.Contains(load, server.LoadsInService);
         Assert.Equal(1, server.NumberInService);
-        Assert.Equal(10.0, server.ServiceStartTimes[load]);
+        Assert.Equal(10, server.ServiceStartTimes[load]);
 
         // 2. Verify scheduling of the correct future event
         _mockScheduler.Verify(s => s.Schedule(
@@ -104,7 +103,7 @@ public class ServerTests
         // Arrange
         var server = CreateServer();
         var load1 = CreateDummyLoad("L1");
-        _currentTestTime = 10.0;
+        _currentTestTime = 10;
         server.TryStartService(load1, _mockContext.Object); // Fill the one slot of capacity
 
         // Reset mocks and event listeners to ensure we only test the second call.
@@ -113,7 +112,7 @@ public class ServerTests
         server.StateChanged += time => isStateChangedFired = true;
 
         var load2 = CreateDummyLoad("L2");
-        _currentTestTime = 11.0;
+        _currentTestTime = 11;
 
         // Act
         bool result = server.TryStartService(load2, _mockContext.Object);
@@ -156,11 +155,11 @@ public class ServerTests
         // We do this because we are testing the internal HandleServiceCompletion method,
         // which is called by the ServerServiceCompleteEvent.
         server._loadsInService.Add(load);
-        server._serviceStartTimes[load] = 10.0;
+        server._serviceStartTimes[load] = 10;
 
         bool isStateChangedFired = false;
         bool isDepartureFired = false;
-        (DummyLoad? departedLoad, double departureTime) departureInfo = (null, -1.0);
+        (DummyLoad? departedLoad, long departureTime) departureInfo = (null, -1);
 
         server.StateChanged += time => isStateChangedFired = true;
         server.LoadDeparted += (l, t) =>
@@ -169,7 +168,7 @@ public class ServerTests
             departureInfo = (l, t);
         };
 
-        _currentTestTime = 25.0; // Time of completion
+        _currentTestTime = 25; // Time of completion
 
         // Act
         server.HandleServiceCompletion(load, _currentTestTime);
@@ -185,7 +184,7 @@ public class ServerTests
         Assert.True(isStateChangedFired);
         Assert.True(isDepartureFired);
         Assert.Same(load, departureInfo.departedLoad);
-        Assert.Equal(25.0, departureInfo.departureTime);
+        Assert.Equal(25, departureInfo.departureTime);
     }
 
     [Fact(DisplayName = "HandleServiceCompletion should throw SimulationException for a non-existent load.")]
@@ -196,7 +195,7 @@ public class ServerTests
         var nonExistentLoad = new DummyLoad();
 
         // Act & Assert
-        var ex = Assert.Throws<SimulationException>(() => server.HandleServiceCompletion(nonExistentLoad, 10.0));
+        var ex = Assert.Throws<SimulationException>(() => server.HandleServiceCompletion(nonExistentLoad, 10));
         Assert.Contains("which was not in service", ex.Message);
     }
 
@@ -211,10 +210,10 @@ public class ServerTests
         // Manually put the server in a state with 2 loads that started service before warm-up.
         server._loadsInService.Add(load1);
         server._loadsInService.Add(load2);
-        server._serviceStartTimes[load1] = 40.0;
-        server._serviceStartTimes[load2] = 45.0;
+        server._serviceStartTimes[load1] = 40;
+        server._serviceStartTimes[load2] = 45;
 
-        double warmUpTime = 100.0;
+        long warmUpTime = 100;
 
         // Act
         server.WarmedUp(warmUpTime);

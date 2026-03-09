@@ -1,7 +1,6 @@
 using Moq;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Core.Strategies;
 
@@ -11,10 +10,10 @@ public class EventCountRunStrategyTests
     public void Constructor_WithValidArguments_SetsPropertiesCorrectly()
     {
         // Arrange & Act
-        var strategy = new EventCountRunStrategy(maxEventCount: 1000, warmupEndTime: 100.0);
+        var strategy = new EventCountRunStrategy(maxEventCount: 1000, warmupEndTime: 100);
 
         // Assert
-        Assert.Equal(100.0, strategy.WarmupEndTime);
+        Assert.Equal(100, strategy.WarmupEndTime);
     }
 
     [Fact(DisplayName = "Constructor should leave WarmupEndTime as null when it is not provided.")]
@@ -40,7 +39,7 @@ public class EventCountRunStrategyTests
     {
         // Arrange
         long maxEventCount = 10;
-        double invalidWarmup = -5.0;
+        long invalidWarmup = -5;
 
         // Act & Assert
         var ex = Assert.Throws<ArgumentOutOfRangeException>("warmupEndTime", () => new EventCountRunStrategy(maxEventCount, invalidWarmup));

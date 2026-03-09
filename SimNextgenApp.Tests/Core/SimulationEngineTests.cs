@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
@@ -8,7 +7,6 @@ using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
 using SimNextgenApp.Statistics;
-using System.ComponentModel;
 
 namespace SimNextgenApp.Tests.Core;
 
@@ -42,7 +40,7 @@ public class SimulationEngineTests
         // Arrange
         var testEvent = new TestEvent();
         _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
-                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(testEvent, 1.0));
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(testEvent, 1));
 
         // Let the loop run once for the event, then stop.
         int calls = 0;
@@ -56,7 +54,7 @@ public class SimulationEngineTests
 
         // Assert
         Assert.True(testEvent.Executed);
-        Assert.Equal(1.0, engine.ClockTime);
+        Assert.Equal(1, engine.ClockTime);
         Assert.Equal(1, result.ExecutedEventCount);
         _mockModel.Verify(m => m.Initialize(It.IsAny<IRunContext>()), Times.Once);
     }
@@ -69,9 +67,9 @@ public class SimulationEngineTests
         _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
             .Callback<IRunContext>(ctx =>
             {
-                ctx.Scheduler.Schedule(new NamedEvent("C", executedEvents), 3.0);
-                ctx.Scheduler.Schedule(new NamedEvent("A", executedEvents), 1.0);
-                ctx.Scheduler.Schedule(new NamedEvent("B", executedEvents), 2.0);
+                ctx.Scheduler.Schedule(new NamedEvent("C", executedEvents), 3);
+                ctx.Scheduler.Schedule(new NamedEvent("A", executedEvents), 1);
+                ctx.Scheduler.Schedule(new NamedEvent("B", executedEvents), 2);
             });
 
         // Stop after 3 events
@@ -95,8 +93,8 @@ public class SimulationEngineTests
         _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
             .Callback<IRunContext>(ctx =>
             {
-                ctx.Scheduler.Schedule(new NamedEvent("First", executedEvents), 2.0);
-                ctx.Scheduler.Schedule(new NamedEvent("Second", executedEvents), 2.0);
+                ctx.Scheduler.Schedule(new NamedEvent("First", executedEvents), 2);
+                ctx.Scheduler.Schedule(new NamedEvent("Second", executedEvents), 2);
             });
 
         _mockStrategy.Setup(s => s.ShouldContinue(It.Is<IRunContext>(ctx => ctx.ExecutedEventCount < 2)))
@@ -129,9 +127,9 @@ public class SimulationEngineTests
         // Arrange
         var warmupModelMock = _mockModel.As<IWarmupAware>();
         _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
-                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(new TestEvent(), 5.0));
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(new TestEvent(), 5));
 
-        _mockStrategy.SetupGet(s => s.WarmupEndTime).Returns(5.0);
+        _mockStrategy.SetupGet(s => s.WarmupEndTime).Returns(5);
         _mockStrategy.Setup(s => s.ShouldContinue(It.IsAny<IRunContext>())).Returns(true);
 
         var engine = CreateEngine(CreateProfile());
@@ -140,7 +138,7 @@ public class SimulationEngineTests
         engine.Run();
 
         // Assert
-        warmupModelMock.Verify(m => m.WarmedUp(5.0), Times.Once);
+        warmupModelMock.Verify(m => m.WarmedUp(5), Times.Once);
     }
 
     [Fact(DisplayName = "Run should throw SimulationException if Model.Initialize fails.")]
@@ -165,7 +163,7 @@ public class SimulationEngineTests
         failingEvent.Setup(e => e.Execute(It.IsAny<IRunContext>())).Throws(eventException);
 
         _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
-                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(failingEvent.Object, 1.0));
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(failingEvent.Object, 1));
         _mockStrategy.Setup(s => s.ShouldContinue(It.IsAny<IRunContext>())).Returns(true);
 
         var engine = CreateEngine(CreateProfile());
@@ -181,7 +179,7 @@ public class SimulationEngineTests
         // Arrange
         // Run one event to advance the clock
         _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
-                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(new TestEvent(), 10.0));
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(new TestEvent(), 10));
         _mockStrategy.Setup(s => s.ShouldContinue(It.Is<IRunContext>(ctx => ctx.ExecutedEventCount < 1)))
                      .Returns(true);
 
@@ -189,7 +187,7 @@ public class SimulationEngineTests
         engine.Run(); // Clock is now 10.0
 
         // Act & Assert
-        Assert.Throws<ArgumentOutOfRangeException>("time", () => engine.Schedule(new TestEvent(), 9.0));
+        Assert.Throws<ArgumentOutOfRangeException>("time", () => engine.Schedule(new TestEvent(), 9));
     }
 
     [Fact(DisplayName = "Run should call tracer for scheduling, execution, and completion.")]
@@ -198,7 +196,7 @@ public class SimulationEngineTests
         // Arrange
         var testEvent = new TestEvent();
         _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
-                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(testEvent, 1.0));
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(testEvent, 1));
 
         _mockStrategy.Setup(s => s.ShouldContinue(It.Is<IRunContext>(ctx => ctx.ExecutedEventCount < 1)))
                      .Returns(true);

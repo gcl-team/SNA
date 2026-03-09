@@ -48,7 +48,7 @@ public class ServerObserver<TLoad>
     /// Resets the observer's statistics. This should be called after a simulation
     /// warm-up period to clear transient data.
     /// </summary>
-    public void WarmedUp(double simulationTime)
+    public void WarmedUp(long simulationTime)
     {
         _busyServerUnitsCounter.WarmedUp(simulationTime, 0);
         _loadsCompletedCount = 0;
@@ -57,12 +57,12 @@ public class ServerObserver<TLoad>
         _busyServerUnitsCounter.ObserveCount(_server.NumberInService, simulationTime);
     }
 
-    private void OnServerStateChange(double currentTime)
+    private void OnServerStateChange(long currentTime)
     {
         _busyServerUnitsCounter.ObserveCount(_server.NumberInService, currentTime);
     }
 
-    private void OnLoadDepart(TLoad load, double currentTime)
+    private void OnLoadDepart(TLoad load, long currentTime)
     {
         _loadsCompletedCount++;
     }

@@ -35,19 +35,19 @@ public interface IResourcePool<TResource> : IWarmupAware
     /// Occurs when a resource has been successfully acquired from the pool.
     /// First argument is the acquired resource, second is the simulation time.
     /// </summary>
-    event Action<TResource, double>? ResourceAcquired;
+    event Action<TResource, long>? ResourceAcquired;
 
     /// <summary>
     /// Occurs when a resource has been released back into the pool.
     /// First argument is the released resource, second is the simulation time.
     /// </summary>
-    event Action<TResource, double>? ResourceReleased;
+    event Action<TResource, long>? ResourceReleased;
 
     /// <summary>
     /// Occurs when an attempt to acquire a resource fails because none are available.
     /// The argument is the simulation time of the failed attempt.
     /// </summary>
-    event Action<double>? RequestFailed;
+    event Action<long>? RequestFailed;
 
     /// <summary>
     /// Attempts to acquire a resource from the pool immediately.

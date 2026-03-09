@@ -19,10 +19,10 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     private bool _toDequeue = true;
     private readonly ILogger<SimQueue<TLoad>> _logger;
 
-    public event Action<TLoad, double>? LoadEnqueued;
-    public event Action<TLoad, double>? LoadDequeued;
-    public event Action<TLoad, double>? LoadBalked;
-    public event Action<double>? StateChanged;
+    public event Action<TLoad, long>? LoadEnqueued;
+    public event Action<TLoad, long>? LoadDequeued;
+    public event Action<TLoad, long>? LoadBalked;
+    public event Action<long>? StateChanged;
 
     public IReadOnlyCollection<TLoad> WaitingItems => _waitingItems;
     public int Occupancy => _waitingItems.Count;
@@ -131,12 +131,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     }
 
     /// <inheritdoc/>
-    /// <remarks>
-    /// Resets statistics for the post-warm-up period. The queue's <see cref="TimeBasedMetric"/>
-    /// is reset, and its current occupancy is observed at the <paramref name="simulationTime"/>
-    /// to establish a baseline for post-warm-up statistics.
-    /// </remarks>
-    public override void WarmedUp(double simulationTime)
+    public override void WarmedUp(long simulationTime)
     {
         TimeBasedMetric.WarmedUp(simulationTime, Occupancy);
         _logger.LogInformation("Queue '{QueueName}' warmed up at {Time}. Current occupancy: {Occupancy}", Name, simulationTime, Occupancy);
@@ -147,7 +142,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// </summary>
     /// <param name="load">The load that will be enqueued.</param>
     /// <param name="currentTime">The current time at which the enqueue operation is being processed.</param>
-    internal void HandleEnqueue(TLoad load, double currentTime)
+    internal void HandleEnqueue(TLoad load, long currentTime)
     {
         if (Vacancy <= 0 && Configuration.Capacity != int.MaxValue)
         {
@@ -170,7 +165,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// Handles the dequeue operation for the queue at the specified time.
     /// </summary>
     /// <param name="currentTime">The current time at which the dequeue operation is being processed.</param>
-    internal void HandleDequeue(double currentTime)
+    internal void HandleDequeue(long currentTime)
     {
         if (Occupancy == 0)
         {
@@ -200,7 +195,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// <remarks>If the new state is the same as the current state, no action is taken.</remarks>
     /// <param name="toDequeue">A value indicating whether the queue should be allowed for dequeue.</param>
     /// <param name="currentTime">The current time, used to log and notify observers of the state change.</param>
-    internal void HandleUpdateToDequeue(bool toDequeue, double currentTime)
+    internal void HandleUpdateToDequeue(bool toDequeue, long currentTime)
     {
         if (_toDequeue == toDequeue) return;
 
@@ -213,12 +208,12 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         OnStateChanged(currentTime);
     }
 
-    void IOperatableQueue<TLoad>.HandleEnqueue(TLoad load, double currentTime) => HandleEnqueue(load, currentTime);
-    void IOperatableQueue<TLoad>.HandleDequeue(double currentTime) => HandleDequeue(currentTime);
-    void IOperatableQueue<TLoad>.HandleUpdateToDequeue(bool toDequeue, double currentTime) => HandleUpdateToDequeue(toDequeue, currentTime);
+    void IOperatableQueue<TLoad>.HandleEnqueue(TLoad load, long currentTime) => HandleEnqueue(load, currentTime);
+    void IOperatableQueue<TLoad>.HandleDequeue(long currentTime) => HandleDequeue(currentTime);
+    void IOperatableQueue<TLoad>.HandleUpdateToDequeue(bool toDequeue, long currentTime) => HandleUpdateToDequeue(toDequeue, currentTime);
 
-    private void OnLoadEnqueued(TLoad load, double time) => LoadEnqueued?.Invoke(load, time);
-    private void OnLoadDequeued(TLoad load, double time) => LoadDequeued?.Invoke(load, time);
-    private void OnLoadBalked(TLoad load, double time) => LoadBalked?.Invoke(load, time);
-    private void OnStateChanged(double time) => StateChanged?.Invoke(time);
+    private void OnLoadEnqueued(TLoad load, long time) => LoadEnqueued?.Invoke(load, time);
+    private void OnLoadDequeued(TLoad load, long time) => LoadDequeued?.Invoke(load, time);
+    private void OnLoadBalked(TLoad load, long time) => LoadBalked?.Invoke(load, time);
+    private void OnStateChanged(long time) => StateChanged?.Invoke(time);
 }

@@ -17,8 +17,8 @@ public class ServerObserverTests
 
         // The observer needs to subscribe to events. Moq requires us to set up
         // the event add/remove accessors for Strict mocks.
-        _mockServer.SetupAdd(s => s.StateChanged += It.IsAny<Action<double>>());
-        _mockServer.SetupAdd(s => s.LoadDeparted += It.IsAny<Action<DummyLoad, double>>());
+        _mockServer.SetupAdd(s => s.StateChanged += It.IsAny<Action<long>>());
+        _mockServer.SetupAdd(s => s.LoadDeparted += It.IsAny<Action<DummyLoad, long>>());
 
         _observer = new ServerObserver<DummyLoad>(_mockServer.Object);
     }
@@ -43,10 +43,10 @@ public class ServerObserverTests
         var observer = new ServerObserver<DummyLoad>(localMockServer.Object);
 
         // Assert
-        localMockServer.VerifyAdd(s => s.StateChanged += It.IsAny<Action<double>>(), Times.Once,
+        localMockServer.VerifyAdd(s => s.StateChanged += It.IsAny<Action<long>>(), Times.Once,
             "The observer should subscribe to the StateChanged event.");
 
-        localMockServer.VerifyAdd(s => s.LoadDeparted += It.IsAny<Action<DummyLoad, double>>(), Times.Once,
+        localMockServer.VerifyAdd(s => s.LoadDeparted += It.IsAny<Action<DummyLoad, long>>(), Times.Once,
             "The observer should subscribe to the LoadDeparted event.");
     }
 
@@ -55,7 +55,7 @@ public class ServerObserverTests
     {
         // Arrange
         const int currentNumberInService = 3;
-        const double eventTime = 50.0;
+        const long eventTime = 50;
 
         _mockServer.SetupGet(s => s.NumberInService).Returns(currentNumberInService);
 
@@ -74,8 +74,8 @@ public class ServerObserverTests
         Assert.Equal(0, _observer.LoadsCompleted); // Verify initial state
 
         // Act
-        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 10.0);
-        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 20.0);
+        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 10);
+        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 20);
 
         // Assert
         Assert.Equal(2, _observer.LoadsCompleted);
@@ -85,11 +85,11 @@ public class ServerObserverTests
     public void WarmedUp_WhenCalled_ResetsStatsAndReinitializes()
     {
         // Arrange
-        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 10.0);
+        _mockServer.Raise(s => s.LoadDeparted += null, _testLoad, 10);
         Assert.Equal(1, _observer.LoadsCompleted); // Verify pre-warmup state
 
         const int numberInServiceAtWarmup = 2;
-        const double warmupTime = 100.0;
+        const long warmupTime = 100;
 
         _mockServer.SetupGet(s => s.NumberInService).Returns(numberInServiceAtWarmup);
 
@@ -114,13 +114,13 @@ public class ServerObserverTests
         // - From T=0 to T=10, 0 units are busy.
         // - From T=10 to T=20, 2 units are busy.
         _mockServer.SetupGet(s => s.NumberInService).Returns(0);
-        _mockServer.Raise(s => s.StateChanged += null, 0.0); // Initialize at T=0
+        _mockServer.Raise(s => s.StateChanged += null, 0); // Initialize at T=0
 
         _mockServer.SetupGet(s => s.NumberInService).Returns(2);
-        _mockServer.Raise(s => s.StateChanged += null, 10.0); // At time 10, count becomes 2.
+        _mockServer.Raise(s => s.StateChanged += null, 10); // At time 10, count becomes 2.
 
         _mockServer.SetupGet(s => s.NumberInService).Returns(0);
-        _mockServer.Raise(s => s.StateChanged += null, 20.0); // At time 20, count becomes 0.
+        _mockServer.Raise(s => s.StateChanged += null, 20); // At time 20, count becomes 0.
 
         // Act
         // The calculation happens inside the property, so we just read it.

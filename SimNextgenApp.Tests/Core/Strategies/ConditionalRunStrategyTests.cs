@@ -15,13 +15,13 @@ public class ConditionalRunStrategyTests
     [Fact(DisplayName = "Constructor should throw ArgumentOutOfRangeException for a negative warm-up time.")]
     public void Constructor_NegativeWarmupTime_ThrowsArgumentOutOfRangeException()
     {
-        Assert.Throws<ArgumentOutOfRangeException>("warmupEndTime", () => new ConditionalRunStrategy(ctx => true, -10.0));
+        Assert.Throws<ArgumentOutOfRangeException>("warmupEndTime", () => new ConditionalRunStrategy(ctx => true, -10));
     }
 
     [Theory(DisplayName = "Constructor should set WarmupEndTime when a valid non-negative value is provided.")]
-    [InlineData(0.0)]
-    [InlineData(100.0)]
-    public void Constructor_ValidWarmupTime_SetsWarmupProperty(double warmupTime)
+    [InlineData(0)]
+    [InlineData(100)]
+    public void Constructor_ValidWarmupTime_SetsWarmupProperty(long warmupTime)
     {
         // Arrange
         var strategy = new ConditionalRunStrategy(ctx => true, warmupTime);

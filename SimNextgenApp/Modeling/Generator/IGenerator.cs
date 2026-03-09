@@ -20,7 +20,7 @@ internal interface IGenerator<TLoad> : IWarmupAware
     /// Will be <c>null</c> if the generator has not yet started or warmed up.
     /// The unit of time is consistent with the simulation engine's clock.
     /// </summary>
-    double? StartTime { get; }
+    long? StartTime { get; }
 
     /// <summary>
     /// Gets a value indicating whether the generator is currently active and producing loads.
@@ -35,5 +35,5 @@ internal interface IGenerator<TLoad> : IWarmupAware
     /// <summary>
     /// Occurs when a new load is generated.
     /// </summary>
-    event Action<TLoad, double>? LoadGenerated;
+    event Action<TLoad, long>? LoadGenerated;
 }

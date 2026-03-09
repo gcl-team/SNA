@@ -19,7 +19,7 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
     private readonly Random _random;
 
     internal readonly HashSet<TLoad> _loadsInService;
-    internal readonly Dictionary<TLoad, double> _serviceStartTimes;
+    internal readonly Dictionary<TLoad, long> _serviceStartTimes;
 
     /// <inheritdoc/>
     public IReadOnlySet<TLoad> LoadsInService => _loadsInService;
@@ -35,16 +35,16 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
 
     /// <summary>
     /// Stores the simulation time at which each load started service.
-    /// Key: Load, Value: Start service time (double).
+    /// Key: Load, Value: Start service time (long).
     /// Cleared for a load once it departs and its metrics (like flow time) are potentially recorded.
     /// </summary>
-    public IReadOnlyDictionary<TLoad, double> ServiceStartTimes => new ReadOnlyDictionary<TLoad, double>(_serviceStartTimes);
+    public IReadOnlyDictionary<TLoad, long> ServiceStartTimes => new ReadOnlyDictionary<TLoad, long>(_serviceStartTimes);
 
     /// <inheritdoc/>
-    public event Action<TLoad, double>? LoadDeparted;
+    public event Action<TLoad, long>? LoadDeparted;
 
     /// <inheritdoc/>
-    public event Action<double>? StateChanged;
+    public event Action<long>? StateChanged;
 
     /// <summary>
     /// Initialises a new instance of the <see cref="Server{TLoad}"/> class.
@@ -75,7 +75,7 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
 
         // 1. Update state
         _loadsInService.Add(loadToServe);
-        double currentTime = engineContext.ClockTime;
+        long currentTime = engineContext.ClockTime;
         _serviceStartTimes[loadToServe] = currentTime;
 
         // 2. Schedule completion
@@ -89,7 +89,7 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
     }
 
     /// <inheritdoc/>
-    public override void WarmedUp(double simulationTime)
+    public override void WarmedUp(long simulationTime)
     {
         // For any loads currently being served, reset their start time
         // so that their flow time (Time of Departure - Time of Arrival) is measured from this point forward.
@@ -108,7 +108,7 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
     /// <param name="load">The load for which the service is being completed. Must be currently in service.</param>
     /// <param name="currentTime">The current simulation time at which the service completion occurs.</param>
     /// <exception cref="SimulationException">Thrown if the specified <paramref name="load"/> is not currently in service at the server.</exception>
-    internal void HandleServiceCompletion(TLoad load, double currentTime)
+    internal void HandleServiceCompletion(TLoad load, long currentTime)
     {
         if (!_loadsInService.Remove(load))
         {
@@ -122,11 +122,11 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
         OnStateChanged(currentTime);
     }
 
-    void IOperatableServer<TLoad>.HandleServiceCompletion(TLoad load, double currentTime)
+    void IOperatableServer<TLoad>.HandleServiceCompletion(TLoad load, long currentTime)
     {
         HandleServiceCompletion(load, currentTime);
     }
 
-    private void OnLoadDeparted(TLoad load, double time) => LoadDeparted?.Invoke(load, time);
-    private void OnStateChanged(double time) => StateChanged?.Invoke(time);
+    private void OnLoadDeparted(TLoad load, long time) => LoadDeparted?.Invoke(load, time);
+    private void OnStateChanged(long time) => StateChanged?.Invoke(time);
 }

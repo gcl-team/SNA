@@ -5,7 +5,7 @@
 /// </summary>
 public record TraceRecord(
     TracePoint Point,
-    double ClockTime,
+    long ClockTime,
     long EventId,
     string EventType,
     IDictionary<string, object>? Details = null

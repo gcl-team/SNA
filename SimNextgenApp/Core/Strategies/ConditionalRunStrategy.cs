@@ -8,7 +8,7 @@ public class ConditionalRunStrategy : IRunStrategy
     private readonly Func<IRunContext, bool> _continueCondition;
 
     /// <inheritdoc/>
-    public double? WarmupEndTime { get; }
+    public long? WarmupEndTime { get; }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="ConditionalRunStrategy"/> class.
@@ -17,7 +17,7 @@ public class ConditionalRunStrategy : IRunStrategy
     /// <param name="warmupEndTime">Optional absolute simulation time when the warm-up period ends.</param>
     /// <exception cref="ArgumentNullException">Thrown if continueCondition is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if warmupEndTime is negative.</exception>
-    public ConditionalRunStrategy(Func<IRunContext, bool> continueCondition, double? warmupEndTime = null)
+    public ConditionalRunStrategy(Func<IRunContext, bool> continueCondition, long? warmupEndTime = null)
     {
         _continueCondition = continueCondition ?? throw new ArgumentNullException(nameof(continueCondition));
 

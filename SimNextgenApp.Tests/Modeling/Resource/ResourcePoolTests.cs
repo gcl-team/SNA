@@ -3,8 +3,6 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SimNextgenApp.Core;
 using SimNextgenApp.Modeling.Resource;
-using System.ComponentModel;
-
 namespace SimNextgenApp.Tests.Modeling.Resource;
 
 public class ResourcePoolTests
@@ -12,7 +10,7 @@ public class ResourcePoolTests
     private const string DefaultPoolName = "TestPool";
     private readonly Mock<IRunContext> _mockEngineContext;
     private readonly ILoggerFactory _nullLoggerFactory;
-    private double _currentTestTime = 0.0;
+    private long _currentTestTime = 0;
 
     public ResourcePoolTests()
     {
@@ -96,7 +94,7 @@ public class ResourcePoolTests
     {
         // Arrange
         var pool = CreatePool(resources: CreateDefaultResources(3));
-        _currentTestTime = 10.0;
+        _currentTestTime = 10;
 
         // Act
         var acquiredResource = pool.TryAcquire(_mockEngineContext.Object);
@@ -136,7 +134,7 @@ public class ResourcePoolTests
         var resourceToRelease = pool.TryAcquire(_mockEngineContext.Object);
         Assert.NotNull(resourceToRelease); // Pre-condition check
 
-        _currentTestTime = 20.0;
+        _currentTestTime = 20;
 
         // Act
         pool.Release(resourceToRelease, _mockEngineContext.Object);
@@ -184,13 +182,13 @@ public class ResourcePoolTests
         // Arrange
         var pool = CreatePool(resources: CreateDefaultResources(3));
         DummyResource? acquiredResource = null;
-        double eventTime = -1;
+        long eventTime = -1;
 
         pool.ResourceAcquired += (res, time) => {
             acquiredResource = res;
             eventTime = time;
         };
-        _currentTestTime = 5.0;
+        _currentTestTime = 5;
 
         // Act
         var result = pool.TryAcquire(_mockEngineContext.Object);
@@ -198,7 +196,7 @@ public class ResourcePoolTests
         // Assert
         Assert.NotNull(acquiredResource);
         Assert.Equal(result, acquiredResource);
-        Assert.Equal(5.0, eventTime);
+        Assert.Equal(5, eventTime);
     }
 
     [Fact(DisplayName = "RequestFailed event should fire on a failed acquire.")]
@@ -207,20 +205,20 @@ public class ResourcePoolTests
         // Arrange
         var pool = CreatePool(resources: CreateDefaultResources(0)); // An empty pool
         bool isFired = false;
-        double eventTime = -1;
+        long eventTime = -1;
 
         pool.RequestFailed += (time) => {
             isFired = true;
             eventTime = time;
         };
-        _currentTestTime = 7.0;
+        _currentTestTime = 7;
 
         // Act
         pool.TryAcquire(_mockEngineContext.Object);
 
         // Assert
         Assert.True(isFired);
-        Assert.Equal(7.0, eventTime);
+        Assert.Equal(7, eventTime);
     }
 
     [Fact(DisplayName = "ResourceReleased event should fire on a successful release.")]
@@ -231,13 +229,13 @@ public class ResourcePoolTests
         var resourceToRelease = pool.TryAcquire(_mockEngineContext.Object)!;
 
         DummyResource? releasedResource = null;
-        double eventTime = -1;
+        long eventTime = -1;
 
         pool.ResourceReleased += (res, time) => {
             releasedResource = res;
             eventTime = time;
         };
-        _currentTestTime = 15.0;
+        _currentTestTime = 15;
 
         // Act
         pool.Release(resourceToRelease, _mockEngineContext.Object);
@@ -245,7 +243,7 @@ public class ResourcePoolTests
         // Assert
         Assert.NotNull(releasedResource);
         Assert.Equal(resourceToRelease, releasedResource);
-        Assert.Equal(15.0, eventTime);
+        Assert.Equal(15, eventTime);
     }
 
     [Fact(DisplayName = "WarmedUp should reset the metric and observe the current busy count.")]
@@ -257,7 +255,7 @@ public class ResourcePoolTests
         pool.TryAcquire(_mockEngineContext.Object);
         Assert.Equal(2, pool.BusyCount);
 
-        double warmupTime = 100.0;
+        long warmupTime = 100;
 
         // Act
         pool.WarmedUp(warmupTime);

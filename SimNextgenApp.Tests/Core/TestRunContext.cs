@@ -2,9 +2,9 @@ using SimNextgenApp.Core;
 
 namespace SimNextgenApp.Tests.Core;
 
-public class TestRunContext(IScheduler scheduler, double initialClockTime = 0.0, long initialEventCount = 0) : IRunContext
+public class TestRunContext(IScheduler scheduler, long initialClockTime = 0L, long initialEventCount = 0L) : IRunContext
 {
     public IScheduler Scheduler { get; set; } = scheduler;
-    public double ClockTime { get; set; } = initialClockTime;
+    public long ClockTime { get; set; } = initialClockTime;
     public long ExecutedEventCount { get; set; } = initialEventCount;
 }

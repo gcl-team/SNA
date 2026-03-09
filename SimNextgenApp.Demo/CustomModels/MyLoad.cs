@@ -4,9 +4,9 @@ internal class MyLoad
 {
     private static int _nextId = 0;
     public int Id { get; }
-    public double CreationTime { get; set; }
-    public double ServiceStartTime { get; set; }
-    public double ServiceEndTime { get; set; }
+    public long CreationTime { get; set; }
+    public long ServiceStartTime { get; set; }
+    public long ServiceEndTime { get; set; }
 
     public MyLoad()
     {

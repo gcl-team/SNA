@@ -23,7 +23,7 @@ public abstract class AbstractEvent
     /// The simulation time at which this event is scheduled to occur.
     /// Set by the SimulationEngine when the event is scheduled.
     /// </summary>
-    public double ExecutionTime { get; internal set; }
+    public long ExecutionTime { get; internal set; }
 
     // Optional: Add priority for more complex tie-breaking if needed
     // public virtual int Priority { get; protected set; } = 0; // Lower value = higher priority
@@ -52,6 +52,6 @@ public abstract class AbstractEvent
     public override string ToString()
     {
         // Basic representation, derived classes can add associated entity IDs etc.
-        return $"{GetType().Name}#{EventId} @ {ExecutionTime:F4}";
+        return $"{GetType().Name}#{EventId} @ {ExecutionTime:N0}";
     }
 }

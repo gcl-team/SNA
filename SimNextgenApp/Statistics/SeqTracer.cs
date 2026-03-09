@@ -11,7 +11,7 @@ public class SeqTracer(ILogger serilogger) : ISimulationTracer
     // The message template defines the "human-readable" part of the log event.
     // The properties are all sent as structured data.
     private const string TraceTemplate =
-        "[{TracePoint}] Event {EventType} (ID: {EventId}) at T={ClockTime:F4}";
+        "[{TracePoint}] Event {EventType} (ID: {EventId}) at T={ClockTime:N0}";
 
     /// <inheritdoc/>
     public void Trace(TraceRecord record)

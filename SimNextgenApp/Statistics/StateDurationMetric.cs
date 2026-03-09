@@ -2,22 +2,23 @@ namespace SimNextgenApp.Statistics;
 
 /// <summary>
 /// Tracks the total duration an entity spends in various discrete states over simulation time.
+/// All time values are expressed in simulation time units as defined by the SimulationProfile's TimeUnit setting.
 /// </summary>
 /// <typeparam name="TState">The type of the state being tracked, should be an Enum.</typeparam>
 public class StateDurationMetric<TState> where TState : Enum
 {
-    private List<(double Time, TState State)> _history;
-    private Dictionary<TState, double> _stateDurationsInternal;
+    private List<(long Time, TState State)> _history = [];
+    private Dictionary<TState, long> _stateDurationsInternal = [];
 
     /// <summary>
-    /// The simulation time at which tracking started or was last reset (warmed up).
+    /// The simulation time (in simulation time units) at which tracking started or was last reset (warmed up).
     /// </summary>
-    public double InitialTime { get; private set; }
+    public long InitialTime { get; private set; }
 
     /// <summary>
-    /// The simulation time of the last recorded state transition.
+    /// The simulation time (in simulation time units) of the last recorded state transition.
     /// </summary>
-    public double CurrentTime { get; private set; }
+    public long CurrentTime { get; private set; }
 
     /// <summary>
     /// The most recently recorded state of the entity.
@@ -31,27 +32,27 @@ public class StateDurationMetric<TState> where TState : Enum
 
     /// <summary>
     /// A read-only dictionary containing the total active duration spent in each state.
-    /// Key: State. Value: Total duration in that state.
+    /// Key: State. Value: Total duration in that state (in simulation time units).
     /// </summary>
-    public IReadOnlyDictionary<TState, double> StateDurations => _stateDurationsInternal;
+    public IReadOnlyDictionary<TState, long> StateDurations => _stateDurationsInternal;
 
     /// <summary>
     /// A read-only list of (Time, State) tuples representing the history of state transitions,
     /// if history tracking is enabled. Otherwise, an empty list.
     /// </summary>
-    public IReadOnlyList<(double Time, TState State)> History =>
+    public IReadOnlyList<(long Time, TState State)> History =>
         IsHistoryEnabled && _history != null
             ? _history.AsReadOnly()
-            : Array.Empty<(double Time, TState State)>();
+            : Array.Empty<(long Time, TState State)>();
 
     /// <summary>
-    /// Initializes a new instance of the <see cref="StateTracker{TState}"/> class.
+    /// Initializes a new instance of the <see cref="StateDurationMetric{TState}"/> class.
     /// </summary>
     /// <param name="initialState">The initial state of the entity.</param>
-    /// <param name="initialTime">The simulation time at which tracking begins. Defaults to 0.0.</param>
+    /// <param name="initialTime">The simulation time (in simulation time units) at which tracking begins. Defaults to 0.</param>
     /// <param name="enableHistory">True to record a history of all state transitions; otherwise, false. Defaults to false.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if initialTime is negative.</exception>
-    public StateDurationMetric(TState initialState, double initialTime = 0.0, bool enableHistory = false)
+    public StateDurationMetric(TState initialState, long initialTime = 0, bool enableHistory = false)
     {
         if (initialTime < 0)
             throw new ArgumentOutOfRangeException(nameof(initialTime), "Initial time cannot be negative.");
@@ -59,7 +60,7 @@ public class StateDurationMetric<TState> where TState : Enum
         Init(initialState, initialTime, enableHistory);
     }
 
-    private void Init(TState initialState, double time, bool enableHistory)
+    private void Init(TState initialState, long time, bool enableHistory)
     {
         InitialTime = time;
         CurrentTime = time;
@@ -81,9 +82,9 @@ public class StateDurationMetric<TState> where TState : Enum
     /// Records a transition to a new state at the specified simulation time.
     /// </summary>
     /// <param name="newState">The state the entity is transitioning into.</param>
-    /// <param name="clockTime">The simulation time of the state transition. Must not be less than CurrentTime.</param>
+    /// <param name="clockTime">The simulation time (in simulation time units) of the state transition. Must not be less than CurrentTime.</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if clockTime is less than CurrentTime.</exception>
-    public void UpdateState(TState newState, double clockTime)
+    public void UpdateState(TState newState, long clockTime)
     {
         if (clockTime < CurrentTime)
         {
@@ -92,8 +93,8 @@ public class StateDurationMetric<TState> where TState : Enum
 
         if (clockTime > CurrentTime) // Only record duration if time has advanced
         {
-            double durationInPreviousState = clockTime - CurrentTime;
-            _stateDurationsInternal.TryGetValue(CurrentState, out double currentTotalDuration);
+            long durationInPreviousState = clockTime - CurrentTime;
+            _stateDurationsInternal.TryGetValue(CurrentState, out long currentTotalDuration);
             _stateDurationsInternal[CurrentState] = currentTotalDuration + durationInPreviousState;
         }
 
@@ -113,9 +114,9 @@ public class StateDurationMetric<TState> where TState : Enum
     /// and starts tracking from the current state at the specified simulation time.
     /// The IsHistoryEnabled setting is preserved.
     /// </summary>
-    /// <param name="clockTime">The simulation time from which to start fresh tracking (warm-up time).</param>
+    /// <param name="clockTime">The simulation time (in simulation time units) from which to start fresh tracking (warm-up time).</param>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if clockTime is negative.</exception>
-    public void WarmedUp(double clockTime)
+    public void WarmedUp(long clockTime)
     {
         if (clockTime < 0)
             throw new ArgumentOutOfRangeException(nameof(clockTime), "Warm-up time cannot be negative.");
@@ -130,18 +131,18 @@ public class StateDurationMetric<TState> where TState : Enum
     /// up to the specified 'asOfClockTime'.
     /// </summary>
     /// <param name="stateToQuery">The state for which to calculate the proportion.</param>
-    /// <param name="asOfClockTime">The simulation time up to which the proportion is calculated.
+    /// <param name="asOfClockTime">The simulation time (in simulation time units) up to which the proportion is calculated.
     /// Must not be less than CurrentTime if calculating for the current ongoing state,
     /// and not less than InitialTime generally.</param>
     /// <returns>The proportion (0.0 to 1.0) of time spent in the specified state. Returns 0 if total observed time is zero.</returns>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if asOfClockTime is less than InitialTime,
     /// or if asOfClockTime is less than CurrentTime when querying the current active state.</exception>
-    public double GetProportionOfTimeInState(TState stateToQuery, double asOfClockTime)
+    public double GetProportionOfTimeInState(TState stateToQuery, long asOfClockTime)
     {
         if (asOfClockTime < InitialTime)
             throw new ArgumentOutOfRangeException(nameof(asOfClockTime), $"As-of clock time ({asOfClockTime}) cannot be less than initial time ({InitialTime}).");
 
-        double totalObservedTimeSpan = asOfClockTime - InitialTime;
+        long totalObservedTimeSpan = asOfClockTime - InitialTime;
         if (totalObservedTimeSpan <= 0)
         {
             return EqualityComparer<TState>.Default.Equals(stateToQuery, CurrentState) && asOfClockTime == InitialTime ? 1.0 : 0.0;
@@ -166,15 +167,15 @@ public class StateDurationMetric<TState> where TState : Enum
                 if (EqualityComparer<TState>.Default.Equals(intervalState, stateToQuery))
                 {
                     // Calculate the duration of this state's activity within the observed window.
-                    double effectiveEndTime = Math.Min(intervalEndTime, asOfClockTime);
+                    long effectiveEndTime = Math.Min(intervalEndTime, asOfClockTime);
                     durationInState += effectiveEndTime - intervalStartTime;
                 }
             }
-            return durationInState / totalObservedTimeSpan;
+            return (double)durationInState / totalObservedTimeSpan;
         }
 
-        double durationInQueriedState = 0;
-        if (_stateDurationsInternal.TryGetValue(stateToQuery, out double recordedDuration))
+        long durationInQueriedState = 0;
+        if (_stateDurationsInternal.TryGetValue(stateToQuery, out long recordedDuration))
         {
             durationInQueriedState = recordedDuration;
         }
@@ -186,17 +187,18 @@ public class StateDurationMetric<TState> where TState : Enum
             durationInQueriedState += asOfClockTime - CurrentTime;
         }
         
-        return durationInQueriedState / totalObservedTimeSpan;
+        return (double)durationInQueriedState / totalObservedTimeSpan;
     }
 
     /// <summary>
     /// Gets the total duration spent in a specific state up to the last recorded event (CurrentTime).
+    /// Returns the exact integer duration in simulation time units to maintain precision.
     /// </summary>
     /// <param name="stateToQuery">The state to get the duration for.</param>
-    /// <returns>The total duration spent in the specified state.</returns>
-    public double GetTotalDurationInState(TState stateToQuery)
+    /// <returns>The total duration (in simulation time units) spent in the specified state as an exact long value.</returns>
+    public long GetTotalDurationInState(TState stateToQuery)
     {
-        _stateDurationsInternal.TryGetValue(stateToQuery, out double duration);
+        _stateDurationsInternal.TryGetValue(stateToQuery, out long duration);
         // Note: This does NOT add ongoing duration for the CurrentState.
         // It reflects durations *completed* or recorded up to CurrentTime.
         // If you need "up to now including ongoing for current state", use GetProportionOfTimeInState's logic with CurrentTime.
