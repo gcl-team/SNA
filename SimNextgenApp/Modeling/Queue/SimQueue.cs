@@ -131,11 +131,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     }
 
     /// <inheritdoc/>
-    /// <remarks>
-    /// Resets statistics for the post-warm-up period. The queue's <see cref="TimeBasedMetric"/>
-    /// is reset, and its current occupancy is observed at the <paramref name="simulationTime"/>
-    /// to establish a baseline for post-warm-up statistics.
-    /// </remarks>
     public override void WarmedUp(long simulationTime)
     {
         TimeBasedMetric.WarmedUp(simulationTime, Occupancy);

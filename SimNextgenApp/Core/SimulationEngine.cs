@@ -132,7 +132,13 @@ public class SimulationEngine : IScheduler, IRunContext
             Model.Initialize(this);
             _hasSimulationRun = true;
             _logger.LogDebug("Model initialization complete.");
-            _logger.LogInformation(">>> Starting main event loop. FEL count is: {FELCount}", _fel.Count);
+
+            int felCount;
+            lock (_felLock)
+            {
+                felCount = _fel.Count;
+            }
+            _logger.LogInformation(">>> Starting main event loop. FEL count is: {FELCount}", felCount);
         }
         catch (Exception ex)
         {
@@ -145,8 +151,22 @@ public class SimulationEngine : IScheduler, IRunContext
         {
             using (LogContext.PushProperty("ProfileRunId", _profile.RunId))
             {
-                while (strategy.ShouldContinue(this) && _fel.TryDequeue(out var currentEvent, out var priority))
+                while (strategy.ShouldContinue(this))
                 {
+                    AbstractEvent? currentEvent;
+                    (long Time, long Sequence) priority;
+
+                    lock (_felLock)
+                    {
+                        if (!_fel.TryDequeue(out currentEvent, out priority))
+                        {
+                            break;
+                        }
+                    }
+
+                    // currentEvent is guaranteed non-null here since TryDequeue succeeded
+
+
                     _executedEventCount += 1;
 
                     // 1. Advance Clock
@@ -304,12 +324,24 @@ public class SimulationEngine : IScheduler, IRunContext
                 "Consider using a coarser time unit (e.g., Milliseconds instead of Ticks) or shorter simulation duration.");
         }
 
+        int felCountBefore;
+        lock (_felLock)
+        {
+            felCountBefore = _fel.Count;
+        }
+
         _logger.LogDebug("Scheduling event {EventType} with delay {Delay} ({DelayInSimUnits} simulation units). FEL count before scheduling: {FELCount}",
-            ev.GetType().Name, delay, delayInSimUnits, _fel.Count);
+            ev.GetType().Name, delay, delayInSimUnits, felCountBefore);
 
         Schedule(ev, eventExecutionTime);
 
+        int felCountAfter;
+        lock (_felLock)
+        {
+            felCountAfter = _fel.Count;
+        }
+
         _logger.LogInformation("Scheduled event {EventType} for simulation time {ExecutionTime}. FEL count after scheduling: {FELCount}",
-            ev.GetType().Name, eventExecutionTime, _fel.Count);
+            ev.GetType().Name, eventExecutionTime, felCountAfter);
     }
 }

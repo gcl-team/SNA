@@ -41,7 +41,7 @@ public interface IScheduler
     /// <para>
     /// This method provides a convenient way to schedule events using user-friendly TimeSpan values.
     /// The delay is converted to simulation units based on the profile's TimeUnit setting using
-    /// <see cref="Core.Utilities.TimeUnitConverter.ConvertToSimulationUnits"/>.
+    /// <see cref="Utilities.TimeUnitConverter.ConvertToSimulationUnits"/>.
     /// </para>
     /// <para>
     /// Fractional parts are truncated. For sub-unit precision, configure a finer TimeUnit.

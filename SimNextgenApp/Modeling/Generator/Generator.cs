@@ -95,10 +95,6 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     }
 
     /// <inheritdoc/>
-    /// <remarks>
-    /// For the generator, this resets the <see cref="LoadsGeneratedCount"/> to zero and sets the <see cref="LastActivationTime"/>.
-    /// This ensures that statistics are only collected for the post-warm-up period.
-    /// </remarks>
     public override void WarmedUp(long simulationTime)
     {
         StartTime = simulationTime;
