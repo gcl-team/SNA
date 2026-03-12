@@ -15,9 +15,18 @@ namespace SimNextgenApp.Core;
 /// and the Future Event List (FEL), and processes events in chronological order.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The simulation clock uses pure integer time representation. The meaning of one unit
 /// (e.g., seconds, milliseconds, days) is determined by the SimulationProfile's TimeUnit setting.
 /// This allows simulations to run at any time scale without being tied to a specific physical unit.
+/// </para>
+/// <para>
+/// <strong>Threading Model:</strong> SimulationEngine is NOT thread-safe and must be used from a single thread.
+/// All operations including Run(), Schedule(), and property access (HasFutureEvents, HeadEventTime)
+/// must occur on the same thread. Concurrent access from multiple threads will result in undefined behavior.
+/// This is consistent with discrete event simulation semantics where events must be processed sequentially
+/// in chronological order.
+/// </para>
 /// </remarks>
 public class SimulationEngine : IScheduler, IRunContext
 {
@@ -233,6 +242,10 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <param name="time">The absolute simulation time (in simulation time units) when the event should occur.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="ev"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="time"/> is before the current simulation clock time.</exception>
+    /// <remarks>
+    /// This method is NOT thread-safe. It must only be called from the same thread that invokes Run().
+    /// Typically, this method is called from within event handlers during event execution.
+    /// </remarks>
     public void Schedule(AbstractEvent ev, long time)
     {
         ArgumentNullException.ThrowIfNull(ev);
@@ -264,6 +277,10 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="ev"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="delay"/> is negative.</exception>
     /// <exception cref="OverflowException">Thrown if scheduling the event would exceed the maximum simulation time (long.MaxValue).</exception>
+    /// <remarks>
+    /// This method is NOT thread-safe. It must only be called from the same thread that invokes Run().
+    /// Typically, this method is called from within event handlers during event execution.
+    /// </remarks>
     public void Schedule(AbstractEvent ev, TimeSpan delay)
     {
         ArgumentNullException.ThrowIfNull(ev);
