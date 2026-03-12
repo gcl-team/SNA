@@ -15,9 +15,18 @@ namespace SimNextgenApp.Core;
 /// and the Future Event List (FEL), and processes events in chronological order.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The simulation clock uses pure integer time representation. The meaning of one unit
 /// (e.g., seconds, milliseconds, days) is determined by the SimulationProfile's TimeUnit setting.
 /// This allows simulations to run at any time scale without being tied to a specific physical unit.
+/// </para>
+/// <para>
+/// <strong>Threading Model:</strong> SimulationEngine is NOT thread-safe and must be used from a single thread.
+/// All operations including Run(), Schedule(), and property access (HasFutureEvents, HeadEventTime)
+/// must occur on the same thread. Concurrent access from multiple threads will result in undefined behavior.
+/// This is consistent with discrete event simulation semantics where events must be processed sequentially
+/// in chronological order.
+/// </para>
 /// </remarks>
 public class SimulationEngine : IScheduler, IRunContext
 {
@@ -26,7 +35,6 @@ public class SimulationEngine : IScheduler, IRunContext
 
     private readonly SimulationProfile _profile;
     private readonly PriorityQueue<AbstractEvent, (long Time, long Sequence)> _fel;
-    private readonly Lock _felLock = new();
     private long _clockTime = 0;
     private long _executedEventCount = 0;
     private long _eventSequenceCounter = 0;
@@ -53,34 +61,14 @@ public class SimulationEngine : IScheduler, IRunContext
 
     /// <summary>
     /// Gets a value indicating whether there are any events pending in the FEL.
-    /// This property is thread-safe.
     /// </summary>
-    public bool HasFutureEvents
-    {
-        get
-        {
-            lock (_felLock)
-            {
-                return _fel.Count > 0;
-            }
-        }
-    }
+    public bool HasFutureEvents => _fel.Count > 0;
 
     /// <summary>
     /// Gets the simulation time of the next scheduled event (in simulation time units),
     /// or long.MaxValue if no events are scheduled.
-    /// This property is thread-safe.
     /// </summary>
-    public long HeadEventTime
-    {
-        get
-        {
-            lock (_felLock)
-            {
-                return _fel.TryPeek(out _, out var priority) ? priority.Time : long.MaxValue;
-            }
-        }
-    }
+    public long HeadEventTime => _fel.TryPeek(out _, out var priority) ? priority.Time : long.MaxValue;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="SimulationEngine"/> class.
@@ -133,12 +121,7 @@ public class SimulationEngine : IScheduler, IRunContext
             _hasSimulationRun = true;
             _logger.LogDebug("Model initialization complete.");
 
-            int felCount;
-            lock (_felLock)
-            {
-                felCount = _fel.Count;
-            }
-            _logger.LogInformation(">>> Starting main event loop. FEL count is: {FELCount}", felCount);
+            _logger.LogInformation(">>> Starting main event loop. FEL count is: {FELCount}", _fel.Count);
         }
         catch (Exception ex)
         {
@@ -153,15 +136,9 @@ public class SimulationEngine : IScheduler, IRunContext
             {
                 while (strategy.ShouldContinue(this))
                 {
-                    AbstractEvent? currentEvent;
-                    (long Time, long Sequence) priority;
-
-                    lock (_felLock)
+                    if (!_fel.TryDequeue(out var currentEvent, out var priority))
                     {
-                        if (!_fel.TryDequeue(out currentEvent, out priority))
-                        {
-                            break;
-                        }
+                        break;
                     }
 
                     // currentEvent is guaranteed non-null here since TryDequeue succeeded
@@ -265,6 +242,10 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <param name="time">The absolute simulation time (in simulation time units) when the event should occur.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="ev"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="time"/> is before the current simulation clock time.</exception>
+    /// <remarks>
+    /// This method is NOT thread-safe. It must only be called from the same thread that invokes Run().
+    /// Typically, this method is called from within event handlers during event execution.
+    /// </remarks>
     public void Schedule(AbstractEvent ev, long time)
     {
         ArgumentNullException.ThrowIfNull(ev);
@@ -274,14 +255,9 @@ public class SimulationEngine : IScheduler, IRunContext
 
         ev.ExecutionTime = time;
 
-        long sequence;
+        var sequence = ++_eventSequenceCounter;
+        _fel.Enqueue(ev, (time, sequence));
 
-        lock (_felLock)
-        {
-            sequence = Interlocked.Increment(ref _eventSequenceCounter);
-            _fel.Enqueue(ev, (time, sequence));
-        }
-        
         _logger.LogTrace("Scheduled event {EventType} for time {ExecutionTime} (Sequence {Sequence})", ev.GetType().Name, time, sequence);
 
         _tracer?.Trace(new TraceRecord(
@@ -301,6 +277,10 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="ev"/> is null.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if <paramref name="delay"/> is negative.</exception>
     /// <exception cref="OverflowException">Thrown if scheduling the event would exceed the maximum simulation time (long.MaxValue).</exception>
+    /// <remarks>
+    /// This method is NOT thread-safe. It must only be called from the same thread that invokes Run().
+    /// Typically, this method is called from within event handlers during event execution.
+    /// </remarks>
     public void Schedule(AbstractEvent ev, TimeSpan delay)
     {
         ArgumentNullException.ThrowIfNull(ev);
@@ -324,24 +304,12 @@ public class SimulationEngine : IScheduler, IRunContext
                 "Consider using a coarser time unit (e.g., Milliseconds instead of Ticks) or shorter simulation duration.");
         }
 
-        int felCountBefore;
-        lock (_felLock)
-        {
-            felCountBefore = _fel.Count;
-        }
-
         _logger.LogDebug("Scheduling event {EventType} with delay {Delay} ({DelayInSimUnits} simulation units). FEL count before scheduling: {FELCount}",
-            ev.GetType().Name, delay, delayInSimUnits, felCountBefore);
+            ev.GetType().Name, delay, delayInSimUnits, _fel.Count);
 
         Schedule(ev, eventExecutionTime);
 
-        int felCountAfter;
-        lock (_felLock)
-        {
-            felCountAfter = _fel.Count;
-        }
-
         _logger.LogInformation("Scheduled event {EventType} for simulation time {ExecutionTime}. FEL count after scheduling: {FELCount}",
-            ev.GetType().Name, eventExecutionTime, felCountAfter);
+            ev.GetType().Name, eventExecutionTime, _fel.Count);
     }
 }
