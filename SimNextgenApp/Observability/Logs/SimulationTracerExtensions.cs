@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Observability.Tracing;
+﻿namespace SimNextgenApp.Observability.Logs;
 
 /// <summary>
 /// Writes the contents of a <see cref="MemoryTracer"/> to the console or a specified <see cref="TextWriter"/> in a

@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Observability.Reporting;
+﻿namespace SimNextgenApp.Observability.Exporters;
 
 /// <summary>
 /// Defines a contract for a component that generates and outputs a report.

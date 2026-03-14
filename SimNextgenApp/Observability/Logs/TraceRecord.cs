@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Observability.Tracing;
+﻿namespace SimNextgenApp.Observability.Logs;
 
 /// <summary>
 /// A structured record representing a single point in the simulation execution history.

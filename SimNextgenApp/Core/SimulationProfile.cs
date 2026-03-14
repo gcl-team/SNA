@@ -2,7 +2,7 @@
 using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Observability.Tracing;
+using SimNextgenApp.Observability.Logs;
 
 namespace SimNextgenApp.Core;
 

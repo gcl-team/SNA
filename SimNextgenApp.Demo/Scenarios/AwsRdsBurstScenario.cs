@@ -5,8 +5,8 @@ using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.AwsRdsSample;
 using SimNextgenApp.Demo.CustomModels;
-using SimNextgenApp.Observability.Tracing;
-using SimNextgenApp.Observability.Reporting;
+using SimNextgenApp.Observability.Logs;
+using SimNextgenApp.Observability.Exporters;
 
 namespace SimNextgenApp.Demo.Scenarios;
 

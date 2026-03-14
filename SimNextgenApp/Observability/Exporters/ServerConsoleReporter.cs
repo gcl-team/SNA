@@ -3,7 +3,7 @@ using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Observability.Metrics;
 
-namespace SimNextgenApp.Observability.Reporting;
+namespace SimNextgenApp.Observability.Exporters;
 
 public class ServerConsoleReporter<TLoad> : IReporter
 {
