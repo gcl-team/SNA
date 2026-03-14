@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
+using SimNextgenApp.Observability.Metrics;
 
-namespace SimNextgenApp.Statistics;
+namespace SimNextgenApp.Observability.Reporting;
 
 public class ServerConsoleReporter<TLoad> : IReporter
 {

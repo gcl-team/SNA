@@ -5,7 +5,7 @@ using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Demo.RestaurantSample;
-using SimNextgenApp.Statistics;
+using SimNextgenApp.Observability.Reporting;
 using System.Drawing;
 
 namespace SimNextgenApp.Demo.Scenarios;

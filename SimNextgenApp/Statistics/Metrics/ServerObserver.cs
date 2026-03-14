@@ -1,6 +1,6 @@
 ﻿using SimNextgenApp.Modeling.Server;
 
-namespace SimNextgenApp.Statistics;
+namespace SimNextgenApp.Observability.Metrics;
 
 /// <summary>
 /// Observes and tracks the performance metrics of a server.

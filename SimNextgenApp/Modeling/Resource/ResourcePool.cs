@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using SimNextgenApp.Core;
-using SimNextgenApp.Statistics;
+using SimNextgenApp.Observability.Metrics;
 
 namespace SimNextgenApp.Modeling.Resource;
 

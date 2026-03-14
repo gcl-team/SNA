@@ -1,4 +1,4 @@
-namespace SimNextgenApp.Statistics;
+namespace SimNextgenApp.Observability.Metrics;
 
 /// <summary>
 /// Tracks time-based metrics including counts, increments, and decrements over simulation time.

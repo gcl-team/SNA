@@ -1,4 +1,4 @@
-using SimNextgenApp.Statistics; 
+using SimNextgenApp.Observability.Metrics; 
 
 namespace SimNextgenApp.Tests.Statistics;
 

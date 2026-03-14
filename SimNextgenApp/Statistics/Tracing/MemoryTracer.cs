@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Statistics;
+﻿namespace SimNextgenApp.Observability.Tracing;
 
 /// <summary>
 /// An in-memory implementation of <see cref="ISimulationTracer"/> that stores all

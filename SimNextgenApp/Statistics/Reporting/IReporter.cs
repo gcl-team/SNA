@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Statistics;
+﻿namespace SimNextgenApp.Observability.Reporting;
 
 /// <summary>
 /// Defines a contract for a component that generates and outputs a report.
