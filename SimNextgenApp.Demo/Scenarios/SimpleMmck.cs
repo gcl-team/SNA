@@ -4,7 +4,9 @@ using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.CustomModels;
-using SimNextgenApp.Statistics;
+using SimNextgenApp.Observability.Tracing;
+using SimNextgenApp.Observability.Metrics;
+using SimNextgenApp.Observability.Reporting;
 
 namespace SimNextgenApp.Demo.Scenarios;
 

@@ -1,6 +1,6 @@
 ﻿using Serilog;
 
-namespace SimNextgenApp.Statistics;
+namespace SimNextgenApp.Observability.Tracing;
 
 /// <summary>
 /// An implementation of <see cref="ISimulationTracer"/> that sends structured

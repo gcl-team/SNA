@@ -1,4 +1,4 @@
-namespace SimNextgenApp.Statistics;
+namespace SimNextgenApp.Observability.Metrics;
 
 /// <summary>
 /// Tracks the total duration an entity spends in various discrete states over simulation time.

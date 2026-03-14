@@ -5,7 +5,7 @@ using SimNextgenApp.Modeling;
 using SimNextgenApp.Modeling.Generator;
 using SimNextgenApp.Modeling.Queue;
 using SimNextgenApp.Modeling.Server;
-using SimNextgenApp.Statistics;
+using SimNextgenApp.Observability.Metrics;
 
 namespace SimNextgenApp.Demo.CustomModels;
 

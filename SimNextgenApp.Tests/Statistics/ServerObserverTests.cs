@@ -1,6 +1,6 @@
 ﻿using Moq;
 using SimNextgenApp.Modeling.Server;
-using SimNextgenApp.Statistics;
+using SimNextgenApp.Observability.Metrics;
 
 namespace SimNextgenApp.Tests.Statistics;
 

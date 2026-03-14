@@ -2,7 +2,7 @@
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
-using SimNextgenApp.Statistics;
+using SimNextgenApp.Observability.Metrics;
 
 namespace SimNextgenApp.Modeling.Queue;
 

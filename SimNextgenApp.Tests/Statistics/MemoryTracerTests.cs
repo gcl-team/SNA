@@ -1,4 +1,4 @@
-﻿using SimNextgenApp.Statistics;
+﻿using SimNextgenApp.Observability.Tracing;
 
 namespace SimNextgenApp.Tests.Statistics;
 

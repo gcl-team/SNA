@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace SimNextgenApp.Statistics;
+namespace SimNextgenApp.Observability.Tracing;
 
 /// <summary>
 /// Defines a sink for receiving structured trace records from the SimulationEngine.
