@@ -5,8 +5,8 @@ using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Observability.Tracing;
-using SimNextgenApp.Observability.Reporting;
+using SimNextgenApp.Observability.Logs;
+using SimNextgenApp.Observability.Exporters;
 
 namespace SimNextgenApp.Core;
 

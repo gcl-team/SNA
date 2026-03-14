@@ -1,4 +1,4 @@
-﻿namespace SimNextgenApp.Observability.Tracing;
+﻿namespace SimNextgenApp.Observability.Logs;
 
 /// <summary>
 /// An in-memory implementation of <see cref="ISimulationTracer"/> that stores all

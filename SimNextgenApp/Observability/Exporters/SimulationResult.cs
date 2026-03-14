@@ -2,7 +2,7 @@
 using System.Text.Json;
 using SimNextgenApp.Core.Utilities;
 
-namespace SimNextgenApp.Observability.Reporting;
+namespace SimNextgenApp.Observability.Exporters;
 
 /// <summary>
 /// Encapsulates the statistical results and final state of a completed simulation run.
