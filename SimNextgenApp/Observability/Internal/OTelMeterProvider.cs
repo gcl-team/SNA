@@ -8,7 +8,7 @@ namespace SimNextgenApp.Observability.Internal;
 /// <remarks>
 /// This class enforces the "sna." prefix convention. Callers should pass raw metric names
 /// (e.g., "server.loads_completed") and this class will add the "sna." prefix automatically.
-/// Passing already-prefixed names (e.g., "sna.server.loads_completed") will throw an exception.
+/// If a name already starts with "sna.", it will be used as-is to allow flexibility for advanced users.
 /// </remarks>
 internal sealed class OTelMeterProvider
 {
