@@ -82,10 +82,7 @@ public class SimulationObserverTests
         // Act - Load departs at time 300, sojourn time = 200ms = 0.2 seconds
         mockServer.Raise(s => s.LoadDeparted += null, load, 300L);
 
-        // Give the metrics pipeline a moment to process
-        Thread.Sleep(50);
-
-        // Assert
+        // Assert - MeterListener callbacks are synchronous, so measurement should be captured immediately
         Assert.True(capturedMeasurements.Count > 0, "Expected sojourn time measurement to be recorded");
         var measurement = capturedMeasurements.First();
         Assert.Equal(0.2, measurement.Value, 0.001); // 200ms = 0.2 seconds
@@ -130,10 +127,7 @@ public class SimulationObserverTests
         // Act
         mockServer.Raise(s => s.LoadDeparted += null, load, 300L);
 
-        // Give the metrics pipeline a moment to process
-        Thread.Sleep(50);
-
-        // Assert
+        // Assert - MeterListener callbacks are synchronous, no measurement should be recorded
         Assert.Empty(capturedMeasurements);
 
         // Cleanup
