@@ -58,6 +58,7 @@ public class SimulationTelemetryBuilder
     private bool _useConsoleExporter;
     private bool _usePrometheusExporter;
     private int _prometheusPort = 9090;
+    private string _prometheusHostname = "localhost";
     private Action<TracerProviderBuilder>? _configureTracer;
     private Action<MeterProviderBuilder>? _configureMeter;
 
@@ -73,10 +74,19 @@ public class SimulationTelemetryBuilder
     /// <summary>
     /// Adds Prometheus as a metric exporter on the specified port.
     /// </summary>
-    public SimulationTelemetryBuilder WithPrometheusExporter(int port = 9090)
+    /// <param name="port">The port to listen on (default: 9090).</param>
+    /// <param name="hostname">The hostname to bind to (default: "localhost"). Use "+" to bind to all interfaces, but this may require URL ACL registration on Windows.</param>
+    /// <remarks>
+    /// <para><strong>Important:</strong> HttpListener may require URL ACL registration or administrator privileges on Windows.</para>
+    /// <para>By default, binds to localhost only. For remote Prometheus scraping, set hostname to "+" or a specific IP address.</para>
+    /// <para>To register URL ACL on Windows: <c>netsh http add urlacl url=http://+:{port}/ user=DOMAIN\username</c></para>
+    /// <para>If the listener fails to start, check Windows Event Log or consider running with elevated privileges.</para>
+    /// </remarks>
+    public SimulationTelemetryBuilder WithPrometheusExporter(int port = 9090, string hostname = "localhost")
     {
         _usePrometheusExporter = true;
         _prometheusPort = port;
+        _prometheusHostname = hostname;
         return this;
     }
 
@@ -94,11 +104,12 @@ public class SimulationTelemetryBuilder
     /// <summary>
     /// Builds the configured OpenTelemetry providers and returns a reusable telemetry facade.
     /// </summary>
+    /// <exception cref="InvalidOperationException">Thrown if Prometheus HttpListener fails to start (e.g., insufficient permissions, port already in use).</exception>
     public SimulationTelemetry Build()
     {
         var tracerBuilder = Sdk.CreateTracerProviderBuilder()
             .AddSource(SimulationTelemetry.ActivitySourceName);
-            
+
         var meterBuilder = Sdk.CreateMeterProviderBuilder()
             .AddMeter(SimulationTelemetry.MeterName);
 
@@ -111,7 +122,7 @@ public class SimulationTelemetryBuilder
         if (_usePrometheusExporter)
         {
             meterBuilder.AddPrometheusHttpListener(options =>
-                options.UriPrefixes = new string[] { $"http://localhost:{_prometheusPort}/" });
+                options.UriPrefixes = new string[] { $"http://{_prometheusHostname}:{_prometheusPort}/" });
         }
 
         // Apply advanced user customizations
@@ -119,7 +130,21 @@ public class SimulationTelemetryBuilder
         _configureMeter?.Invoke(meterBuilder);
 
         var tracerProvider = tracerBuilder.Build();
-        var meterProvider = meterBuilder.Build();
+
+        MeterProvider? meterProvider = null;
+        try
+        {
+            meterProvider = meterBuilder.Build();
+        }
+        catch (Exception ex) when (_usePrometheusExporter)
+        {
+            tracerProvider?.Dispose();
+            throw new InvalidOperationException(
+                $"Failed to start Prometheus HttpListener on http://{_prometheusHostname}:{_prometheusPort}/. " +
+                $"This may be due to insufficient permissions (URL ACL registration required on Windows), " +
+                $"the port already being in use, or an invalid hostname. " +
+                $"See inner exception for details.", ex);
+        }
 
         return new SimulationTelemetry(tracerProvider, meterProvider);
     }
