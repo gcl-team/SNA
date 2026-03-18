@@ -5,6 +5,7 @@ using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Demo.RestaurantSample;
+using SimNextgenApp.Observability;
 using SimNextgenApp.Observability.Exporters;
 using System.Drawing;
 
@@ -93,11 +94,13 @@ internal class SimpleRestaurant
         var duration = TimeSpan.FromMinutes(60 * 8);
         long durationInUnits = TimeUnitConverter.ConvertToSimulationUnits(duration, timeUnit);
         var runStrategy = new DurationRunStrategy(durationInUnits);
+        var telemetry = SimulationTelemetry.Create().WithConsoleExporter().Build();
         var profile = new SimulationProfile(
             model: restaurantModel,
             runStrategy: runStrategy,
             timeUnit: timeUnit,
-            loggerFactory: loggerFactory
+            loggerFactory: loggerFactory,
+            telemetry: telemetry
         );
 
         // 5. Create and Run the Engine
@@ -119,17 +122,11 @@ internal class SimpleRestaurant
 
         // --- Waiter Utilization ---
         logger.LogInformation("\n--- Staff Utilization ---");
-        var waiterPool = restaurantModel.Waiters;
-        // Formula: (Average number of busy waiters / Total number of waiters) * 100
-        var avgWaiterUtilization = (waiterPool.UtilizationMetric.AverageCount / waiterPool.TotalCapacity) * 100;
-        logger.LogInformation($"Waiter Utilization: {avgWaiterUtilization:F2}% (Avg {waiterPool.UtilizationMetric.AverageCount:F2} of {waiterPool.TotalCapacity} busy)");
+        logger.LogInformation($"Note: Staff utilization is now tracked via OpenTelemetry metrics sink.");
 
         // --- Table Utilization ---
         logger.LogInformation("\n--- Facility Utilization ---");
-        var tableMgr = restaurantModel.TableManager;
-        // Formula: (Average number of occupied tables / Total number of tables) * 100
-        var avgTableUtilization = (tableMgr.UtilizationMetric.AverageCount / tableMgr.TotalTableCount) * 100;
-        logger.LogInformation($"Table Utilization: {avgTableUtilization:F2}% (Avg {tableMgr.UtilizationMetric.AverageCount:F2} of {tableMgr.TotalTableCount} occupied)");
+        logger.LogInformation($"Note: Table utilization is now tracked via OpenTelemetry metrics sink.");
 
         // --- Queueing Statistics ---
         logger.LogInformation("\n--- Queue Statistics ---");
@@ -140,8 +137,7 @@ internal class SimpleRestaurant
         logger.LogInformation($"Avg. Customer Wait Time for Table: {avgWaitTimeSeconds:F2} seconds");
 
         // Average queue length for orders in the kitchen
-        var kitchenQueue = restaurantModel.OrderQueueForKitchen;
-        logger.LogInformation($"Avg. Kitchen Order Queue Length: {kitchenQueue.TimeBasedMetric.AverageCount:F3} orders");
+        logger.LogInformation($"Note: Kitchen order queue length is now tracked via OpenTelemetry metrics sink.");
 
         // --- Service Time Statistics ---
         logger.LogInformation("\n--- Service Times ---");
@@ -150,6 +146,9 @@ internal class SimpleRestaurant
         var avgOrderToDeliveryTimeSpan = TimeUnitConverter.ConvertFromSimulationUnits(avgOrderToDeliveryTime, timeUnit);
         var avgOrderToDeliverySeconds = avgOrderToDeliveryTimeSpan.TotalSeconds;
         logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDeliverySeconds:F2} seconds");
+
+        // Flush telemetry
+        telemetry.Shutdown();
     }
 
     public static int SampleGeometricCustomerGroupSize(Random rnd, double p)

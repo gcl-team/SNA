@@ -5,8 +5,9 @@ using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Observability.Logs;
+using SimNextgenApp.Observability;
 using SimNextgenApp.Observability.Exporters;
+using SimNextgenApp.Observability.Internal;
 
 namespace SimNextgenApp.Core;
 
@@ -32,7 +33,8 @@ namespace SimNextgenApp.Core;
 public class SimulationEngine : IScheduler, IRunContext
 {
     private readonly ILogger<SimulationEngine> _logger;
-    private readonly ISimulationTracer? _tracer;
+    private readonly SimulationTelemetry? _telemetry;
+    private readonly OTelActivitySource _activitySource;
 
     private readonly SimulationProfile _profile;
     private readonly PriorityQueue<AbstractEvent, (long Time, long Sequence)> _fel;
@@ -84,7 +86,8 @@ public class SimulationEngine : IScheduler, IRunContext
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
 
         _logger = _profile.LoggerFactory?.CreateLogger<SimulationEngine>() ?? new NullLogger<SimulationEngine>();
-        _tracer = _profile.Tracer;
+        _telemetry = _profile.Telemetry;
+        _activitySource = new OTelActivitySource();
 
         Model = _profile.Model;
 
@@ -133,6 +136,7 @@ public class SimulationEngine : IScheduler, IRunContext
 
         try
         {
+            using var rootSpan = _activitySource.CreateSimulationSpan(_profile);
             using (LogContext.PushProperty("ProfileRunId", _profile.RunId))
             {
                 while (strategy.ShouldContinue(this))
@@ -172,19 +176,30 @@ public class SimulationEngine : IScheduler, IRunContext
                     var traceId = currentEvent.EventId.ToString();
                     var spanId = Guid.NewGuid().ToString();
                     var startTime = DateTime.UtcNow;
+                    
+                    bool isWarmupPhase = strategy.WarmupEndTime.HasValue && ClockTime < strategy.WarmupEndTime.Value;
+                    
+                    using var eventSpan = _activitySource.CreateEventSpan(
+                        currentEvent.GetType().Name, 
+                        ClockTime, 
+                        traceId,
+                        isWarmupPhase);
+
+                    // Add rich context as requested in plan.md
+                    eventSpan?.SetTag("sna.event.type", currentEvent.GetType().Name);
+                    if (currentEvent.GetTraceDetails() is { } details)
+                    {
+                        foreach (var kvp in details)
+                        {
+                            eventSpan?.SetTag($"sna.event.detail.{kvp.Key.ToLowerInvariant()}", kvp.Value);
+                        }
+                    }
+
                     using (LogContext.PushProperty("TraceId", traceId))
                     using (LogContext.PushProperty("SpanId", spanId))
                     using (LogContext.PushProperty("@Start", startTime))
                     {
                         var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
-
-                        _tracer?.Trace(new TraceRecord(
-                            Point: TracePoint.EventExecuting,
-                            ClockTime: ClockTime,
-                            EventId: currentEvent.EventId,
-                            EventType: currentEvent.GetType().Name,
-                            Details: currentEvent.GetTraceDetails()
-                        ));
 
                         _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
                         currentEvent.Execute(this);
@@ -198,14 +213,6 @@ public class SimulationEngine : IScheduler, IRunContext
                                 currentEvent.GetType().Name,
                                 currentEvent.EventId);
                         }
-
-                        _tracer?.Trace(new TraceRecord(
-                            Point: TracePoint.EventCompleted,
-                            ClockTime: ClockTime,
-                            EventId: currentEvent.EventId,
-                            EventType: currentEvent.GetType().Name,
-                            Details: currentEvent.GetTraceDetails()
-                        ));
                     }                    
                 }
             }
@@ -260,14 +267,6 @@ public class SimulationEngine : IScheduler, IRunContext
         _fel.Enqueue(ev, (time, sequence));
 
         _logger.LogTrace("Scheduled event {EventType} for time {ExecutionTime} (Sequence {Sequence})", ev.GetType().Name, time, sequence);
-
-        _tracer?.Trace(new TraceRecord(
-            Point: TracePoint.EventScheduled,
-            ClockTime: ClockTime,
-            EventId: ev.EventId,
-            EventType: ev.GetType().Name,
-            Details: ev.GetTraceDetails()
-        ));
     }
 
     /// <summary>

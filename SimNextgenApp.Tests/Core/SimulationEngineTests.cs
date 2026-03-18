@@ -6,7 +6,6 @@ using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Observability.Logs;
 
 namespace SimNextgenApp.Tests.Core;
 
@@ -14,13 +13,11 @@ public class SimulationEngineTests
 {
     private readonly Mock<ISimulationModel> _mockModel;
     private readonly Mock<IRunStrategy> _mockStrategy;
-    private readonly Mock<ISimulationTracer> _mockTracer;
 
     public SimulationEngineTests()
     {
         _mockModel = new Mock<ISimulationModel>();
         _mockStrategy = new Mock<IRunStrategy>();
-        _mockTracer = new Mock<ISimulationTracer>();
     }
 
     private SimulationEngine CreateEngine(SimulationProfile profile) => new(profile);
@@ -31,7 +28,7 @@ public class SimulationEngineTests
         "TestProfile",
         SimulationTimeUnit.Seconds,
         NullLoggerFactory.Instance,
-        _mockTracer.Object
+        telemetry: null
     );
 
     [Fact(DisplayName = "Run should initialize the model and execute a scheduled event.")]
@@ -190,25 +187,4 @@ public class SimulationEngineTests
         Assert.Throws<ArgumentOutOfRangeException>("time", () => engine.Schedule(new TestEvent(), 9));
     }
 
-    [Fact(DisplayName = "Run should call tracer for scheduling, execution, and completion.")]
-    public void Run_WithTracer_CallsTraceAtCorrectPoints()
-    {
-        // Arrange
-        var testEvent = new TestEvent();
-        _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
-                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(testEvent, 1));
-
-        _mockStrategy.Setup(s => s.ShouldContinue(It.Is<IRunContext>(ctx => ctx.ExecutedEventCount < 1)))
-                     .Returns(true);
-
-        var engine = CreateEngine(CreateProfile());
-
-        // Act
-        engine.Run();
-
-        // Assert
-        _mockTracer.Verify(t => t.Trace(It.Is<TraceRecord>(r => r.Point == TracePoint.EventScheduled)), Times.Once);
-        _mockTracer.Verify(t => t.Trace(It.Is<TraceRecord>(r => r.Point == TracePoint.EventExecuting)), Times.Once);
-        _mockTracer.Verify(t => t.Trace(It.Is<TraceRecord>(r => r.Point == TracePoint.EventCompleted)), Times.Once);
-    }
 }

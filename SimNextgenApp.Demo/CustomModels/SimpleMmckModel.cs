@@ -5,7 +5,7 @@ using SimNextgenApp.Modeling;
 using SimNextgenApp.Modeling.Generator;
 using SimNextgenApp.Modeling.Queue;
 using SimNextgenApp.Modeling.Server;
-using SimNextgenApp.Observability.Metrics;
+using SimNextgenApp.Observability;
 
 namespace SimNextgenApp.Demo.CustomModels;
 
@@ -14,7 +14,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
     public Generator<MyLoad> LoadGenerator { get; }
     public SimQueue<MyLoad> WaitingLine { get; }
     public List<Server<MyLoad>> ServiceChannels { get; }
-    public List<ServerObserver<MyLoad>> ServiceChannelObservers { get; }
+    public List<SimulationObserver<MyLoad>> ServiceChannelObservers { get; }
 
     private readonly ILogger<SimpleMmckModel> _modelLogger;
     private IRunContext _runContext = null!;
@@ -65,7 +65,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
             ));
 
             // Create an observer for each server
-            ServiceChannelObservers.Add(new ServerObserver<MyLoad>(ServiceChannels[i]));
+            ServiceChannelObservers.Add(SimulationObserver.CreateSimple(ServiceChannels[i]));
         }
 
         foreach (var server in ServiceChannels)
@@ -177,10 +177,6 @@ internal class SimpleMmckModel : AbstractSimulationModel
         foreach (var server in ServiceChannels)
         {
             server.WarmedUp(simulationTime);
-        }
-        foreach (var serverObserver in ServiceChannelObservers)
-        {
-            serverObserver.WarmedUp(simulationTime);
         }
         BalkedLoadsCount = 0;
         TotalLoadsEnteredSystem = 0;
