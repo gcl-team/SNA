@@ -82,8 +82,31 @@ public class SimulationTelemetryBuilder
     /// <para>To register URL ACL on Windows: <c>netsh http add urlacl url=http://+:{port}/ user=DOMAIN\username</c></para>
     /// <para>If the listener fails to start, check Windows Event Log or consider running with elevated privileges.</para>
     /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">Thrown if port is not between 1 and 65535.</exception>
+    /// <exception cref="ArgumentException">Thrown if hostname is null, empty, or contains invalid characters.</exception>
     public SimulationTelemetryBuilder WithPrometheusExporter(int port = 9090, string hostname = "localhost")
     {
+        if (port < 1 || port > 65535)
+        {
+            throw new ArgumentOutOfRangeException(nameof(port), port, "Port must be between 1 and 65535.");
+        }
+
+        if (string.IsNullOrWhiteSpace(hostname))
+        {
+            throw new ArgumentException("Hostname cannot be null or empty.", nameof(hostname));
+        }
+
+        // Basic validation: reject hostnames with invalid characters for URI
+        // Allow "+", "*", "localhost", IP addresses, and valid hostnames
+        if (hostname != "+" && hostname != "*" && hostname != "localhost")
+        {
+            // Check for obviously invalid characters (spaces, control chars)
+            if (hostname.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
+            {
+                throw new ArgumentException($"Hostname '{hostname}' contains invalid characters.", nameof(hostname));
+            }
+        }
+
         _usePrometheusExporter = true;
         _prometheusPort = port;
         _prometheusHostname = hostname;
@@ -136,14 +159,23 @@ public class SimulationTelemetryBuilder
         {
             meterProvider = meterBuilder.Build();
         }
-        catch (Exception ex) when (_usePrometheusExporter)
+        catch (Exception ex)
         {
+            // Always dispose tracerProvider on any meter build failure to prevent resource leak
             tracerProvider?.Dispose();
-            throw new InvalidOperationException(
-                $"Failed to start Prometheus HttpListener on http://{_prometheusHostname}:{_prometheusPort}/. " +
-                $"This may be due to insufficient permissions (URL ACL registration required on Windows), " +
-                $"the port already being in use, or an invalid hostname. " +
-                $"See inner exception for details.", ex);
+
+            // Provide helpful error message for Prometheus-specific failures
+            if (_usePrometheusExporter)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to start Prometheus HttpListener on http://{_prometheusHostname}:{_prometheusPort}/. " +
+                    $"This may be due to insufficient permissions (URL ACL registration required on Windows), " +
+                    $"the port already being in use, or an invalid hostname. " +
+                    $"See inner exception for details.", ex);
+            }
+
+            // Rethrow for other exporter failures
+            throw;
         }
 
         return new SimulationTelemetry(tracerProvider, meterProvider);

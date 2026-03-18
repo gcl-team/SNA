@@ -38,19 +38,65 @@ public class SimulationTelemetryTests
         telemetry.Dispose();
     }
 
-    [Fact(DisplayName = "Build with Prometheus on invalid hostname should throw InvalidOperationException.")]
-    public void Build_PrometheusListener_InvalidHostname_ThrowsInvalidOperationException()
+    [Fact(DisplayName = "WithPrometheusExporter should reject invalid port numbers.")]
+    public void WithPrometheusExporter_InvalidPort_ThrowsArgumentOutOfRangeException()
     {
-        // Arrange & Act & Assert
-        var ex = Assert.Throws<InvalidOperationException>(() =>
+        // Arrange & Act & Assert - Port too low
+        var ex1 = Assert.Throws<ArgumentOutOfRangeException>(() =>
         {
             SimulationTelemetry.Create()
-                .WithPrometheusExporter(port: 9999, hostname: "invalid-hostname-that-does-not-exist")
-                .Build();
+                .WithPrometheusExporter(port: 0, hostname: "localhost");
         });
+        Assert.Equal("port", ex1.ParamName);
 
-        Assert.Contains("Failed to start Prometheus HttpListener", ex.Message);
-        Assert.Contains("invalid-hostname-that-does-not-exist", ex.Message);
+        // Port too high
+        var ex2 = Assert.Throws<ArgumentOutOfRangeException>(() =>
+        {
+            SimulationTelemetry.Create()
+                .WithPrometheusExporter(port: 65536, hostname: "localhost");
+        });
+        Assert.Equal("port", ex2.ParamName);
+    }
+
+    [Fact(DisplayName = "WithPrometheusExporter should reject null or empty hostname.")]
+    public void WithPrometheusExporter_NullOrEmptyHostname_ThrowsArgumentException()
+    {
+        // Arrange & Act & Assert - Null hostname
+        var ex1 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create()
+                .WithPrometheusExporter(port: 9090, hostname: null!);
+        });
+        Assert.Equal("hostname", ex1.ParamName);
+
+        // Empty hostname
+        var ex2 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create()
+                .WithPrometheusExporter(port: 9090, hostname: "");
+        });
+        Assert.Equal("hostname", ex2.ParamName);
+
+        // Whitespace hostname
+        var ex3 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create()
+                .WithPrometheusExporter(port: 9090, hostname: "   ");
+        });
+        Assert.Equal("hostname", ex3.ParamName);
+    }
+
+    [Fact(DisplayName = "WithPrometheusExporter should reject hostname with invalid characters.")]
+    public void WithPrometheusExporter_InvalidCharactersInHostname_ThrowsArgumentException()
+    {
+        // Arrange & Act & Assert - Hostname with spaces
+        var ex = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create()
+                .WithPrometheusExporter(port: 9090, hostname: "invalid hostname");
+        });
+        Assert.Equal("hostname", ex.ParamName);
+        Assert.Contains("invalid characters", ex.Message);
     }
 
     [Fact(DisplayName = "Dispose should clean up providers and sources.")]

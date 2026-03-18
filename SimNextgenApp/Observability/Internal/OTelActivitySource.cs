@@ -9,23 +9,18 @@ namespace SimNextgenApp.Observability.Internal;
 /// </summary>
 internal sealed class OTelActivitySource
 {
-    private readonly ActivitySource _source;
-
-    public OTelActivitySource()
-    {
-        _source = new ActivitySource(SimulationTelemetry.ActivitySourceName);
-    }
+    private static readonly ActivitySource _sharedSource = new(SimulationTelemetry.ActivitySourceName);
 
     /// <summary>
     /// Ensures tracing allocations are skipped if there's no listener observing them.
     /// </summary>
-    public bool IsEnabled => _source.HasListeners();
+    public bool IsEnabled => _sharedSource.HasListeners();
 
     public Activity? CreateSimulationSpan(SimulationProfile profile)
     {
         if (!IsEnabled) return null;
 
-        var activity = _source.StartActivity($"SimulationRun-{profile.Name}", ActivityKind.Internal);
+        var activity = _sharedSource.StartActivity($"SimulationRun-{profile.Name}", ActivityKind.Internal);
         activity?.SetTag("sna.simulation.id", profile.RunId);
         activity?.SetTag("sna.simulation.name", profile.Name);
         return activity;
@@ -35,7 +30,7 @@ internal sealed class OTelActivitySource
     {
         if (!IsEnabled) return null;
 
-        var activity = _source.StartActivity(eventName, ActivityKind.Internal);
+        var activity = _sharedSource.StartActivity(eventName, ActivityKind.Internal);
         if (activity != null)
         {
             activity.SetTag("sna.event.id", eventId);
