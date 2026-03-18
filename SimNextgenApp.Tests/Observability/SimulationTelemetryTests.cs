@@ -117,8 +117,8 @@ public class SimulationTelemetryTests
         Assert.NotNull(telemetry.Meter);
     }
 
-    [Fact(DisplayName = "Shutdown should flush telemetry data.")]
-    public void Shutdown_FlushesTelemetryData()
+    [Fact(DisplayName = "Flush should flush telemetry data.")]
+    public void Flush_FlushesTelemetryData()
     {
         // Arrange
         var telemetry = SimulationTelemetry.Create()
@@ -126,7 +126,7 @@ public class SimulationTelemetryTests
             .Build();
 
         // Act & Assert - Should not throw
-        telemetry.Shutdown();
+        telemetry.Flush();
 
         // Cleanup
         telemetry.Dispose();

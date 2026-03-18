@@ -28,9 +28,13 @@ public sealed class SimulationTelemetry : IDisposable
 
     /// <summary>
     /// Forces the exporters to flush any pending telemetry data immediately to their targets.
-    /// Useful at the end of a simulation run or when shutting down the application.
+    /// Useful at the end of a simulation run to ensure all data is exported before the application exits.
     /// </summary>
-    public void Shutdown()
+    /// <remarks>
+    /// This method only flushes pending data and does not stop the providers from accepting new telemetry.
+    /// For full shutdown and cleanup, call Dispose() or use the telemetry object in a using statement.
+    /// </remarks>
+    public void Flush()
     {
         _tracerProvider?.ForceFlush();
         _meterProvider?.ForceFlush();

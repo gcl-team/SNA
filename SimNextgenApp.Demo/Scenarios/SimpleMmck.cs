@@ -141,7 +141,7 @@ internal static class SimpleMmck
         programLogger.LogInformation($"Note: Server utilization metrics are emitted to OpenTelemetry throughout the simulation. Check your observability backend (e.g., Prometheus, Grafana) for time-weighted utilization.");
 
         // Flush and dispose telemetry
-        telemetry.Shutdown();
+        telemetry.Flush();
         telemetry.Dispose();
     }
 }

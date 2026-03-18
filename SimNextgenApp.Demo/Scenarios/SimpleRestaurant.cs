@@ -148,7 +148,7 @@ internal class SimpleRestaurant
         logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDeliverySeconds:F2} seconds");
 
         // Flush and dispose telemetry
-        telemetry.Shutdown();
+        telemetry.Flush();
         telemetry.Dispose();
     }
 
