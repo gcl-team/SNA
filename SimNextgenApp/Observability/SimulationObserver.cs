@@ -129,13 +129,18 @@ public class SimulationObserver<TLoad> : IDisposable
             var serviceStartTime = _server.GetServiceStartTime(load);
             if (serviceStartTime.HasValue)
             {
+                if (!_timeUnit.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        $"Time unit must be set before recording sojourn time metrics. " +
+                        $"Call SetTimeUnit() during model initialization (e.g., in Initialize(IRunContext context) using context.TimeUnit).");
+                }
+
                 // Calculate sojourn time in simulation time units
                 long sojournTimeUnits = clockTime - serviceStartTime.Value;
 
-                // Convert to seconds using TimeUnitConverter if time unit is known
-                double sojournSeconds = _timeUnit.HasValue
-                    ? TimeUnitConverter.ConvertFromSimulationUnits(sojournTimeUnits, _timeUnit.Value).TotalSeconds
-                    : sojournTimeUnits / 1000.0; // Fallback: assume milliseconds
+                // Convert to seconds using TimeUnitConverter
+                double sojournSeconds = TimeUnitConverter.ConvertFromSimulationUnits(sojournTimeUnits, _timeUnit.Value).TotalSeconds;
 
                 _sojournTimeHistogram.Record(sojournSeconds,
                     new KeyValuePair<string, object?>("sna.server.name", _server.Name),

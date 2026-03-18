@@ -195,6 +195,7 @@ public class SimulationObserverTests
         mockServer.Setup(s => s.GetServiceStartTime(load)).Returns(100L);
 
         var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        observer.SetTimeUnit(SimulationTimeUnit.Milliseconds); // Required for sojourn time recording
 
         // Act - Fire LoadDeparted event within the Activity context (warmup=true)
         mockServer.Raise(s => s.LoadDeparted += null, load, 200L);
@@ -256,5 +257,33 @@ public class SimulationObserverTests
 
         // Assert - LoadsCompleted should still be 0 since observer was disposed before event
         Assert.Equal(0, observer.LoadsCompleted);
+    }
+
+    [Fact(DisplayName = "OnLoadDeparted should throw InvalidOperationException if time unit is not set when recording sojourn time.")]
+    public void OnLoadDeparted_WithoutTimeUnit_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var mockServer = new Mock<IServer<DummyLoad>>();
+        mockServer.SetupGet(s => s.Name).Returns("TestServer");
+        mockServer.SetupGet(s => s.Capacity).Returns(5);
+        mockServer.SetupGet(s => s.NumberInService).Returns(1);
+
+        var load = new DummyLoad();
+        mockServer.Setup(s => s.GetServiceStartTime(load)).Returns(100L); // Has start time
+
+        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        // NOTE: Not calling observer.SetTimeUnit() - this is the bug!
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+        {
+            mockServer.Raise(s => s.LoadDeparted += null, load, 300L);
+        });
+
+        Assert.Contains("Time unit must be set", ex.Message);
+        Assert.Contains("SetTimeUnit()", ex.Message);
+
+        // Cleanup
+        observer.Dispose();
     }
 }

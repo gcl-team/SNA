@@ -73,6 +73,9 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
 
         _runContext = engineContext;
 
+        // Set time unit for observer to enable correct sojourn time metrics
+        ServicePointObserver.SetTimeUnit(engineContext.TimeUnit);
+
         LoadGenerator.Initialize(engineContext); // Generator will schedule its GeneratorStartEvent
     }
 
