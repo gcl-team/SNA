@@ -21,8 +21,10 @@ public class SimulationObserver<TLoad> : IDisposable
     // Local lightweight scalar counters for convenience API
     private int _loadsCompleted;
 
-    // Track warmup state explicitly for observable gauge callbacks
-    private bool _isWarmupPhase = true;
+    // Track warmup state explicitly for observable gauge callbacks.
+    // Stored as int (0=false, 1=true) to use Interlocked operations for thread-safe cross-thread visibility.
+    // Written by simulation thread, read by ObservableGauge callback thread.
+    private int _isWarmupPhaseInt = 1; // 1 = true initially
 
     // OpenTelemetry Instruments
     private readonly Counter<int>? _loadsCompletedCounter;
@@ -76,10 +78,13 @@ public class SimulationObserver<TLoad> : IDisposable
                 "sna.server.utilization",
                 () =>
                 {
+                    // Thread-safe read of warmup state using Interlocked
+                    bool isWarmup = Interlocked.CompareExchange(ref _isWarmupPhaseInt, 0, 0) != 0;
+
                     return new Measurement<double>(
                         this.Utilization,
                         new KeyValuePair<string, object?>("sna.server.name", _server.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", _isWarmupPhase));
+                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
                 },
                 description: "Instantaneous utilization of the server"
             );
@@ -112,7 +117,8 @@ public class SimulationObserver<TLoad> : IDisposable
         bool isWarmup = GetWarmupPhase();
 
         // Update warmup state for observable gauge callbacks (which run on background threads)
-        _isWarmupPhase = isWarmup;
+        // Use Interlocked for thread-safe write with memory barrier guarantees
+        Interlocked.Exchange(ref _isWarmupPhaseInt, isWarmup ? 1 : 0);
 
         // Record metrics with warmup context from the current Activity span
 
