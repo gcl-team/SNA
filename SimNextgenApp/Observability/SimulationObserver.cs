@@ -21,6 +21,9 @@ public class SimulationObserver<TLoad> : IDisposable
     // Local lightweight scalar counters for convenience API
     private int _loadsCompleted;
 
+    // Track warmup state explicitly for observable gauge callbacks
+    private bool _isWarmupPhase = true;
+
     // OpenTelemetry Instruments
     private readonly Counter<int>? _loadsCompletedCounter;
     private readonly Histogram<double>? _sojournTimeHistogram;
@@ -73,11 +76,10 @@ public class SimulationObserver<TLoad> : IDisposable
                 "sna.server.utilization",
                 () =>
                 {
-                    bool isWarmup = GetWarmupPhase();
                     return new Measurement<double>(
                         this.Utilization,
                         new KeyValuePair<string, object?>("sna.server.name", _server.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                        new KeyValuePair<string, object?>("sna.simulation.warmup", _isWarmupPhase));
                 },
                 description: "Instantaneous utilization of the server"
             );
@@ -108,6 +110,9 @@ public class SimulationObserver<TLoad> : IDisposable
     {
         _loadsCompleted++;
         bool isWarmup = GetWarmupPhase();
+
+        // Update warmup state for observable gauge callbacks (which run on background threads)
+        _isWarmupPhase = isWarmup;
 
         // Record metrics with warmup context from the current Activity span
 
