@@ -209,7 +209,7 @@ public class SimulationEngine : IScheduler, IRunContext
 
                         stopwatchLog.Stop();
 
-                        using (LogContext.PushProperty("@Elapsed", stopwatch.Elapsed.TotalMilliseconds))
+                        using (LogContext.PushProperty("@Elapsed", stopwatchLog.Elapsed.TotalMilliseconds))
                         {
                             _logger.LogInformation(
                                 "Executed event {EventType} (ID: {EventId})",
