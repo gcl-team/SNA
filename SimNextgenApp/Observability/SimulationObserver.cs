@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using SimNextgenApp.Modeling.Server;
 
@@ -63,12 +64,32 @@ public class SimulationObserver<TLoad> : IDisposable
             
             _utilizationGauge = _meter.CreateObservableGauge<double>(
                 "sna.server.utilization",
-                () => new Measurement<double>(this.Utilization, new KeyValuePair<string, object?>("sna.server.name", _server.Name)),
+                () =>
+                {
+                    bool isWarmup = GetWarmupPhase();
+                    return new Measurement<double>(
+                        this.Utilization,
+                        new KeyValuePair<string, object?>("sna.server.name", _server.Name),
+                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                },
                 description: "Real-time utilization of the server"
             );
         }
 
         Subscribe();
+    }
+
+    /// <summary>
+    /// Reads the warmup phase state from the current Activity span context.
+    /// Returns false if no Activity is active or if the warmup tag is not set.
+    /// </summary>
+    private bool GetWarmupPhase()
+    {
+        var activity = Activity.Current;
+        if (activity == null) return false;
+
+        var warmupTag = activity.GetTagItem("sna.simulation.warmup");
+        return warmupTag as bool? ?? false;
     }
 
     private void Subscribe()
@@ -79,15 +100,18 @@ public class SimulationObserver<TLoad> : IDisposable
     private void OnLoadDeparted(TLoad load, long clockTime)
     {
         _loadsCompleted++;
-        
+        bool isWarmup = GetWarmupPhase();
+
         // For average sojourn time, we would need the load's arrival time,
         // but for now we just bump the counter. In a full implementation,
         // we might pull the wait time from the load if it tracks it, or let OTel trace it.
         // Assuming load doesn't track it directly, we let OTel Spans do the heavy lifting.
-        
+
         if (_loadsCompletedCounter != null)
         {
-            _loadsCompletedCounter.Add(1, new KeyValuePair<string, object?>("sna.server.name", _server.Name));
+            _loadsCompletedCounter.Add(1,
+                new KeyValuePair<string, object?>("sna.server.name", _server.Name),
+                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
         }
     }
 
