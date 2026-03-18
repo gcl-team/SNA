@@ -102,16 +102,27 @@ public class SimulationObserver<TLoad> : IDisposable
         _loadsCompleted++;
         bool isWarmup = GetWarmupPhase();
 
-        // For average sojourn time, we would need the load's arrival time,
-        // but for now we just bump the counter. In a full implementation,
-        // we might pull the wait time from the load if it tracks it, or let OTel trace it.
-        // Assuming load doesn't track it directly, we let OTel Spans do the heavy lifting.
+        // Record metrics with warmup context from the current Activity span
 
         if (_loadsCompletedCounter != null)
         {
             _loadsCompletedCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.server.name", _server.Name),
                 new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+        }
+
+        // Record sojourn time using Activity span duration
+        if (_sojournTimeHistogram != null)
+        {
+            var activity = Activity.Current;
+            if (activity != null)
+            {
+                // Activity.Duration represents the elapsed time of the span (service time in this context)
+                double sojournSeconds = activity.Duration.TotalSeconds;
+                _sojournTimeHistogram.Record(sojournSeconds,
+                    new KeyValuePair<string, object?>("sna.server.name", _server.Name),
+                    new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+            }
         }
     }
 
