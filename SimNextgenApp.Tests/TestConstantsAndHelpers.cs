@@ -79,4 +79,18 @@ public class NamedEvent(string label, List<string> executionList) : AbstractEven
     public override void Execute(IRunContext engine) => _executionList.Add(_label);
 }
 
+public class TestEventWithDetails : AbstractEvent
+{
+    public override void Execute(IRunContext engine) { }
+
+    public override Dictionary<string, object>? GetTraceDetails()
+    {
+        return new Dictionary<string, object>
+        {
+            ["CustomerId"] = "CUST123",
+            ["OrderId"] = "ORD456"
+        };
+    }
+}
+
 public record DummyResource(int Id);
