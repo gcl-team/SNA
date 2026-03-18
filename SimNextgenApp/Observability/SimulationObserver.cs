@@ -12,10 +12,9 @@ namespace SimNextgenApp.Observability;
 /// <typeparam name="TLoad">The type of load being processed by the server.</typeparam>
 public class SimulationObserver<TLoad> : IDisposable
 {
-    private static readonly Meter SharedMeter = new(SimulationTelemetry.MeterName);
-
     private readonly IServer<TLoad> _server;
     private readonly Meter? _meter;
+    private readonly bool _ownsMeter;
     private SimulationTimeUnit? _timeUnit;
 
     // Local lightweight scalar counters for convenience API
@@ -64,10 +63,11 @@ public class SimulationObserver<TLoad> : IDisposable
         _timeUnit = timeUnit;
     }
 
-    private SimulationObserver(IServer<TLoad> server, Meter? meter)
+    private SimulationObserver(IServer<TLoad> server, Meter? meter, bool ownsMeter = false)
     {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         _meter = meter;
+        _ownsMeter = ownsMeter;
 
         if (_meter != null)
         {
@@ -156,18 +156,30 @@ public class SimulationObserver<TLoad> : IDisposable
     }
 
     /// <summary>
-    /// Creates a simple observer that relies on the default OpenTelemetry configuration.
+    /// Creates a simple observer that uses the default OpenTelemetry meter.
     /// This is the primary beginner-friendly entry point.
     /// </summary>
+    /// <remarks>
+    /// The observer creates a dedicated meter instance that is disposed when the observer is disposed,
+    /// preventing memory leaks when running multiple simulations.
+    /// </remarks>
     public static SimulationObserver<TLoad> CreateSimple(IServer<TLoad> server)
     {
-        // Reuse the shared meter instance to avoid resource accumulation
-        return new SimulationObserver<TLoad>(server, SharedMeter);
+        // Create a new meter for this observer to avoid memory leaks from static shared meters
+        var meter = new Meter(SimulationTelemetry.MeterName);
+        return new SimulationObserver<TLoad>(server, meter, ownsMeter: true);
     }
 
     public void Dispose()
     {
         _server.LoadDeparted -= OnLoadDeparted;
+
+        // Dispose the meter if we own it (prevents memory leak from static shared meters)
+        // This disposes all instruments created on the meter, including the observable gauge callback
+        if (_ownsMeter)
+        {
+            _meter?.Dispose();
+        }
     }
 }
 
