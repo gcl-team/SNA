@@ -7,16 +7,18 @@ namespace SimNextgenApp.Observability;
 /// </summary>
 public static class SimulationTracer
 {
+    private static readonly ActivitySource _source =
+        new ActivitySource(SimulationTelemetry.ActivitySourceName);
+
     /// <summary>
     /// Trace an event manually if you're not using standard SNA automatic tracing.
     /// (SNA Engine automatically traces internally to OTel)
     /// </summary>
     public static void TraceEvent(string eventName, long simulationTime, IDictionary<string, object?>? tags = null)
     {
-        var source = new ActivitySource(SimulationTelemetry.ActivitySourceName);
-        if (!source.HasListeners()) return;
+        if (!_source.HasListeners()) return;
 
-        using var activity = source.StartActivity(eventName);
+        using var activity = _source.StartActivity(eventName);
         if (activity == null) return;
 
         activity.SetTag("sna.simulation.time", simulationTime);
