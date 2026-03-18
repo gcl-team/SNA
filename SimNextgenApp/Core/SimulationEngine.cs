@@ -178,16 +178,14 @@ public class SimulationEngine : IScheduler, IRunContext
                     }
 
                     // 3. Execute Event
-                    var traceId = currentEvent.EventId.ToString();
-                    var spanId = Guid.NewGuid().ToString();
                     var startTime = DateTime.UtcNow;
-                    
+
                     bool isWarmupPhase = strategy.WarmupEndTime.HasValue && ClockTime < strategy.WarmupEndTime.Value;
-                    
+
                     using var eventSpan = _activitySource.CreateEventSpan(
-                        currentEvent.GetType().Name, 
-                        ClockTime, 
-                        traceId,
+                        currentEvent.GetType().Name,
+                        ClockTime,
+                        currentEvent.EventId.ToString(),
                         isWarmupPhase);
 
                     // Add rich context as requested in plan.md
@@ -200,8 +198,8 @@ public class SimulationEngine : IScheduler, IRunContext
                         }
                     }
 
-                    using (LogContext.PushProperty("TraceId", traceId))
-                    using (LogContext.PushProperty("SpanId", spanId))
+                    using (eventSpan != null ? LogContext.PushProperty("TraceId", eventSpan.TraceId.ToHexString()) : null)
+                    using (eventSpan != null ? LogContext.PushProperty("SpanId", eventSpan.SpanId.ToHexString()) : null)
                     using (LogContext.PushProperty("@Start", startTime))
                     {
                         var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
