@@ -110,8 +110,8 @@ public class SimulationTelemetryBuilder
 
         if (_usePrometheusExporter)
         {
-            // Note: AspNetCore prometheus scraping is typical, but we can also use HttpListener
-            // meterBuilder.AddPrometheusHttpListener(options => options.UriPrefixes = new string[] { $"http://localhost:{_prometheusPort}/" });
+            meterBuilder.AddPrometheusHttpListener(options =>
+                options.UriPrefixes = new string[] { $"http://localhost:{_prometheusPort}/" });
         }
 
         // Apply advanced user customizations
