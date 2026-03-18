@@ -127,6 +127,7 @@ internal static class SimpleGenerator
         finally
         {
             telemetry.Shutdown();
+            telemetry.Dispose();
             Log.CloseAndFlush();
         }
 

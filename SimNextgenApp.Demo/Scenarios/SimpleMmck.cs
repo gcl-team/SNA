@@ -139,7 +139,8 @@ internal static class SimpleMmck
             programLogger.LogInformation($"Server {s+1}: Utilization = {obs.Utilization:P2}, Loads Completed = {obs.LoadsCompleted}");
         }
 
-        // Flush telemetry
+        // Flush and dispose telemetry
         telemetry.Shutdown();
+        telemetry.Dispose();
     }
 }

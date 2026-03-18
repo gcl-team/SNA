@@ -122,11 +122,11 @@ internal class SimpleRestaurant
 
         // --- Waiter Utilization ---
         logger.LogInformation("\n--- Staff Utilization ---");
-        logger.LogInformation($"Note: Staff utilization is now tracked via OpenTelemetry metrics sink.");
+        logger.LogInformation($"Note: Staff utilization can be tracked via OpenTelemetry but is not emitted by this sample.");
 
         // --- Table Utilization ---
         logger.LogInformation("\n--- Facility Utilization ---");
-        logger.LogInformation($"Note: Table utilization is now tracked via OpenTelemetry metrics sink.");
+        logger.LogInformation($"Note: Table utilization can be tracked via OpenTelemetry but is not emitted by this sample.");
 
         // --- Queueing Statistics ---
         logger.LogInformation("\n--- Queue Statistics ---");
@@ -137,7 +137,7 @@ internal class SimpleRestaurant
         logger.LogInformation($"Avg. Customer Wait Time for Table: {avgWaitTimeSeconds:F2} seconds");
 
         // Average queue length for orders in the kitchen
-        logger.LogInformation($"Note: Kitchen order queue length is now tracked via OpenTelemetry metrics sink.");
+        logger.LogInformation($"Note: Kitchen order queue length can be tracked via OpenTelemetry but is not emitted by this sample.");
 
         // --- Service Time Statistics ---
         logger.LogInformation("\n--- Service Times ---");
@@ -147,8 +147,9 @@ internal class SimpleRestaurant
         var avgOrderToDeliverySeconds = avgOrderToDeliveryTimeSpan.TotalSeconds;
         logger.LogInformation($"Avg. Time from Order to Delivery: {avgOrderToDeliverySeconds:F2} seconds");
 
-        // Flush telemetry
+        // Flush and dispose telemetry
         telemetry.Shutdown();
+        telemetry.Dispose();
     }
 
     public static int SampleGeometricCustomerGroupSize(Random rnd, double p)

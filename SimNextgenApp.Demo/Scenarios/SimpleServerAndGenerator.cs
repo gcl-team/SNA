@@ -128,7 +128,8 @@ internal static class SimpleServerAndGenerator
         programLogger.LogInformation($"\n--- System Stats ---");
         programLogger.LogInformation($"Total Balked Loads (post-warmup): {simpleSystem.BalkedLoadsCount}");
 
-        // Flush telemetry
+        // Flush and dispose telemetry
         telemetry.Shutdown();
+        telemetry.Dispose();
     }
 }
