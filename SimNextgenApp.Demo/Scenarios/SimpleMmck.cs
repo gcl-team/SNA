@@ -136,8 +136,9 @@ internal static class SimpleMmck
         for (int s = 0; s < mmckSystem.ServiceChannels.Count; s++)
         {
             var obs = mmckSystem.ServiceChannelObservers[s];
-            programLogger.LogInformation($"Server {s+1}: Utilization = {obs.Utilization:P2}, Loads Completed = {obs.LoadsCompleted}");
+            programLogger.LogInformation($"Server {s+1}: Loads Completed = {obs.LoadsCompleted}");
         }
+        programLogger.LogInformation($"Note: Server utilization metrics are emitted to OpenTelemetry throughout the simulation. Check your observability backend (e.g., Prometheus, Grafana) for time-weighted utilization.");
 
         // Flush and dispose telemetry
         telemetry.Shutdown();

@@ -38,7 +38,7 @@ public class SimulationObserver<TLoad> : IDisposable
     public int LoadsCompleted => _loadsCompleted;
 
     /// <summary>
-    /// Real-time approximation of the server's time-weighted utilization.
+    /// Instantaneous utilization of the server (ratio of loads in service to capacity).
     /// (0.0 to 1.0)
     /// </summary>
     public double Utilization
@@ -79,7 +79,7 @@ public class SimulationObserver<TLoad> : IDisposable
                         new KeyValuePair<string, object?>("sna.server.name", _server.Name),
                         new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
                 },
-                description: "Real-time utilization of the server"
+                description: "Instantaneous utilization of the server"
             );
         }
 
