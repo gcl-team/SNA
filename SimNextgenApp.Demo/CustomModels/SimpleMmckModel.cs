@@ -128,6 +128,12 @@ internal class SimpleMmckModel : AbstractSimulationModel
     {
         _runContext = runContext;
 
+        // Configure observers with the simulation time unit for proper metric conversion
+        foreach (var observer in ServiceChannelObservers)
+        {
+            observer.SetTimeUnit(runContext.TimeUnit);
+        }
+
         LoadGenerator.Initialize(runContext);
         WaitingLine.Initialize(runContext);
 

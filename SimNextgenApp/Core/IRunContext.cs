@@ -1,4 +1,5 @@
 using SimNextgenApp.Core.Strategies;
+using SimNextgenApp.Core.Utilities;
 
 namespace SimNextgenApp.Core;
 
@@ -33,4 +34,10 @@ public interface IRunContext
     /// Gets the scheduler used to manage and execute tasks.
     /// </summary>
     IScheduler Scheduler { get; }
+
+    /// <summary>
+    /// Gets the simulation time unit used for this run (e.g., Seconds, Milliseconds).
+    /// This defines what one unit of ClockTime represents.
+    /// </summary>
+    SimulationTimeUnit TimeUnit { get; }
 }

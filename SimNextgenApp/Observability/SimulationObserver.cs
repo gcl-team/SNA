@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
 
 namespace SimNextgenApp.Observability;
@@ -13,6 +14,7 @@ public class SimulationObserver<TLoad> : IDisposable
 {
     private readonly IServer<TLoad> _server;
     private readonly Meter? _meter;
+    private SimulationTimeUnit? _timeUnit;
 
     // Local lightweight scalar counters for convenience API
     private int _loadsCompleted;
@@ -44,6 +46,15 @@ public class SimulationObserver<TLoad> : IDisposable
             if (_server.Capacity == 0) return 0.0;
             return _server.NumberInService / (double)_server.Capacity;
         }
+    }
+
+    /// <summary>
+    /// Sets the simulation time unit for proper sojourn time conversion.
+    /// Should be called during model initialization when the time unit is known.
+    /// </summary>
+    public void SetTimeUnit(SimulationTimeUnit timeUnit)
+    {
+        _timeUnit = timeUnit;
     }
 
     private SimulationObserver(IServer<TLoad> server, Meter? meter)
@@ -113,8 +124,12 @@ public class SimulationObserver<TLoad> : IDisposable
             {
                 // Calculate sojourn time in simulation time units
                 long sojournTimeUnits = clockTime - serviceStartTime.Value;
-                // Convert to seconds (assuming time units are milliseconds, adjust if using different unit)
-                double sojournSeconds = sojournTimeUnits / 1000.0;
+
+                // Convert to seconds using TimeUnitConverter if time unit is known
+                double sojournSeconds = _timeUnit.HasValue
+                    ? TimeUnitConverter.ConvertFromSimulationUnits(sojournTimeUnits, _timeUnit.Value).TotalSeconds
+                    : sojournTimeUnits / 1000.0; // Fallback: assume milliseconds
+
                 _sojournTimeHistogram.Record(sojournSeconds,
                     new KeyValuePair<string, object?>("sna.server.name", _server.Name),
                     new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));

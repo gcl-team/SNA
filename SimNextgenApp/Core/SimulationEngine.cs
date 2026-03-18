@@ -63,6 +63,11 @@ public class SimulationEngine : IScheduler, IRunContext
     public long ExecutedEventCount => _executedEventCount;
 
     /// <summary>
+    /// Gets the simulation time unit used for this run.
+    /// </summary>
+    public SimulationTimeUnit TimeUnit => _profile.TimeUnit;
+
+    /// <summary>
     /// Gets a value indicating whether there are any events pending in the FEL.
     /// </summary>
     public bool HasFutureEvents => _fel.Count > 0;
