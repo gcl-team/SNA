@@ -80,19 +80,6 @@ internal class SimpleMmckModel : AbstractSimulationModel
 
         // 4. Wire components together
         LoadGenerator.LoadGenerated += HandleLoadGeneratedByGenerator;
-
-        // 5. When a server finishes its work, it must notify the queue that it is free.
-        foreach (var server in ServiceChannels)
-        {
-            server.LoadDeparted += (departedLoad, departureTime) =>
-            {
-                // The server is now free. Poke the queue to see if it has anyone waiting.
-                // The internal logic in the queue will then decide if it should dequeue an item.
-                // If it does, the Dequeue event will fire.
-                _modelLogger.LogInformation($"--- [SERVER FREE] SimTime: {departureTime}. Server '{server.Name}' pokes queue.");
-                WaitingLine.TriggerDequeueAttempt(_runContext!);
-            };
-        }
     }
 
     private void HandleLoadGeneratedByGenerator(MyLoad load, long generationTime)
