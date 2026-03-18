@@ -46,12 +46,6 @@ public class SimulationObserver<TLoad> : IDisposable
         }
     }
 
-    /// <summary>
-    /// Returns 0 since Sojourn Time calculation is offloaded to OpenTelemetry.
-    /// Check the 'sna.server.sojourn_time' histogram in your observability backend.
-    /// </summary>
-    public double AverageSojournTime => 0.0;
-
     private SimulationObserver(IServer<TLoad> server, Meter? meter)
     {
         _server = server ?? throw new ArgumentNullException(nameof(server));
