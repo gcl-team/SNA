@@ -12,6 +12,8 @@ namespace SimNextgenApp.Observability;
 /// <typeparam name="TLoad">The type of load being processed by the server.</typeparam>
 public class SimulationObserver<TLoad> : IDisposable
 {
+    private static readonly Meter SharedMeter = new(SimulationTelemetry.MeterName);
+
     private readonly IServer<TLoad> _server;
     private readonly Meter? _meter;
     private SimulationTimeUnit? _timeUnit;
@@ -143,10 +145,8 @@ public class SimulationObserver<TLoad> : IDisposable
     /// </summary>
     public static SimulationObserver<TLoad> CreateSimple(IServer<TLoad> server)
     {
-        // By using the global SNA metric name, the OTel SDK will automatically pick it up
-        // if the user has configured SimulationTelemetry.Create() somewhere in the app.
-        var meter = new Meter("SNA.Simulation.Metrics");
-        return new SimulationObserver<TLoad>(server, meter);
+        // Reuse the shared meter instance to avoid resource accumulation
+        return new SimulationObserver<TLoad>(server, SharedMeter);
     }
 
     public void Dispose()
