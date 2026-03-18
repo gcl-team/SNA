@@ -33,7 +33,6 @@ namespace SimNextgenApp.Core;
 public class SimulationEngine : IScheduler, IRunContext
 {
     private readonly ILogger<SimulationEngine> _logger;
-    private readonly SimulationTelemetry? _telemetry;
     private readonly OTelActivitySource _activitySource;
 
     private readonly SimulationProfile _profile;
@@ -91,7 +90,6 @@ public class SimulationEngine : IScheduler, IRunContext
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
 
         _logger = _profile.LoggerFactory?.CreateLogger<SimulationEngine>() ?? new NullLogger<SimulationEngine>();
-        _telemetry = _profile.Telemetry;
         _activitySource = new OTelActivitySource();
 
         Model = _profile.Model;
