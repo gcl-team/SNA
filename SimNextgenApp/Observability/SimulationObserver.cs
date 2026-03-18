@@ -105,14 +105,16 @@ public class SimulationObserver<TLoad> : IDisposable
                 new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
         }
 
-        // Record sojourn time using Activity span duration
+        // Record sojourn time (time spent in server from entry to departure)
         if (_sojournTimeHistogram != null)
         {
-            var activity = Activity.Current;
-            if (activity != null)
+            var serviceStartTime = _server.GetServiceStartTime(load);
+            if (serviceStartTime.HasValue)
             {
-                // Activity.Duration represents the elapsed time of the span (service time in this context)
-                double sojournSeconds = activity.Duration.TotalSeconds;
+                // Calculate sojourn time in simulation time units
+                long sojournTimeUnits = clockTime - serviceStartTime.Value;
+                // Convert to seconds (assuming time units are milliseconds, adjust if using different unit)
+                double sojournSeconds = sojournTimeUnits / 1000.0;
                 _sojournTimeHistogram.Record(sojournSeconds,
                     new KeyValuePair<string, object?>("sna.server.name", _server.Name),
                     new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));

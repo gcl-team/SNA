@@ -41,6 +41,12 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
     public IReadOnlyDictionary<TLoad, long> ServiceStartTimes => new ReadOnlyDictionary<TLoad, long>(_serviceStartTimes);
 
     /// <inheritdoc/>
+    public long? GetServiceStartTime(TLoad load)
+    {
+        return _serviceStartTimes.TryGetValue(load, out var startTime) ? startTime : null;
+    }
+
+    /// <inheritdoc/>
     public event Action<TLoad, long>? LoadDeparted;
 
     /// <inheritdoc/>
