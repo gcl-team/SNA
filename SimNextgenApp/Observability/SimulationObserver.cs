@@ -63,7 +63,7 @@ public class SimulationObserver<TLoad> : IDisposable
         _timeUnit = timeUnit;
     }
 
-    private SimulationObserver(IServer<TLoad> server, Meter? meter, bool ownsMeter = false)
+    internal SimulationObserver(IServer<TLoad> server, Meter? meter, bool ownsMeter = false)
     {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         _meter = meter;
