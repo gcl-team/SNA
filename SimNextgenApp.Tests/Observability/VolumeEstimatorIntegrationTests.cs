@@ -12,7 +12,7 @@ public class VolumeEstimatorIntegrationTests
     public void WithVolumeEstimation_CreatesAndExposesVolumeEstimator()
     {
         // Act
-        var telemetry = SimulationTelemetry.Create()
+        using var telemetry = SimulationTelemetry.Create()
             .WithVolumeEstimation(VolumeThresholds.Conservative())
             .Build();
 
@@ -26,7 +26,7 @@ public class VolumeEstimatorIntegrationTests
     public void WithoutVolumeEstimation_VolumeEstimatorIsNull()
     {
         // Act
-        var telemetry = SimulationTelemetry.Create()
+        using var telemetry = SimulationTelemetry.Create()
             .WithConsoleExporter()
             .Build();
 
@@ -40,7 +40,7 @@ public class VolumeEstimatorIntegrationTests
     public void SpansPerSecond_ReturnsZero_WhenVolumeEstimatorNotEnabled()
     {
         // Arrange
-        var telemetry = SimulationTelemetry.Create().Build();
+        using var telemetry = SimulationTelemetry.Create().Build();
 
         // Act
         var rate = telemetry.SpansPerSecond;

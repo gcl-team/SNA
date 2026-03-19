@@ -17,7 +17,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Name).Returns("TestServer");
 
         // Act
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        using var observer = SimulationObserver.CreateSimple(mockServer.Object);
 
         // Assert
         Assert.NotNull(observer);
@@ -33,7 +33,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(5);
         mockServer.SetupGet(s => s.NumberInService).Returns(0);
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        using var observer = SimulationObserver.CreateSimple(mockServer.Object);
 
         var load1 = new DummyLoad();
         var load2 = new DummyLoad();
@@ -144,7 +144,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(10);
         mockServer.SetupGet(s => s.NumberInService).Returns(7);
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        using var observer = SimulationObserver.CreateSimple(mockServer.Object);
 
         // Act
         var utilization = observer.Utilization;
@@ -162,7 +162,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(0);
         mockServer.SetupGet(s => s.NumberInService).Returns(0);
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        using var observer = SimulationObserver.CreateSimple(mockServer.Object);
 
         // Act
         var utilization = observer.Utilization;
