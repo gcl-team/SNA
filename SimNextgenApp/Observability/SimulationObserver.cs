@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
+using SimNextgenApp.Observability.VolumeEstimation;
 
 namespace SimNextgenApp.Observability;
 
@@ -15,6 +16,7 @@ public class SimulationObserver<TLoad> : IDisposable
     private readonly IServer<TLoad> _server;
     private readonly Meter? _meter;
     private readonly bool _ownsMeter;
+    private readonly VolumeEstimator? _volumeEstimator;
     private SimulationTimeUnit? _timeUnit;
 
     // Local lightweight scalar counters for convenience API
@@ -63,11 +65,12 @@ public class SimulationObserver<TLoad> : IDisposable
         _timeUnit = timeUnit;
     }
 
-    internal SimulationObserver(IServer<TLoad> server, Meter? meter, bool ownsMeter = false)
+    internal SimulationObserver(IServer<TLoad> server, Meter? meter, bool ownsMeter = false, VolumeEstimator? volumeEstimator = null)
     {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         _meter = meter;
         _ownsMeter = ownsMeter;
+        _volumeEstimator = volumeEstimator;
 
         if (_meter != null)
         {
@@ -127,6 +130,9 @@ public class SimulationObserver<TLoad> : IDisposable
             _loadsCompletedCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.server.name", _server.Name),
                 new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+
+            // Track metric data point for volume estimation
+            _volumeEstimator?.RecordMetricDataPoint();
         }
 
         // Record sojourn time (time spent in server from entry to departure)
@@ -151,6 +157,9 @@ public class SimulationObserver<TLoad> : IDisposable
                 _sojournTimeHistogram.Record(sojournSeconds,
                     new KeyValuePair<string, object?>("sna.server.name", _server.Name),
                     new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+
+                // Track metric data point for volume estimation
+                _volumeEstimator?.RecordMetricDataPoint();
             }
         }
     }

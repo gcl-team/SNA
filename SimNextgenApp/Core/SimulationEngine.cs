@@ -89,7 +89,7 @@ public class SimulationEngine : IScheduler, IRunContext
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
 
         _logger = _profile.LoggerFactory?.CreateLogger<SimulationEngine>() ?? new NullLogger<SimulationEngine>();
-        _activitySource = new OTelActivitySource();
+        _activitySource = new OTelActivitySource(_profile.Telemetry?.VolumeEstimator);
 
         Model = _profile.Model;
 

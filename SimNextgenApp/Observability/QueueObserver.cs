@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Queue;
+using SimNextgenApp.Observability.VolumeEstimation;
 
 namespace SimNextgenApp.Observability;
 
@@ -17,6 +18,7 @@ public class QueueObserver<TLoad> : IDisposable
     private readonly ISimQueue<TLoad> _queue;
     private readonly Meter? _meter;
     private readonly bool _ownsMeter;
+    private readonly VolumeEstimator? _volumeEstimator;
     private SimulationTimeUnit? _timeUnit;
 
     // Track enqueue times to calculate wait time deltas for emission to OTel Histogram.
@@ -74,11 +76,12 @@ public class QueueObserver<TLoad> : IDisposable
         _timeUnit = timeUnit;
     }
 
-    internal QueueObserver(ISimQueue<TLoad> queue, Meter? meter, bool ownsMeter = false)
+    internal QueueObserver(ISimQueue<TLoad> queue, Meter? meter, bool ownsMeter = false, VolumeEstimator? volumeEstimator = null)
     {
         _queue = queue ?? throw new ArgumentNullException(nameof(queue));
         _meter = meter;
         _ownsMeter = ownsMeter;
+        _volumeEstimator = volumeEstimator;
 
         if (_meter != null)
         {
@@ -136,9 +139,15 @@ public class QueueObserver<TLoad> : IDisposable
         // Update warmup state for observable gauge callbacks
         Interlocked.Exchange(ref _isWarmupPhaseInt, isWarmup ? 1 : 0);
 
-        _loadsEnqueuedCounter?.Add(1,
-            new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-            new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+        if (_loadsEnqueuedCounter != null)
+        {
+            _loadsEnqueuedCounter.Add(1,
+                new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
+                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+
+            // Track metric data point for volume estimation
+            _volumeEstimator?.RecordMetricDataPoint();
+        }
     }
 
     private void OnLoadDequeued(TLoad load, long clockTime)
@@ -149,9 +158,15 @@ public class QueueObserver<TLoad> : IDisposable
         // Update warmup state for observable gauge callbacks
         Interlocked.Exchange(ref _isWarmupPhaseInt, isWarmup ? 1 : 0);
 
-        _loadsDequeuedCounter?.Add(1,
-            new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-            new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+        if (_loadsDequeuedCounter != null)
+        {
+            _loadsDequeuedCounter.Add(1,
+                new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
+                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+
+            // Track metric data point for volume estimation
+            _volumeEstimator?.RecordMetricDataPoint();
+        }
 
         // Calculate wait time
         if (_enqueueTimes.TryRemove(load, out long enqueueTime))
@@ -171,9 +186,15 @@ public class QueueObserver<TLoad> : IDisposable
 
             // Emit raw wait time to histogram - backend will calculate averages/percentiles/max
             // This follows the "Emitter not Calculator" principle (plan.md watch-out #4)
-            _waitTimeHistogram?.Record(waitSeconds,
-                new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+            if (_waitTimeHistogram != null)
+            {
+                _waitTimeHistogram.Record(waitSeconds,
+                    new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
+                    new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+
+                // Track metric data point for volume estimation
+                _volumeEstimator?.RecordMetricDataPoint();
+            }
         }
     }
 
@@ -185,9 +206,15 @@ public class QueueObserver<TLoad> : IDisposable
         // Update warmup state for observable gauge callbacks
         Interlocked.Exchange(ref _isWarmupPhaseInt, isWarmup ? 1 : 0);
 
-        _loadsBalkedCounter?.Add(1,
-            new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-            new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+        if (_loadsBalkedCounter != null)
+        {
+            _loadsBalkedCounter.Add(1,
+                new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
+                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+
+            // Track metric data point for volume estimation
+            _volumeEstimator?.RecordMetricDataPoint();
+        }
     }
 
     /// <summary>

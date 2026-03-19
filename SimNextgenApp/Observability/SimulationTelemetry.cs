@@ -69,7 +69,7 @@ public sealed class SimulationTelemetry : IDisposable
     /// </summary>
     public SimulationObserver<TLoad> ObserveServer<TLoad>(IServer<TLoad> server)
     {
-        return new SimulationObserver<TLoad>(server, Meter, ownsMeter: false);
+        return new SimulationObserver<TLoad>(server, Meter, ownsMeter: false, _volumeEstimator);
     }
 
     /// <summary>
@@ -78,7 +78,7 @@ public sealed class SimulationTelemetry : IDisposable
     public QueueObserver<TLoad> ObserveQueue<TLoad>(ISimQueue<TLoad> queue)
         where TLoad : notnull
     {
-        return new QueueObserver<TLoad>(queue, Meter, ownsMeter: false);
+        return new QueueObserver<TLoad>(queue, Meter, ownsMeter: false, _volumeEstimator);
     }
 
     public void Dispose()
