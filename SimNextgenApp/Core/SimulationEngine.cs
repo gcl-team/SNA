@@ -133,11 +133,18 @@ public class SimulationEngine : IScheduler, IRunContext
         {
             _logger.LogError(ex, "Model initialization failed for Model ID {ModelId}.", Model.Id);
             stopwatch.Stop();
-
-            // Flush telemetry before throwing to ensure any data recorded during initialization is exported
-            _profile.Telemetry?.Flush();
-
             throw new SimulationException($"Model initialization failed for Model ID {Model.Id}.", ex);
+        }
+        finally
+        {
+            try
+            {
+                _profile.Telemetry?.Flush();
+            }
+            catch (Exception flushEx)
+            {
+                _logger.LogError(flushEx, "Failed to flush simulation telemetry during initialization for Model ID {ModelId}.", Model.Id);
+            }
         }
 
         try
@@ -226,11 +233,18 @@ public class SimulationEngine : IScheduler, IRunContext
         {
             _logger.LogError(ex, "Simulation run failed during execution for Model ID {ModelId} at simulation time {ClockTime}.", Model.Id, ClockTime);
             stopwatch.Stop();
-
-            // Flush telemetry before throwing to ensure data is exported even on failure
-            _profile.Telemetry?.Flush();
-
             throw new SimulationException($"Simulation run failed for Model ID {Model.Id}.", ex);
+        }
+        finally
+        {
+            try
+            {
+                _profile.Telemetry?.Flush();
+            }
+            catch (Exception flushEx)
+            {
+                _logger.LogError(flushEx, "Failed to flush simulation telemetry for Model ID {ModelId}.", Model.Id);
+            }
         }
 
         stopwatch.Stop();
@@ -238,9 +252,6 @@ public class SimulationEngine : IScheduler, IRunContext
 
         _logger.LogInformation("Executed {Count} events during simulation.", ExecutedEventCount);
         _logger.LogInformation("Simulation run finished for Model ID {ModelId}. SimTime: {SimTime}, RealTime: {RealTime}ms", Model.Id, ClockTime, realTimeDuration.TotalMilliseconds);
-
-        // Flush telemetry to ensure all data is exported before returning
-        _profile.Telemetry?.Flush();
 
         return new SimulationResult(
             ProfileRunId: _profile.RunId,
