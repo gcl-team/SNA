@@ -5,7 +5,6 @@ using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Observability;
 using SimNextgenApp.Observability.Exporters;
 using SimNextgenApp.Observability.Internal;
 
