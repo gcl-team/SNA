@@ -138,8 +138,8 @@ public class SamplingConfiguration
         {
             SamplingStrategy.AlwaysOn => "AlwaysOn (100%)",
             SamplingStrategy.AlwaysOff => "AlwaysOff (0%)",
-            SamplingStrategy.Random => $"Random ({SamplingRate:P0})",
-            SamplingStrategy.ParentBased => $"ParentBased (fallback: {SamplingRate:P0})",
+            SamplingStrategy.Random => $"Random ({SamplingRate * 100:F0}%)",
+            SamplingStrategy.ParentBased => $"ParentBased (fallback: {SamplingRate * 100:F0}%)",
             _ => Strategy.ToString()
         };
     }
