@@ -4,7 +4,7 @@ using SimNextgenApp.Core;
 using SimNextgenApp.Modeling;
 using SimNextgenApp.Modeling.Generator;
 using SimNextgenApp.Modeling.Server;
-using SimNextgenApp.Observability.Metrics;
+using SimNextgenApp.Observability;
 
 namespace SimNextgenApp.Demo.CustomModels;
 
@@ -17,7 +17,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
 {
     public Generator<MyLoad> LoadGenerator { get; }
     public Server<MyLoad> ServicePoint { get; }
-    public ServerObserver<MyLoad> ServicePointObserver { get; }
+    public SimulationObserver<MyLoad> ServicePointObserver { get; }
     public int BalkedLoadsCount { get; private set; } = 0;
 
     private readonly ILogger<GeneratorAndServerModel> _modelLogger;
@@ -44,7 +44,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
             _modelLogger.LogInformation($"--- [LOAD DEPARTED] SimTime: {departureTime} -> {load}. Service time: {load.ServiceEndTime - load.ServiceStartTime} ---");
         };
 
-        ServicePointObserver = new ServerObserver<MyLoad>(this.ServicePoint);
+        ServicePointObserver = SimulationObserver.CreateSimple(this.ServicePoint);
     }
 
     private void HandleLoadGenerated(MyLoad load, long generationTime)
@@ -73,6 +73,9 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
 
         _runContext = engineContext;
 
+        // Set time unit for observer to enable correct sojourn time metrics
+        ServicePointObserver.SetTimeUnit(engineContext.TimeUnit);
+
         LoadGenerator.Initialize(engineContext); // Generator will schedule its GeneratorStartEvent
     }
 
@@ -80,7 +83,6 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
     {
         LoadGenerator.WarmedUp(simulationTime);
         ServicePoint.WarmedUp(simulationTime);
-        ServicePointObserver.WarmedUp(simulationTime);
         BalkedLoadsCount = 0; // Reset balk count after warm-up
         _modelLogger.LogInformation("--- System Warmed Up at {WarmupTime}. Statistics reset. ---", simulationTime);
     }

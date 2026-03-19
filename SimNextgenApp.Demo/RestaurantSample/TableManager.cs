@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using SimNextgenApp.Modeling.Resource;
-using SimNextgenApp.Observability.Metrics;
 using System.Diagnostics;
 using System.Xml.Linq;
 
@@ -13,8 +12,6 @@ internal class TableManager
     private readonly List<Table> _allTables;
 
     private readonly Dictionary<Table, CustomerGroup> _occupiedTables;
-
-    public TimeBasedMetric UtilizationMetric { get; }
 
     // This event is CRUCIAL. It signals that a table has become free,
     // allowing the main model to check the waiting queue.
@@ -29,8 +26,6 @@ internal class TableManager
         _logger = loggerFactory.CreateLogger<TableManager>();
         _allTables = [.. tables];
         _occupiedTables = [];
-        UtilizationMetric = new TimeBasedMetric(enableHistory: false);
-        UtilizationMetric.ObserveCount(0, 0);
     }
 
     /// <summary>
@@ -60,7 +55,6 @@ internal class TableManager
         }
 
         _occupiedTables[table] = group;
-        UtilizationMetric.ObserveCount(OccupiedTableCount, currentTime);
         _logger.LogTrace("Table acquired at {Time}. Customer Group Size: {CustomerGroupSize}; Table Available: {AvailableTable}", 
             currentTime, group.GroupSize, AvailableTableCount);
     }
@@ -72,7 +66,6 @@ internal class TableManager
     {
         if (_occupiedTables.Remove(table))
         {
-            UtilizationMetric.ObserveCount(OccupiedTableCount, currentTime);
             TableFreed?.Invoke(table);
             _logger.LogTrace("Table released at {Time}. Table Available: {AvailableTable}", currentTime, AvailableTableCount);
         }
@@ -80,6 +73,5 @@ internal class TableManager
 
     public void WarmedUp(long simulationTime)
     {
-        UtilizationMetric.WarmedUp(simulationTime, OccupiedTableCount);
     }
 }

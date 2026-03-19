@@ -6,7 +6,7 @@ using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Modeling.Generator;
-using SimNextgenApp.Observability.Logs;
+using SimNextgenApp.Observability;
 using SimNextgenApp.Observability.Exporters;
 
 namespace SimNextgenApp.Demo.Scenarios;
@@ -97,8 +97,8 @@ internal static class SimpleGenerator
         long duration = TimeUnitConverter.ConvertToSimulationUnits(TimeSpan.FromSeconds(50.0), timeUnit);
         var runStrategy = new DurationRunStrategy(duration);
 
-        // 5. The SeqTracer records every event that is scheduled and executed.
-        var tracer = new SeqTracer(Log.Logger);
+        // 5. Create Telemetry
+        var telemetry = SimulationTelemetry.Create().WithConsoleExporter().Build();
 
         // 6. Create the Simulation Profile to bundle all settings for a reproducible run
         //    This is useful for managing complex simulations with many parameters.
@@ -108,7 +108,7 @@ internal static class SimpleGenerator
             "Simple Generator Profile",
             timeUnit,
             loggerFactory: loggerFactory,
-            tracer: tracer
+            telemetry: telemetry
         );
 
         // 7. Create and run the Simulation Engine
@@ -126,7 +126,8 @@ internal static class SimpleGenerator
         }
         finally
         {
-            // Ensure all buffered logs are sent to Seq before the app closes.
+            telemetry.Flush();
+            telemetry.Dispose();
             Log.CloseAndFlush();
         }
 

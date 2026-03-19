@@ -2,7 +2,7 @@
 using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Observability.Logs;
+using SimNextgenApp.Observability;
 
 namespace SimNextgenApp.Core;
 
@@ -17,7 +17,7 @@ public class SimulationProfile(
     string? name = null,
     SimulationTimeUnit timeUnit = SimulationTimeUnit.Seconds,
     ILoggerFactory? loggerFactory = null,
-    ISimulationTracer? tracer = null,
+    SimulationTelemetry? telemetry = null,
     Guid? runId = null)
 {
     /// <summary>
@@ -41,9 +41,9 @@ public class SimulationProfile(
     public ILoggerFactory? LoggerFactory { get; init; } = loggerFactory;
 
     /// <summary>
-    /// Gets the tracer used to monitor and log simulation events.
+    /// Gets the telemetry configuration used to monitor and trace simulation events.
     /// </summary>
-    public ISimulationTracer? Tracer { get; init; } = tracer;
+    public SimulationTelemetry? Telemetry { get; init; } = telemetry;
 
     /// <summary>
     /// Identifier to track this simulation profile.
