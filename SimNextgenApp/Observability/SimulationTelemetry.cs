@@ -146,15 +146,11 @@ public class SimulationTelemetryBuilder
             throw new ArgumentException("Hostname cannot be null or empty.", nameof(hostname));
         }
 
-        // Basic validation: reject hostnames with invalid characters for URI
-        // Allow "+", "*", "localhost", IP addresses, and valid hostnames
-        if (hostname != "+" && hostname != "*" && hostname != "localhost")
+        // Validate that hostname forms a valid URI
+        string testUri = $"http://{hostname}:{port}/";
+        if (!Uri.TryCreate(testUri, UriKind.Absolute, out _))
         {
-            // Check for obviously invalid characters (spaces, control chars)
-            if (hostname.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
-            {
-                throw new ArgumentException($"Hostname '{hostname}' contains invalid characters.", nameof(hostname));
-            }
+            throw new ArgumentException($"Hostname '{hostname}' does not form a valid URI for Prometheus.", nameof(hostname));
         }
 
         _usePrometheusExporter = true;
@@ -172,6 +168,11 @@ public class SimulationTelemetryBuilder
         if (string.IsNullOrWhiteSpace(endpoint))
         {
             throw new ArgumentException("OTLP endpoint cannot be null or empty.", nameof(endpoint));
+        }
+
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out _))
+        {
+            throw new ArgumentException($"OTLP endpoint '{endpoint}' is not a valid absolute URI.", nameof(endpoint));
         }
 
         _useOtlpExporter = true;
