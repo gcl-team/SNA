@@ -96,7 +96,7 @@ public class SimulationTelemetryTests
                 .WithPrometheusExporter(port: 9090, hostname: "invalid hostname");
         });
         Assert.Equal("hostname", ex.ParamName);
-        Assert.Contains("invalid characters", ex.Message);
+        Assert.Contains("does not form a valid URI for Prometheus", ex.Message);
     }
 
     [Fact(DisplayName = "Dispose should clean up providers and sources.")]
