@@ -103,10 +103,17 @@ public class VolumeEstimator : IDisposable
     /// </summary>
     public void RecordSpan()
     {
+        VolumeWarningEventArgs? warningToRaise;
+
         lock (_lock)
         {
             _totalSpans++;
-            CheckSpanThreshold();
+            warningToRaise = CheckSpanThreshold();
+        }
+
+        if (warningToRaise != null)
+        {
+            OnVolumeWarning(warningToRaise);
         }
     }
 
@@ -118,10 +125,17 @@ public class VolumeEstimator : IDisposable
     {
         if (count <= 0) return;
 
+        VolumeWarningEventArgs? warningToRaise;
+
         lock (_lock)
         {
             _totalSpans += count;
-            CheckSpanThreshold();
+            warningToRaise = CheckSpanThreshold();
+        }
+
+        if (warningToRaise != null)
+        {
+            OnVolumeWarning(warningToRaise);
         }
     }
 
@@ -130,10 +144,17 @@ public class VolumeEstimator : IDisposable
     /// </summary>
     public void RecordMetricDataPoint()
     {
+        VolumeWarningEventArgs? warningToRaise;
+
         lock (_lock)
         {
             _totalMetricDataPoints++;
-            CheckMetricThreshold();
+            warningToRaise = CheckMetricThreshold();
+        }
+
+        if (warningToRaise != null)
+        {
+            OnVolumeWarning(warningToRaise);
         }
     }
 
@@ -145,47 +166,66 @@ public class VolumeEstimator : IDisposable
     {
         if (count <= 0) return;
 
+        VolumeWarningEventArgs? warningToRaise;
+
         lock (_lock)
         {
             _totalMetricDataPoints += count;
-            CheckMetricThreshold();
+            warningToRaise = CheckMetricThreshold();
+        }
+
+        if (warningToRaise != null)
+        {
+            OnVolumeWarning(warningToRaise);
         }
     }
 
-    private void CheckSpanThreshold()
+    private VolumeWarningEventArgs? CheckSpanThreshold()
     {
         // Already warned, don't spam
-        if (_hasWarnedSpans) return;
+        if (_hasWarnedSpans) return null;
 
-        var rate = SpansPerSecond;
+        // Calculate rate directly within lock to avoid nested locking
+        var elapsed = _timeProvider.GetUtcNow() - _trackingStartTime;
+        if (elapsed.TotalSeconds < 0.1) return null;
+
+        var rate = _totalSpans / elapsed.TotalSeconds;
         if (rate > _thresholds.SpansPerSecondThreshold)
         {
             _hasWarnedSpans = true;
-            OnVolumeWarning(new VolumeWarningEventArgs(
+            return new VolumeWarningEventArgs(
                 VolumeWarningType.SpanRate,
                 rate,
                 _thresholds.SpansPerSecondThreshold,
                 $"Span rate ({rate:F0}/sec) exceeds threshold ({_thresholds.SpansPerSecondThreshold:F0}/sec). " +
-                $"Consider enabling sampling to reduce backend costs."));
+                $"Consider enabling sampling to reduce backend costs.");
         }
+
+        return null;
     }
 
-    private void CheckMetricThreshold()
+    private VolumeWarningEventArgs? CheckMetricThreshold()
     {
         // Already warned, don't spam
-        if (_hasWarnedMetrics) return;
+        if (_hasWarnedMetrics) return null;
 
-        var rate = MetricDataPointsPerSecond;
+        // Calculate rate directly within lock to avoid nested locking
+        var elapsed = _timeProvider.GetUtcNow() - _trackingStartTime;
+        if (elapsed.TotalSeconds < 0.1) return null;
+
+        var rate = _totalMetricDataPoints / elapsed.TotalSeconds;
         if (rate > _thresholds.MetricDataPointsPerSecondThreshold)
         {
             _hasWarnedMetrics = true;
-            OnVolumeWarning(new VolumeWarningEventArgs(
+            return new VolumeWarningEventArgs(
                 VolumeWarningType.MetricRate,
                 rate,
                 _thresholds.MetricDataPointsPerSecondThreshold,
                 $"Metric data point rate ({rate:F0}/sec) exceeds threshold ({_thresholds.MetricDataPointsPerSecondThreshold:F0}/sec). " +
-                $"Consider reducing metric collection frequency or cardinality."));
+                $"Consider reducing metric collection frequency or cardinality.");
         }
+
+        return null;
     }
 
     /// <summary>
