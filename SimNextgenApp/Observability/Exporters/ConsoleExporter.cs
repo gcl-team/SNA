@@ -39,7 +39,7 @@ public static class ConsoleExporter
         foreach (var metric in metricsList)
         {
             var name = metric.Name.Length > nameWidth ? metric.Name.Substring(0, nameWidth - 3) + "..." : metric.Name;
-            var value = FormatValue(metric.Value, valueWidth);
+            var value = FormatValue(metric.Value);
             var unit = metric.Unit.Length > unitWidth ? metric.Unit.Substring(0, unitWidth - 3) + "..." : metric.Unit;
 
             Console.WriteLine($"║ {name.PadRight(nameWidth)} │ {value.PadLeft(valueWidth)} │ {unit.PadLeft(unitWidth)} ║");
@@ -133,7 +133,7 @@ public static class ConsoleExporter
         Console.WriteLine();
     }
 
-    private static string FormatValue(object value, int width)
+    private static string FormatValue(object value)
     {
         if (value == null) return "N/A";
 
