@@ -210,12 +210,17 @@ public class VolumeEstimator : IDisposable
     {
         lock (_lock)
         {
+            // Calculate rates directly within single lock scope to avoid nested locking
+            var elapsed = _timeProvider.GetUtcNow() - _trackingStartTime;
+            var spansPerSecond = elapsed.TotalSeconds < 0.1 ? 0 : _totalSpans / elapsed.TotalSeconds;
+            var metricsPerSecond = elapsed.TotalSeconds < 0.1 ? 0 : _totalMetricDataPoints / elapsed.TotalSeconds;
+
             return new VolumeStatistics(
                 _totalSpans,
                 _totalMetricDataPoints,
-                SpansPerSecond,
-                MetricDataPointsPerSecond,
-                ElapsedTime);
+                spansPerSecond,
+                metricsPerSecond,
+                elapsed);
         }
     }
 
