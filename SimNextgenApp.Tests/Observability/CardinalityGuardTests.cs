@@ -1,3 +1,5 @@
+using SimNextgenApp.Observability.Advanced;
+
 namespace SimNextgenApp.Tests.Observability;
 
 public class CardinalityGuardTests

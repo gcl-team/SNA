@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using SimNextgenApp.Observability.Advanced;
 
 namespace SimNextgenApp.Tests.Observability;
 

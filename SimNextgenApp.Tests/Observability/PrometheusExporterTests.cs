@@ -1,3 +1,5 @@
+using SimNextgenApp.Observability.Exporters;
+
 namespace SimNextgenApp.Tests.Observability;
 
 public class PrometheusExporterTests
