@@ -3,6 +3,8 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SimNextgenApp.Observability.Sampling;
 using SimNextgenApp.Observability.VolumeEstimation;
+using SimNextgenApp.Observability.Advanced;
+using SimNextgenApp.Observability.Exporters;
 using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Modeling.Queue;
 
@@ -16,6 +18,8 @@ public sealed class SimulationTelemetry : IDisposable
     private readonly TracerProvider? _tracerProvider;
     private readonly MeterProvider? _meterProvider;
     private readonly VolumeEstimator? _volumeEstimator;
+    private readonly CardinalityGuard? _cardinalityGuard;
+    private readonly bool _enableTraceContext;
 
     public const string ActivitySourceName = "SNA.Simulation.Traces";
     public const string MeterName = "SNA.Simulation.Metrics";
@@ -30,6 +34,17 @@ public sealed class SimulationTelemetry : IDisposable
     public VolumeEstimator? VolumeEstimator => _volumeEstimator;
 
     /// <summary>
+    /// Gets the cardinality guard for monitoring attribute cardinality.
+    /// Returns null if cardinality guard is not enabled.
+    /// </summary>
+    public CardinalityGuard? CardinalityGuard => _cardinalityGuard;
+
+    /// <summary>
+    /// Gets whether trace context propagation is enabled.
+    /// </summary>
+    public bool EnableTraceContext => _enableTraceContext;
+
+    /// <summary>
     /// Gets the current rate of spans per second.
     /// Returns 0 if volume estimation is not enabled.
     /// </summary>
@@ -41,11 +56,13 @@ public sealed class SimulationTelemetry : IDisposable
     /// </summary>
     public double MetricDataPointsPerSecond => _volumeEstimator?.MetricDataPointsPerSecond ?? 0;
 
-    internal SimulationTelemetry(TracerProvider? tracerProvider, MeterProvider? meterProvider, VolumeEstimator? volumeEstimator)
+    internal SimulationTelemetry(TracerProvider? tracerProvider, MeterProvider? meterProvider, VolumeEstimator? volumeEstimator, CardinalityGuard? cardinalityGuard, bool enableTraceContext)
     {
         _tracerProvider = tracerProvider;
         _meterProvider = meterProvider;
         _volumeEstimator = volumeEstimator;
+        _cardinalityGuard = cardinalityGuard;
+        _enableTraceContext = enableTraceContext;
         ActivitySource = new System.Diagnostics.ActivitySource(ActivitySourceName);
         Meter = new System.Diagnostics.Metrics.Meter(MeterName);
     }
@@ -86,6 +103,7 @@ public sealed class SimulationTelemetry : IDisposable
         _tracerProvider?.Dispose();
         _meterProvider?.Dispose();
         _volumeEstimator?.Dispose();
+        _cardinalityGuard?.Dispose();
         ActivitySource.Dispose();
         Meter.Dispose();
     }
@@ -111,6 +129,11 @@ public class SimulationTelemetryBuilder
     private VolumeThresholds? _volumeThresholds;
     private Action<TracerProviderBuilder>? _configureTracer;
     private Action<MeterProviderBuilder>? _configureMeter;
+    private int? _cardinalityThreshold;
+    private bool _enableTraceContext;
+    private OtlpBackend? _otlpBackend;
+    private string? _otlpApiKey;
+    private string? _otlpRegion;
 
     /// <summary>
     /// Appends the Console Exporter to both the tracer and meter providers.
@@ -211,6 +234,44 @@ public class SimulationTelemetryBuilder
     }
 
     /// <summary>
+    /// Enables cardinality guard to monitor and warn about high-cardinality attributes.
+    /// </summary>
+    /// <param name="threshold">The maximum number of unique values per attribute before warning (default: 1000).</param>
+    public SimulationTelemetryBuilder WithCardinalityGuard(int threshold = 1000)
+    {
+        if (threshold <= 0)
+            throw new ArgumentOutOfRangeException(nameof(threshold), "Threshold must be greater than zero.");
+        _cardinalityThreshold = threshold;
+        return this;
+    }
+
+    /// <summary>
+    /// Enables advanced trace context propagation for distributed tracing scenarios.
+    /// </summary>
+    public SimulationTelemetryBuilder WithTraceContext()
+    {
+        _enableTraceContext = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Adds OTLP exporter with backend-specific configuration presets.
+    /// </summary>
+    /// <param name="backend">The backend provider (GrafanaCloud, Datadog, Honeycomb).</param>
+    /// <param name="apiKey">The API key or token for authentication.</param>
+    /// <param name="region">Optional region for region-specific endpoints (e.g., Datadog).</param>
+    public SimulationTelemetryBuilder WithOtlpExporter(OtlpBackend backend, string apiKey, string? region = null)
+    {
+        if (string.IsNullOrWhiteSpace(apiKey))
+            throw new ArgumentNullException(nameof(apiKey), "API key cannot be null or empty.");
+
+        _otlpBackend = backend;
+        _otlpApiKey = apiKey;
+        _otlpRegion = region;
+        return this;
+    }
+
+    /// <summary>
     /// Allows advanced users to configure the OpenTelemetry Builder explicitly and add other exporters
     /// or custom auto-instrumentation rules.
     /// </summary>
@@ -259,6 +320,29 @@ public class SimulationTelemetryBuilder
                 options.Endpoint = new Uri(_otlpEndpoint));
         }
 
+        // Configure backend-specific OTLP exporter
+        if (_otlpBackend.HasValue && !string.IsNullOrEmpty(_otlpApiKey))
+        {
+            var otlpConfig = OtlpExporterConfiguration.ConfigureForBackend(
+                _otlpBackend.Value,
+                _otlpApiKey,
+                region: _otlpRegion);
+
+            tracerBuilder.AddOtlpExporter(options =>
+            {
+                options.Endpoint = otlpConfig.Endpoint;
+                options.Headers = string.Join(",",
+                    otlpConfig.Headers.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+            });
+
+            meterBuilder.AddOtlpExporter(options =>
+            {
+                options.Endpoint = otlpConfig.Endpoint;
+                options.Headers = string.Join(",",
+                    otlpConfig.Headers.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+            });
+        }
+
         // Apply advanced user customizations
         _configureTracer?.Invoke(tracerBuilder);
         _configureMeter?.Invoke(meterBuilder);
@@ -294,7 +378,12 @@ public class SimulationTelemetryBuilder
             ? new VolumeEstimator(_volumeThresholds)
             : null;
 
-        return new SimulationTelemetry(tracerProvider, meterProvider, volumeEstimator);
+        // Create cardinality guard if requested
+        CardinalityGuard? cardinalityGuard = _cardinalityThreshold.HasValue
+            ? new CardinalityGuard(_cardinalityThreshold.Value)
+            : null;
+
+        return new SimulationTelemetry(tracerProvider, meterProvider, volumeEstimator, cardinalityGuard, _enableTraceContext);
     }
 
     private static Sampler CreateSampler(SamplingConfiguration config)

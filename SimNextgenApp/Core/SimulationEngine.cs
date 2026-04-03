@@ -89,7 +89,10 @@ public class SimulationEngine : IScheduler, IRunContext
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
 
         _logger = _profile.LoggerFactory?.CreateLogger<SimulationEngine>() ?? new NullLogger<SimulationEngine>();
-        _activitySource = new OTelActivitySource(_profile.Telemetry?.VolumeEstimator);
+        _activitySource = new OTelActivitySource(
+            _profile.Telemetry?.VolumeEstimator,
+            _profile.Telemetry?.CardinalityGuard,
+            enableTraceContext: _profile.Telemetry?.EnableTraceContext ?? false);
 
         Model = _profile.Model;
 
@@ -152,38 +155,51 @@ public class SimulationEngine : IScheduler, IRunContext
             using var rootSpan = _activitySource.CreateSimulationSpan(_profile);
             using (LogContext.PushProperty("ProfileRunId", _profile.RunId))
             {
-                while (strategy.ShouldContinue(this))
+                // Create warmup span if warmup period is configured
+                System.Diagnostics.Activity? warmupSpan = null;
+                if (strategy.WarmupEndTime.HasValue)
                 {
-                    if (!_fel.TryDequeue(out var currentEvent, out var priority))
+                    warmupSpan = _activitySource.CreateWarmupSpan(strategy.WarmupEndTime.Value);
+                }
+
+                try
+                {
+                    while (strategy.ShouldContinue(this))
                     {
-                        break;
-                    }
-
-                    // currentEvent is guaranteed non-null here since TryDequeue succeeded
-
-
-                    _executedEventCount += 1;
-
-                    // 1. Advance Clock
-                    if (priority.Time < ClockTime)
-                    {
-                        // Should not happen with correct scheduling and FEL logic
-                        throw new SimulationException($"FEL Error: Event {currentEvent.GetType().Name} time {priority.Time} is before ClockTime {ClockTime}. FEL is corrupted.");
-                    }
-
-                    _clockTime = priority.Time;
-
-                    // 2. Check for Warm-up Completion (only if applicable and not yet notified)
-                    if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
-                    {
-                        if (Model is IWarmupAware warmupAwareModel)
+                        if (!_fel.TryDequeue(out var currentEvent, out var priority))
                         {
-                            _logger.LogInformation("Warm-up period complete at simulation time {WarmupEndTime}.", ClockTime);
-                            warmupAwareModel.WarmedUp(ClockTime); // Notify model
+                            break;
                         }
 
-                        _warmupCompleteNotified = true; // Ensure notification only happens once
-                    }
+                        // currentEvent is guaranteed non-null here since TryDequeue succeeded
+
+
+                        _executedEventCount += 1;
+
+                        // 1. Advance Clock
+                        if (priority.Time < ClockTime)
+                        {
+                            // Should not happen with correct scheduling and FEL logic
+                            throw new SimulationException($"FEL Error: Event {currentEvent.GetType().Name} time {priority.Time} is before ClockTime {ClockTime}. FEL is corrupted.");
+                        }
+
+                        _clockTime = priority.Time;
+
+                        // 2. Check for Warm-up Completion (only if applicable and not yet notified)
+                        if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
+                        {
+                            // Close warmup span when warmup completes
+                            warmupSpan?.Dispose();
+                            warmupSpan = null;
+
+                            if (Model is IWarmupAware warmupAwareModel)
+                            {
+                                _logger.LogInformation("Warm-up period complete at simulation time {WarmupEndTime}.", ClockTime);
+                                warmupAwareModel.WarmedUp(ClockTime); // Notify model
+                            }
+
+                            _warmupCompleteNotified = true; // Ensure notification only happens once
+                        }
 
                     // 3. Execute Event
                     var startTime = DateTime.UtcNow;
@@ -198,6 +214,7 @@ public class SimulationEngine : IScheduler, IRunContext
 
                     // Add rich context as requested in plan.md
                     eventSpan?.SetTag("sna.event.type", currentEvent.GetType().Name);
+                    eventSpan?.SetTag("sna.event.number", _executedEventCount);
                     if (currentEvent.GetTraceDetails() is { } details)
                     {
                         foreach (var kvp in details)
@@ -224,10 +241,16 @@ public class SimulationEngine : IScheduler, IRunContext
                                 currentEvent.GetType().Name,
                                 currentEvent.EventId);
                         }
-                    }                    
+                    }
+                }
+                }
+                finally
+                {
+                    // Ensure warmup span is disposed if still active
+                    warmupSpan?.Dispose();
                 }
             }
-            
+
         }
         catch (Exception ex)
         {
