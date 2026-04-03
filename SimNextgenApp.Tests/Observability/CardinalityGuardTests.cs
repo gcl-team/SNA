@@ -56,14 +56,11 @@ public class CardinalityGuardTests
     }
 
     [Fact]
-    public void RecordAttributeValue_WithNullValue_Ignored()
+    public void RecordAttributeValue_WithNullValue_ThrowsArgumentNullException()
     {
         var guard = new CardinalityGuard(threshold: 10);
 
-        guard.RecordAttributeValue("event.type", null!);
-
-        var stats = guard.GetStatistics();
-        Assert.Equal(0, stats.TotalUniqueValues);
+        Assert.Throws<ArgumentNullException>(() => guard.RecordAttributeValue("event.type", null!));
     }
 
     [Fact]

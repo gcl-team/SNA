@@ -67,6 +67,7 @@ public sealed class CardinalityGuard : IDisposable
     /// </summary>
     /// <param name="attributeName">The name of the attribute.</param>
     /// <param name="value">The value of the attribute.</param>
+    /// <exception cref="ArgumentNullException">Thrown when value is null.</exception>
     public void RecordAttributeValue(string attributeName, string value)
     {
         if (_disposed)
@@ -76,7 +77,7 @@ public sealed class CardinalityGuard : IDisposable
             throw new ArgumentException("Attribute name cannot be null or whitespace.", nameof(attributeName));
 
         if (value == null)
-            return; // Ignore null values
+            throw new ArgumentNullException(nameof(value), "Attribute value cannot be null.");
 
         bool wasAdded = false;
         int currentCount = 0;
