@@ -84,19 +84,25 @@ public sealed class SimulationTelemetry : IDisposable
 
     /// <summary>
     /// Creates an observer for a server component.
+    /// Each observer owns its own meter to allow independent disposal and avoid memory leaks.
     /// </summary>
     public SimulationObserver<TLoad> ObserveServer<TLoad>(IServer<TLoad> server)
     {
-        return new SimulationObserver<TLoad>(server, Meter, ownsMeter: false, _volumeEstimator);
+        // Create owned meter to allow observer to be disposed independently
+        var meter = new System.Diagnostics.Metrics.Meter(MeterName);
+        return new SimulationObserver<TLoad>(server, meter, ownsMeter: true, _volumeEstimator);
     }
 
     /// <summary>
     /// Creates an observer for a queue component.
+    /// Each observer owns its own meter to allow independent disposal and avoid memory leaks.
     /// </summary>
     public QueueObserver<TLoad> ObserveQueue<TLoad>(ISimQueue<TLoad> queue)
         where TLoad : notnull
     {
-        return new QueueObserver<TLoad>(queue, Meter, ownsMeter: false, _volumeEstimator);
+        // Create owned meter to allow observer to be disposed independently
+        var meter = new System.Diagnostics.Metrics.Meter(MeterName);
+        return new QueueObserver<TLoad>(queue, meter, ownsMeter: true, _volumeEstimator);
     }
 
     public void Dispose()

@@ -36,10 +36,6 @@ public class QueueObserver<TLoad> : IDisposable
     // Written by simulation thread, read by ObservableGauge callback thread.
     private int _isWarmupPhaseInt = 1; // 1 = true initially
 
-    // Track disposed state to prevent observable gauge callbacks after disposal
-    // Stored as int (0=false, 1=true) for thread-safe access from callback threads
-    private int _disposedInt = 0; // 0 = false initially
-
     // OpenTelemetry Instruments
     private readonly Counter<int>? _loadsEnqueuedCounter;
     private readonly Counter<int>? _loadsDequeuedCounter;
@@ -98,24 +94,13 @@ public class QueueObserver<TLoad> : IDisposable
                 "sna.queue.occupancy",
                 () =>
                 {
-                    // Guard against callbacks after disposal (prevents memory leak when using shared meters)
-                    // Thread-safe read using Interlocked
-                    bool isDisposed = Interlocked.CompareExchange(ref _disposedInt, 0, 0) != 0;
-                    if (isDisposed)
-                    {
-                        return []; // Return no measurements if disposed (avoids unlabeled time series)
-                    }
-
                     // Thread-safe read of warmup state using Interlocked
                     bool isWarmup = Interlocked.CompareExchange(ref _isWarmupPhaseInt, 0, 0) != 0;
 
-                    return
-                    [
-                        new Measurement<int>(
-                            _queue.Occupancy,
-                            new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-                            new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup))
-                    ];
+                    return new Measurement<int>(
+                        _queue.Occupancy,
+                        new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
+                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
                 },
                 description: "Current number of items waiting in the queue"
             );
@@ -249,10 +234,6 @@ public class QueueObserver<TLoad> : IDisposable
 
     public void Dispose()
     {
-        // Mark as disposed (thread-safe write)
-        // This prevents observable gauge callbacks from executing after disposal
-        Interlocked.Exchange(ref _disposedInt, 1);
-
         _queue.LoadEnqueued -= OnLoadEnqueued;
         _queue.LoadDequeued -= OnLoadDequeued;
         _queue.LoadBalked -= OnLoadBalked;
@@ -260,15 +241,12 @@ public class QueueObserver<TLoad> : IDisposable
         // Clear enqueue times tracking
         _enqueueTimes.Clear();
 
-        // Dispose the meter if we own it (prevents memory leak from static shared meters)
+        // Dispose the meter if we own it
         // This disposes all instruments created on the meter, including the observable gauge callbacks
         if (_ownsMeter)
         {
             _meter?.Dispose();
         }
-        // Note: When using a shared meter (ownsMeter = false), we can't unregister the observable gauge.
-        // The _disposedInt flag ensures the callback returns early and doesn't hold references,
-        // allowing the observer to be garbage collected despite the meter's reference.
 
         GC.SuppressFinalize(this);
     }
