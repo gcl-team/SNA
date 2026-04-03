@@ -36,6 +36,10 @@ public class QueueObserver<TLoad> : IDisposable
     // Written by simulation thread, read by ObservableGauge callback thread.
     private int _isWarmupPhaseInt = 1; // 1 = true initially
 
+    // Track disposed state to prevent observable gauge callbacks after disposal
+    // Stored as int (0=false, 1=true) for thread-safe access from callback threads
+    private int _disposedInt = 0; // 0 = false initially
+
     // OpenTelemetry Instruments
     private readonly Counter<int>? _loadsEnqueuedCounter;
     private readonly Counter<int>? _loadsDequeuedCounter;
@@ -94,6 +98,14 @@ public class QueueObserver<TLoad> : IDisposable
                 "sna.queue.occupancy",
                 () =>
                 {
+                    // Guard against callbacks after disposal (prevents memory leak when using shared meters)
+                    // Thread-safe read using Interlocked
+                    bool isDisposed = Interlocked.CompareExchange(ref _disposedInt, 0, 0) != 0;
+                    if (isDisposed)
+                    {
+                        return default; // Return empty measurement if disposed
+                    }
+
                     // Thread-safe read of warmup state using Interlocked
                     bool isWarmup = Interlocked.CompareExchange(ref _isWarmupPhaseInt, 0, 0) != 0;
 
@@ -234,6 +246,10 @@ public class QueueObserver<TLoad> : IDisposable
 
     public void Dispose()
     {
+        // Mark as disposed (thread-safe write)
+        // This prevents observable gauge callbacks from executing after disposal
+        Interlocked.Exchange(ref _disposedInt, 1);
+
         _queue.LoadEnqueued -= OnLoadEnqueued;
         _queue.LoadDequeued -= OnLoadDequeued;
         _queue.LoadBalked -= OnLoadBalked;
@@ -247,6 +263,9 @@ public class QueueObserver<TLoad> : IDisposable
         {
             _meter?.Dispose();
         }
+        // Note: When using a shared meter (ownsMeter = false), we can't unregister the observable gauge.
+        // The _disposedInt flag ensures the callback returns early and doesn't hold references,
+        // allowing the observer to be garbage collected despite the meter's reference.
 
         GC.SuppressFinalize(this);
     }
