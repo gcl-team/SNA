@@ -61,9 +61,9 @@ public sealed class OtlpExporterConfiguration
 
         return backend switch
         {
-            OtlpBackend.GrafanaCloud => CreateGrafanaCloudConfig(apiKey),
+            OtlpBackend.GrafanaCloud => CreateGrafanaCloudConfig(apiKey, region),
             OtlpBackend.Datadog => CreateDatadogConfig(apiKey, region),
-            OtlpBackend.Honeycomb => CreateHoneycombConfig(apiKey),
+            OtlpBackend.Honeycomb => CreateHoneycombConfig(apiKey, region),
             _ => throw new ArgumentException($"Unsupported backend: {backend}", nameof(backend))
         };
     }
@@ -72,17 +72,20 @@ public sealed class OtlpExporterConfiguration
     /// Creates configuration for Grafana Cloud.
     /// </summary>
     /// <param name="apiKey">The Grafana Cloud API key (format: "instanceId:apiToken").</param>
+    /// <param name="region">The Grafana Cloud region (e.g., "us-central-0", "eu-west-0", "ap-southeast-0"). Defaults to "us-central-0".</param>
     /// <returns>An <see cref="OtlpExporterConfiguration"/> instance.</returns>
     /// <remarks>
     /// API key format: "instanceId:apiToken" where instanceId is your Grafana Cloud instance ID.
-    /// Endpoint: https://otlp-gateway-prod-us-central-0.grafana.net/otlp
+    /// Supported regions: us-central-0, eu-west-0, ap-southeast-0, au-southeast-0
+    /// Endpoint format: https://otlp-gateway-prod-{region}.grafana.net/otlp
     /// </remarks>
-    public static OtlpExporterConfiguration CreateGrafanaCloudConfig(string apiKey)
+    public static OtlpExporterConfiguration CreateGrafanaCloudConfig(string apiKey, string? region = null)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new ArgumentNullException(nameof(apiKey));
 
-        var endpoint = new Uri("https://otlp-gateway-prod-us-central-0.grafana.net/otlp");
+        region ??= "us-central-0"; // Default to US Central region
+        var endpoint = new Uri($"https://otlp-gateway-prod-{region}.grafana.net/otlp");
         var headers = new Dictionary<string, string>
         {
             ["Authorization"] = $"Basic {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(apiKey))}"
@@ -120,16 +123,24 @@ public sealed class OtlpExporterConfiguration
     /// Creates configuration for Honeycomb.
     /// </summary>
     /// <param name="apiKey">The Honeycomb API key.</param>
+    /// <param name="region">The Honeycomb region. Use "eu1" for EU, or null/"us" for US (default).</param>
     /// <returns>An <see cref="OtlpExporterConfiguration"/> instance.</returns>
     /// <remarks>
-    /// Endpoint: https://api.honeycomb.io/v1/traces
+    /// Supported regions: us (default), eu1
+    /// US endpoint: https://api.honeycomb.io/v1/traces
+    /// EU endpoint: https://api.eu1.honeycomb.io/v1/traces
     /// </remarks>
-    public static OtlpExporterConfiguration CreateHoneycombConfig(string apiKey)
+    public static OtlpExporterConfiguration CreateHoneycombConfig(string apiKey, string? region = null)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
             throw new ArgumentNullException(nameof(apiKey));
 
-        var endpoint = new Uri("https://api.honeycomb.io/v1/traces");
+        // Honeycomb US has no region in the URL, EU uses "eu1" prefix
+        var baseUrl = string.IsNullOrEmpty(region) || region.Equals("us", StringComparison.OrdinalIgnoreCase)
+            ? "https://api.honeycomb.io"
+            : $"https://api.{region}.honeycomb.io";
+
+        var endpoint = new Uri($"{baseUrl}/v1/traces");
         var headers = new Dictionary<string, string>
         {
             ["x-honeycomb-team"] = apiKey

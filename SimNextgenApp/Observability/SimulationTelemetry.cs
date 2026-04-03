@@ -285,9 +285,17 @@ public class SimulationTelemetryBuilder
     /// <summary>
     /// Builds the configured OpenTelemetry providers and returns a reusable telemetry facade.
     /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown if Prometheus HttpListener fails to start (e.g., insufficient permissions, port already in use).</exception>
+    /// <exception cref="InvalidOperationException">Thrown if Prometheus HttpListener fails to start (e.g., insufficient permissions, port already in use), or if conflicting OTLP exporters are configured.</exception>
     public SimulationTelemetry Build()
     {
+        // Validate that both OTLP exporter configurations are not used simultaneously
+        if (_useOtlpExporter && _otlpBackend.HasValue)
+        {
+            throw new InvalidOperationException(
+                "Cannot configure both WithOtlpExporter(string endpoint) and WithOtlpExporter(OtlpBackend, apiKey, ...). " +
+                "These methods are mutually exclusive. Use only one OTLP exporter configuration.");
+        }
+
         var tracerBuilder = Sdk.CreateTracerProviderBuilder()
             .AddSource(SimulationTelemetry.ActivitySourceName);
 

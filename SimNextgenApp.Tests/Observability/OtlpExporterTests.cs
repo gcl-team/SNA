@@ -5,7 +5,7 @@ namespace SimNextgenApp.Tests.Observability;
 public class OtlpExporterTests
 {
     [Fact]
-    public void ConfigureForBackend_GrafanaCloud_ReturnsCorrectConfiguration()
+    public void ConfigureForBackend_GrafanaCloud_WithDefaultRegion_ReturnsCorrectConfiguration()
     {
         var apiKey = "12345:my-api-token";
         var config = OtlpExporterConfiguration.ConfigureForBackend(OtlpBackend.GrafanaCloud, apiKey);
@@ -14,6 +14,17 @@ public class OtlpExporterTests
         Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp", config.Endpoint.ToString());
         Assert.Contains("Authorization", config.Headers.Keys);
         Assert.StartsWith("Basic ", config.Headers["Authorization"]);
+    }
+
+    [Fact]
+    public void ConfigureForBackend_GrafanaCloud_WithCustomRegion_ReturnsCorrectConfiguration()
+    {
+        var apiKey = "12345:my-api-token";
+        var config = OtlpExporterConfiguration.ConfigureForBackend(OtlpBackend.GrafanaCloud, apiKey, region: "eu-west-0");
+
+        Assert.NotNull(config);
+        Assert.Equal("https://otlp-gateway-prod-eu-west-0.grafana.net/otlp", config.Endpoint.ToString());
+        Assert.Contains("Authorization", config.Headers.Keys);
     }
 
     [Fact]
@@ -40,7 +51,7 @@ public class OtlpExporterTests
     }
 
     [Fact]
-    public void ConfigureForBackend_Honeycomb_ReturnsCorrectConfiguration()
+    public void ConfigureForBackend_Honeycomb_WithDefaultRegion_ReturnsCorrectConfiguration()
     {
         var apiKey = "my-honeycomb-api-key";
         var config = OtlpExporterConfiguration.ConfigureForBackend(OtlpBackend.Honeycomb, apiKey);
@@ -49,6 +60,17 @@ public class OtlpExporterTests
         Assert.Equal("https://api.honeycomb.io/v1/traces", config.Endpoint.ToString());
         Assert.Contains("x-honeycomb-team", config.Headers.Keys);
         Assert.Equal(apiKey, config.Headers["x-honeycomb-team"]);
+    }
+
+    [Fact]
+    public void ConfigureForBackend_Honeycomb_WithCustomRegion_ReturnsCorrectConfiguration()
+    {
+        var apiKey = "my-honeycomb-api-key";
+        var config = OtlpExporterConfiguration.ConfigureForBackend(OtlpBackend.Honeycomb, apiKey, region: "eu1");
+
+        Assert.NotNull(config);
+        Assert.Equal("https://api.eu1.honeycomb.io/v1/traces", config.Endpoint.ToString());
+        Assert.Contains("x-honeycomb-team", config.Headers.Keys);
     }
 
     [Theory]
@@ -88,6 +110,19 @@ public class OtlpExporterTests
     {
         Assert.Throws<ArgumentNullException>(() =>
             OtlpExporterConfiguration.CreateGrafanaCloudConfig(apiKey!));
+    }
+
+    [Theory]
+    [InlineData("us-central-0", "https://otlp-gateway-prod-us-central-0.grafana.net/otlp")]
+    [InlineData("eu-west-0", "https://otlp-gateway-prod-eu-west-0.grafana.net/otlp")]
+    [InlineData("ap-southeast-0", "https://otlp-gateway-prod-ap-southeast-0.grafana.net/otlp")]
+    [InlineData("au-southeast-0", "https://otlp-gateway-prod-au-southeast-0.grafana.net/otlp")]
+    public void CreateGrafanaCloudConfig_WithDifferentRegions_ReturnsCorrectEndpoint(string region, string expectedEndpoint)
+    {
+        var apiKey = "instance123:token456";
+        var config = OtlpExporterConfiguration.CreateGrafanaCloudConfig(apiKey, region);
+
+        Assert.Equal(expectedEndpoint, config.Endpoint.ToString());
     }
 
     [Fact]
@@ -145,6 +180,20 @@ public class OtlpExporterTests
     {
         Assert.Throws<ArgumentNullException>(() =>
             OtlpExporterConfiguration.CreateHoneycombConfig(apiKey!));
+    }
+
+    [Theory]
+    [InlineData(null, "https://api.honeycomb.io/v1/traces")]
+    [InlineData("us", "https://api.honeycomb.io/v1/traces")]
+    [InlineData("US", "https://api.honeycomb.io/v1/traces")]
+    [InlineData("eu1", "https://api.eu1.honeycomb.io/v1/traces")]
+    [InlineData("EU1", "https://api.eu1.honeycomb.io/v1/traces")]
+    public void CreateHoneycombConfig_WithDifferentRegions_ReturnsCorrectEndpoint(string? region, string expectedEndpoint)
+    {
+        var apiKey = "honeycomb-api-key-123";
+        var config = OtlpExporterConfiguration.CreateHoneycombConfig(apiKey, region);
+
+        Assert.Equal(expectedEndpoint, config.Endpoint.ToString());
     }
 
     [Fact]

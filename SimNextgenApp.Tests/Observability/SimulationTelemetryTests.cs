@@ -1,4 +1,5 @@
 using SimNextgenApp.Observability;
+using SimNextgenApp.Observability.Exporters;
 
 namespace SimNextgenApp.Tests.Observability;
 
@@ -159,5 +160,124 @@ public class SimulationTelemetryTests
         // Act & Assert - Should not throw
         telemetry.Dispose();
         telemetry.Dispose(); // Second call should be safe
+    }
+
+    [Fact(DisplayName = "Build should throw when both OTLP exporter configurations are used.")]
+    public void Build_WithBothOtlpExporterConfigurations_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var builder = SimulationTelemetry.Create()
+            .WithOtlpExporter("http://localhost:4317")
+            .WithOtlpExporter(OtlpBackend.Datadog, "test-api-key");
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => builder.Build());
+        Assert.Contains("mutually exclusive", ex.Message);
+        Assert.Contains("WithOtlpExporter", ex.Message);
+    }
+
+    [Fact(DisplayName = "Build should throw when both OTLP exporter configurations are used in reverse order.")]
+    public void Build_WithBothOtlpExporterConfigurationsReversed_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var builder = SimulationTelemetry.Create()
+            .WithOtlpExporter(OtlpBackend.GrafanaCloud, "test-api-key")
+            .WithOtlpExporter("http://localhost:4317");
+
+        // Act & Assert
+        var ex = Assert.Throws<InvalidOperationException>(() => builder.Build());
+        Assert.Contains("mutually exclusive", ex.Message);
+    }
+
+    [Fact(DisplayName = "Build should succeed with single OTLP endpoint configuration.")]
+    public void Build_WithSingleOtlpEndpointConfiguration_Succeeds()
+    {
+        // Arrange & Act
+        var telemetry = SimulationTelemetry.Create()
+            .WithOtlpExporter("http://localhost:4317")
+            .Build();
+
+        // Assert
+        Assert.NotNull(telemetry);
+
+        // Cleanup
+        telemetry.Dispose();
+    }
+
+    [Fact(DisplayName = "Build should succeed with single OTLP backend configuration.")]
+    public void Build_WithSingleOtlpBackendConfiguration_Succeeds()
+    {
+        // Arrange & Act
+        var telemetry = SimulationTelemetry.Create()
+            .WithOtlpExporter(OtlpBackend.Honeycomb, "test-api-key")
+            .Build();
+
+        // Assert
+        Assert.NotNull(telemetry);
+
+        // Cleanup
+        telemetry.Dispose();
+    }
+
+    [Fact(DisplayName = "WithOtlpExporter should reject null or empty endpoint.")]
+    public void WithOtlpExporter_NullOrEmptyEndpoint_ThrowsArgumentException()
+    {
+        // Act & Assert - Null endpoint
+        var ex1 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create().WithOtlpExporter((string)null!);
+        });
+        Assert.Equal("endpoint", ex1.ParamName);
+
+        // Empty endpoint
+        var ex2 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create().WithOtlpExporter("");
+        });
+        Assert.Equal("endpoint", ex2.ParamName);
+
+        // Whitespace endpoint
+        var ex3 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create().WithOtlpExporter("   ");
+        });
+        Assert.Equal("endpoint", ex3.ParamName);
+    }
+
+    [Fact(DisplayName = "WithOtlpExporter should reject invalid endpoint URI.")]
+    public void WithOtlpExporter_InvalidEndpointUri_ThrowsArgumentException()
+    {
+        // Act & Assert
+        var ex = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create().WithOtlpExporter("not-a-valid-uri");
+        });
+        Assert.Equal("endpoint", ex.ParamName);
+        Assert.Contains("not a valid absolute URI", ex.Message);
+    }
+
+    [Fact(DisplayName = "WithOtlpExporter backend overload should reject null or empty API key.")]
+    public void WithOtlpExporter_BackendOverload_NullOrEmptyApiKey_ThrowsArgumentException()
+    {
+        // Act & Assert - Null API key
+        var ex1 = Assert.Throws<ArgumentNullException>(() =>
+        {
+            SimulationTelemetry.Create().WithOtlpExporter(OtlpBackend.Datadog, null!);
+        });
+        Assert.Equal("apiKey", ex1.ParamName);
+
+        // Empty API key
+        var ex2 = Assert.Throws<ArgumentNullException>(() =>
+        {
+            SimulationTelemetry.Create().WithOtlpExporter(OtlpBackend.Datadog, "");
+        });
+        Assert.Equal("apiKey", ex2.ParamName);
+
+        // Whitespace API key
+        var ex3 = Assert.Throws<ArgumentNullException>(() =>
+        {
+            SimulationTelemetry.Create().WithOtlpExporter(OtlpBackend.Datadog, "   ");
+        });
+        Assert.Equal("apiKey", ex3.ParamName);
     }
 }

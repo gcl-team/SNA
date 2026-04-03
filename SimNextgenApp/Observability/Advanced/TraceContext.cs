@@ -144,7 +144,12 @@ public static class TraceContext
             return activitySource.StartActivity(name, kind);
 
         var links = new[] { new ActivityLink(parentContext) };
-        var activity = activitySource.StartActivity(name, kind, parentContext: default, tags, links);
+        var activity = activitySource.StartActivity(
+            name,
+            kind,
+            parentContext: default,
+            tags: tags,
+            links: links);
 
         return activity;
     }
