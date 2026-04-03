@@ -213,10 +213,26 @@ public class PrometheusExporterTests
     [InlineData("123metric")]
     [InlineData("metric@#$%^&*()")]
     [InlineData("my:metric:name")]
+    [InlineData("métric.test")]  // Unicode letter
+    [InlineData("测试.metric")]  // Chinese characters
+    [InlineData("метрика.test")]  // Cyrillic characters
+    [InlineData("café.latency")]  // Accented character
     public void ConvertToPrometheusName_AlwaysReturnsValidPrometheusName(string input)
     {
         var result = PrometheusExporter.ConvertToPrometheusName(input);
         Assert.True(PrometheusExporter.ValidatePrometheusName(result),
             $"ConvertToPrometheusName returned '{result}' which failed Prometheus validation for input '{input}'");
+    }
+
+    [Theory]
+    [InlineData("métric.test", "m_tric_test")]  // é replaced with _
+    [InlineData("café.latency", "caf__latency")]  // é replaced with _
+    [InlineData("测试.metric", "___metric")]  // Chinese chars replaced with _
+    [InlineData("метрика", "_______")]  // Cyrillic chars all replaced with _ (7 chars)
+    [InlineData("naïve", "na_ve")]  // ï replaced with _
+    public void ConvertToPrometheusName_WithUnicodeCharacters_ReplacesWithUnderscores(string input, string expected)
+    {
+        var result = PrometheusExporter.ConvertToPrometheusName(input);
+        Assert.Equal(expected, result);
     }
 }

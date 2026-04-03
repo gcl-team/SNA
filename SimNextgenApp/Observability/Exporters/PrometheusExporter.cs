@@ -18,7 +18,7 @@ public static class PrometheusExporter
     /// <remarks>
     /// Prometheus naming rules:
     /// - Must match [a-zA-Z_:][a-zA-Z0-9_:]*
-    /// - All invalid characters (anything not matching [a-zA-Z0-9_:]) are replaced with underscores
+    /// - All invalid characters (anything not matching ASCII [a-zA-Z0-9_:]) are replaced with underscores
     /// - If the name starts with a digit, an underscore prefix is added
     /// - The result is guaranteed to pass ValidatePrometheusName
     /// </remarks>
@@ -33,22 +33,29 @@ public static class PrometheusExporter
         {
             char c = otelMetricName[i];
 
-            // Valid characters: a-z, A-Z, 0-9, _, :
-            if (char.IsLetterOrDigit(c) || c == '_' || c == ':')
+            // Valid characters: ASCII a-z, A-Z, 0-9, _, :
+            // Explicitly check ASCII ranges to match Prometheus regex [a-zA-Z0-9_:]
+            bool isValid = (c >= 'a' && c <= 'z') ||
+                           (c >= 'A' && c <= 'Z') ||
+                           (c >= '0' && c <= '9') ||
+                           c == '_' ||
+                           c == ':';
+
+            if (isValid)
             {
                 sb.Append(c);
             }
             else
             {
-                // Replace any invalid character with underscore
+                // Replace any invalid character (including non-ASCII Unicode) with underscore
                 sb.Append('_');
             }
         }
 
         var prometheusName = sb.ToString();
 
-        // Ensure it starts with a valid character (letter, underscore, or colon)
-        if (prometheusName.Length > 0 && char.IsDigit(prometheusName[0]))
+        // Ensure it starts with a valid character (ASCII letter, underscore, or colon)
+        if (prometheusName.Length > 0 && prometheusName[0] >= '0' && prometheusName[0] <= '9')
         {
             prometheusName = "_" + prometheusName;
         }
