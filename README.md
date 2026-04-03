@@ -65,6 +65,24 @@ That's it! You can now using SNA and start building your simulation.
 
 For a more detailed example, check out our [SimNextgenApp.Demo project](https://github.com/gcl-team/SNA/tree/main/SimNextgenApp.Demo)!
 
+## 📊 Observability
+
+SNA includes built-in OpenTelemetry-based observability for metrics and tracing.
+
+```csharp
+// Configure telemetry
+var telemetry = SimulationTelemetry.Create()
+    .WithConsoleExporter()
+    .Build();
+
+// Observe server metrics
+var observer = SimulationObserver.CreateSimple(server);
+Console.WriteLine($"Utilization: {observer.Utilization:F2}");
+Console.WriteLine($"Loads Completed: {observer.LoadsCompleted}");
+```
+
+For a complete example, see [SimpleMmck.cs](SimNextgenApp.Demo/Scenarios/SimpleMmck.cs).
+
 ## 🧠 Core Concepts
 
 Understanding these concepts will help you master SimNextgen.
