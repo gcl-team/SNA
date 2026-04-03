@@ -18,21 +18,37 @@ public static class PrometheusExporter
     /// <remarks>
     /// Prometheus naming rules:
     /// - Must match [a-zA-Z_:][a-zA-Z0-9_:]*
-    /// - Dots (.) are converted to underscores (_)
-    /// - Hyphens (-) are converted to underscores (_)
+    /// - All invalid characters (anything not matching [a-zA-Z0-9_:]) are replaced with underscores
+    /// - If the name starts with a digit, an underscore prefix is added
+    /// - The result is guaranteed to pass ValidatePrometheusName
     /// </remarks>
     public static string ConvertToPrometheusName(string otelMetricName)
     {
         if (string.IsNullOrWhiteSpace(otelMetricName))
             throw new ArgumentException("Metric name cannot be null or whitespace.", nameof(otelMetricName));
 
-        // Replace dots and hyphens with underscores
-        var prometheusName = otelMetricName
-            .Replace('.', '_')
-            .Replace('-', '_');
+        var sb = new StringBuilder(otelMetricName.Length);
 
-        // Ensure it starts with a valid character
-        if (char.IsDigit(prometheusName[0]))
+        for (int i = 0; i < otelMetricName.Length; i++)
+        {
+            char c = otelMetricName[i];
+
+            // Valid characters: a-z, A-Z, 0-9, _, :
+            if (char.IsLetterOrDigit(c) || c == '_' || c == ':')
+            {
+                sb.Append(c);
+            }
+            else
+            {
+                // Replace any invalid character with underscore
+                sb.Append('_');
+            }
+        }
+
+        var prometheusName = sb.ToString();
+
+        // Ensure it starts with a valid character (letter, underscore, or colon)
+        if (prometheusName.Length > 0 && char.IsDigit(prometheusName[0]))
         {
             prometheusName = "_" + prometheusName;
         }

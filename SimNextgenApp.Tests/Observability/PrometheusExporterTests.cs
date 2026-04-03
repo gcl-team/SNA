@@ -189,4 +189,34 @@ public class PrometheusExporterTests
         Assert.True(PrometheusExporter.ValidatePrometheusName("_"));
         Assert.True(PrometheusExporter.ValidatePrometheusName(":"));
     }
+
+    [Theory]
+    [InlineData("metric with spaces", "metric_with_spaces")]
+    [InlineData("metric/with/slashes", "metric_with_slashes")]
+    [InlineData("metric@special#chars", "metric_special_chars")]
+    [InlineData("metric$value%percent", "metric_value_percent")]
+    [InlineData("metric(with)parens", "metric_with_parens")]
+    [InlineData("metric[with]brackets", "metric_with_brackets")]
+    [InlineData("metric{with}braces", "metric_with_braces")]
+    [InlineData("metric!exclamation?question", "metric_exclamation_question")]
+    public void ConvertToPrometheusName_WithInvalidCharacters_ReplacesWithUnderscores(string input, string expected)
+    {
+        var result = PrometheusExporter.ConvertToPrometheusName(input);
+        Assert.Equal(expected, result);
+    }
+
+    [Theory]
+    [InlineData("sna.server.utilization")]
+    [InlineData("metric-with-hyphens")]
+    [InlineData("metric with spaces")]
+    [InlineData("metric/with/slashes")]
+    [InlineData("123metric")]
+    [InlineData("metric@#$%^&*()")]
+    [InlineData("my:metric:name")]
+    public void ConvertToPrometheusName_AlwaysReturnsValidPrometheusName(string input)
+    {
+        var result = PrometheusExporter.ConvertToPrometheusName(input);
+        Assert.True(PrometheusExporter.ValidatePrometheusName(result),
+            $"ConvertToPrometheusName returned '{result}' which failed Prometheus validation for input '{input}'");
+    }
 }
