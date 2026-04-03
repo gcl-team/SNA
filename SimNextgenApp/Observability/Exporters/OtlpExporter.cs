@@ -28,18 +28,24 @@ public enum OtlpBackend
 public sealed class OtlpExporterConfiguration
 {
     /// <summary>
-    /// Gets the OTLP endpoint URI (OTLP/HTTP format).
+    /// Gets the OTLP traces endpoint URI (OTLP/HTTP format).
     /// </summary>
-    public Uri Endpoint { get; }
+    public Uri TracesEndpoint { get; }
+
+    /// <summary>
+    /// Gets the OTLP metrics endpoint URI (OTLP/HTTP format).
+    /// </summary>
+    public Uri MetricsEndpoint { get; }
 
     /// <summary>
     /// Gets the headers required for authentication.
     /// </summary>
     public IReadOnlyDictionary<string, string> Headers { get; }
 
-    private OtlpExporterConfiguration(Uri endpoint, IReadOnlyDictionary<string, string> headers)
+    private OtlpExporterConfiguration(Uri tracesEndpoint, Uri metricsEndpoint, IReadOnlyDictionary<string, string> headers)
     {
-        Endpoint = endpoint;
+        TracesEndpoint = tracesEndpoint;
+        MetricsEndpoint = metricsEndpoint;
         Headers = headers;
     }
 
@@ -79,6 +85,7 @@ public sealed class OtlpExporterConfiguration
     /// API key format: "instanceId:apiToken" where instanceId is your Grafana Cloud instance ID.
     /// Supported regions: us-central-0, eu-west-0, ap-southeast-0, au-southeast-0
     /// Endpoint format: https://otlp-gateway-prod-{region}.grafana.net/otlp (OTLP/HTTP)
+    /// Grafana Cloud uses a unified endpoint for both traces and metrics.
     /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateGrafanaCloudConfig(string apiKey, string? region = null)
@@ -93,7 +100,8 @@ public sealed class OtlpExporterConfiguration
             ["Authorization"] = $"Basic {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(apiKey))}"
         };
 
-        return new OtlpExporterConfiguration(endpoint, headers);
+        // Grafana Cloud uses unified endpoint for both signals
+        return new OtlpExporterConfiguration(endpoint, endpoint, headers);
     }
 
     /// <summary>
@@ -105,6 +113,7 @@ public sealed class OtlpExporterConfiguration
     /// <remarks>
     /// Supported regions: us1, us3, us5, eu1, ap1, gov
     /// Endpoint format: https://api.{region}.datadoghq.com/api/v2/otlp (OTLP/HTTP)
+    /// Datadog uses a unified endpoint for both traces and metrics.
     /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateDatadogConfig(string apiKey, string? region = null)
@@ -119,7 +128,8 @@ public sealed class OtlpExporterConfiguration
             ["dd-api-key"] = apiKey
         };
 
-        return new OtlpExporterConfiguration(endpoint, headers);
+        // Datadog uses unified endpoint for both signals
+        return new OtlpExporterConfiguration(endpoint, endpoint, headers);
     }
 
     /// <summary>
@@ -130,8 +140,11 @@ public sealed class OtlpExporterConfiguration
     /// <returns>An <see cref="OtlpExporterConfiguration"/> instance.</returns>
     /// <remarks>
     /// Supported regions: us (default), eu1
-    /// US endpoint: https://api.honeycomb.io/v1/traces (OTLP/HTTP)
-    /// EU endpoint: https://api.eu1.honeycomb.io/v1/traces (OTLP/HTTP)
+    /// US traces endpoint: https://api.honeycomb.io/v1/traces (OTLP/HTTP)
+    /// US metrics endpoint: https://api.honeycomb.io/v1/metrics (OTLP/HTTP)
+    /// EU traces endpoint: https://api.eu1.honeycomb.io/v1/traces (OTLP/HTTP)
+    /// EU metrics endpoint: https://api.eu1.honeycomb.io/v1/metrics (OTLP/HTTP)
+    /// Honeycomb uses signal-specific endpoints.
     /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateHoneycombConfig(string apiKey, string? region = null)
@@ -144,12 +157,14 @@ public sealed class OtlpExporterConfiguration
             ? "https://api.honeycomb.io"
             : $"https://api.{region}.honeycomb.io";
 
-        var endpoint = new Uri($"{baseUrl}/v1/traces");
+        var tracesEndpoint = new Uri($"{baseUrl}/v1/traces");
+        var metricsEndpoint = new Uri($"{baseUrl}/v1/metrics");
         var headers = new Dictionary<string, string>
         {
             ["x-honeycomb-team"] = apiKey
         };
 
-        return new OtlpExporterConfiguration(endpoint, headers);
+        // Honeycomb uses signal-specific endpoints
+        return new OtlpExporterConfiguration(tracesEndpoint, metricsEndpoint, headers);
     }
 }
