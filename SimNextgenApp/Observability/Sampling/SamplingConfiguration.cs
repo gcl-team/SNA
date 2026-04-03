@@ -118,11 +118,11 @@ public class SamplingConfiguration
 
     private bool ShouldSampleParentBased()
     {
-        var parentActivity = Activity.Current?.Parent;
-        if (parentActivity != null)
+        var currentActivity = Activity.Current;
+        if (currentActivity != null)
         {
-            // Use parent's sampling decision
-            return parentActivity.Recorded;
+            // Use current activity's sampling decision (it's the parent of the span about to be created)
+            return currentActivity.Recorded;
         }
 
         // No parent, fall back to random sampling

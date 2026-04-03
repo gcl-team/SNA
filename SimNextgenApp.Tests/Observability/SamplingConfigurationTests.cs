@@ -214,4 +214,57 @@ public class SamplingConfigurationTests
         Assert.True(SamplingConfiguration.Random(0.5).IsEnabled);
         Assert.True(SamplingConfiguration.ParentBased(0.5).IsEnabled);
     }
+
+    [Fact(DisplayName = "ShouldSample with ParentBased before creating child should check current activity, not grandparent.")]
+    public void ShouldSample_ParentBased_BeforeCreatingChild_ChecksCurrentActivity()
+    {
+        // Arrange
+        var config = SamplingConfiguration.ParentBased(0.0); // Fallback rate is 0
+        var activitySource = new ActivitySource("TestSource");
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        // Create a parent activity (this will be Activity.Current)
+        using var parent = activitySource.StartActivity("ParentActivity", ActivityKind.Internal);
+        Assert.NotNull(parent);
+        Assert.True(parent.Recorded);
+
+        // Act - Before creating child, check if we should sample
+        // This should check Activity.Current (parent), not Activity.Current.Parent (grandparent/null)
+        bool shouldSample = config.ShouldSample();
+
+        // Assert - Should follow current activity's decision (recorded = true)
+        Assert.True(shouldSample);
+    }
+
+    [Fact(DisplayName = "ShouldSample with ParentBased should respect non-recorded parent decision.")]
+    public void ShouldSample_ParentBased_WithNonRecordedParent_ReturnsFalse()
+    {
+        // Arrange
+        var config = SamplingConfiguration.ParentBased(1.0); // Fallback rate is 100%
+        var activitySource = new ActivitySource("TestSource");
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = _ => true,
+            Sample = (ref _) => ActivitySamplingResult.PropagationData // Not recorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        // Create a parent activity that is NOT recorded
+        using var parent = activitySource.StartActivity("ParentActivity", ActivityKind.Internal);
+        Assert.NotNull(parent);
+        Assert.False(parent.Recorded);
+
+        // Act - Check if we should sample before creating child
+        bool shouldSample = config.ShouldSample();
+
+        // Assert - Should follow current activity's decision (recorded = false)
+        Assert.False(shouldSample);
+    }
 }
