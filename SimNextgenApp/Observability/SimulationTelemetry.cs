@@ -1,4 +1,5 @@
 using OpenTelemetry;
+using OpenTelemetry.Exporter;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SimNextgenApp.Observability.Sampling;
@@ -339,6 +340,7 @@ public class SimulationTelemetryBuilder
             tracerBuilder.AddOtlpExporter(options =>
             {
                 options.Endpoint = otlpConfig.Endpoint;
+                options.Protocol = OtlpExportProtocol.HttpProtobuf; // Backend presets use OTLP/HTTP
                 options.Headers = string.Join(",",
                     otlpConfig.Headers.Select(kvp => $"{kvp.Key}={kvp.Value}"));
             });
@@ -346,6 +348,7 @@ public class SimulationTelemetryBuilder
             meterBuilder.AddOtlpExporter(options =>
             {
                 options.Endpoint = otlpConfig.Endpoint;
+                options.Protocol = OtlpExportProtocol.HttpProtobuf; // Backend presets use OTLP/HTTP
                 options.Headers = string.Join(",",
                     otlpConfig.Headers.Select(kvp => $"{kvp.Key}={kvp.Value}"));
             });

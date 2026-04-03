@@ -23,11 +23,12 @@ public enum OtlpBackend
 
 /// <summary>
 /// Configuration for OTLP exporters with backend-specific presets.
+/// All presets use OTLP/HTTP (HttpProtobuf) protocol.
 /// </summary>
 public sealed class OtlpExporterConfiguration
 {
     /// <summary>
-    /// Gets the OTLP endpoint URI.
+    /// Gets the OTLP endpoint URI (OTLP/HTTP format).
     /// </summary>
     public Uri Endpoint { get; }
 
@@ -77,7 +78,8 @@ public sealed class OtlpExporterConfiguration
     /// <remarks>
     /// API key format: "instanceId:apiToken" where instanceId is your Grafana Cloud instance ID.
     /// Supported regions: us-central-0, eu-west-0, ap-southeast-0, au-southeast-0
-    /// Endpoint format: https://otlp-gateway-prod-{region}.grafana.net/otlp
+    /// Endpoint format: https://otlp-gateway-prod-{region}.grafana.net/otlp (OTLP/HTTP)
+    /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateGrafanaCloudConfig(string apiKey, string? region = null)
     {
@@ -102,7 +104,8 @@ public sealed class OtlpExporterConfiguration
     /// <returns>An <see cref="OtlpExporterConfiguration"/> instance.</returns>
     /// <remarks>
     /// Supported regions: us1, us3, us5, eu1, ap1, gov
-    /// Endpoint format: https://api.{region}.datadoghq.com/api/v2/otlp
+    /// Endpoint format: https://api.{region}.datadoghq.com/api/v2/otlp (OTLP/HTTP)
+    /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateDatadogConfig(string apiKey, string? region = null)
     {
@@ -127,8 +130,9 @@ public sealed class OtlpExporterConfiguration
     /// <returns>An <see cref="OtlpExporterConfiguration"/> instance.</returns>
     /// <remarks>
     /// Supported regions: us (default), eu1
-    /// US endpoint: https://api.honeycomb.io/v1/traces
-    /// EU endpoint: https://api.eu1.honeycomb.io/v1/traces
+    /// US endpoint: https://api.honeycomb.io/v1/traces (OTLP/HTTP)
+    /// EU endpoint: https://api.eu1.honeycomb.io/v1/traces (OTLP/HTTP)
+    /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateHoneycombConfig(string apiKey, string? region = null)
     {
