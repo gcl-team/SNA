@@ -90,16 +90,19 @@ public class SimulationObserver<TLoad> : IDisposable
                     bool isDisposed = Interlocked.CompareExchange(ref _disposedInt, 0, 0) != 0;
                     if (isDisposed)
                     {
-                        return default; // Return empty measurement if disposed
+                        return []; // Return no measurements if disposed (avoids unlabeled time series)
                     }
 
                     // Thread-safe read of warmup state using Interlocked
                     bool isWarmup = Interlocked.CompareExchange(ref _isWarmupPhaseInt, 0, 0) != 0;
 
-                    return new Measurement<double>(
-                        this.Utilization,
-                        new KeyValuePair<string, object?>("sna.server.name", _server.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                    return
+                    [
+                        new Measurement<double>(
+                            this.Utilization,
+                            new KeyValuePair<string, object?>("sna.server.name", _server.Name),
+                            new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup))
+                    ];
                 },
                 description: "Instantaneous utilization of the server"
             );

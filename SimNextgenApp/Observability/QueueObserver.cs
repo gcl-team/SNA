@@ -103,16 +103,19 @@ public class QueueObserver<TLoad> : IDisposable
                     bool isDisposed = Interlocked.CompareExchange(ref _disposedInt, 0, 0) != 0;
                     if (isDisposed)
                     {
-                        return default; // Return empty measurement if disposed
+                        return []; // Return no measurements if disposed (avoids unlabeled time series)
                     }
 
                     // Thread-safe read of warmup state using Interlocked
                     bool isWarmup = Interlocked.CompareExchange(ref _isWarmupPhaseInt, 0, 0) != 0;
 
-                    return new Measurement<int>(
-                        _queue.Occupancy,
-                        new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                    return
+                    [
+                        new Measurement<int>(
+                            _queue.Occupancy,
+                            new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
+                            new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup))
+                    ];
                 },
                 description: "Current number of items waiting in the queue"
             );
