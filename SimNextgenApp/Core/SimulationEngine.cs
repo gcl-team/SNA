@@ -224,8 +224,6 @@ public class SimulationEngine : IScheduler, IRunContext
 
                     // TraceId and SpanId are automatically added by OTel from Activity.Current
                     // Guard scope creation with IsEnabled to avoid allocations when logging is disabled
-                    var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
-
                     if (_logger.IsEnabled(LogLevel.Trace))
                     {
                         using (_logger.BeginScope(new Dictionary<string, object> { ["@Start"] = startTime }))
@@ -234,12 +232,18 @@ public class SimulationEngine : IScheduler, IRunContext
                         }
                     }
 
-                    currentEvent.Execute(this);
-
-                    stopwatchLog.Stop();
-
+                    // Only create stopwatch if we'll actually log the elapsed time
+                    System.Diagnostics.Stopwatch? stopwatchLog = null;
                     if (_logger.IsEnabled(LogLevel.Information))
                     {
+                        stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
+                    }
+
+                    currentEvent.Execute(this);
+
+                    if (_logger.IsEnabled(LogLevel.Information) && stopwatchLog != null)
+                    {
+                        stopwatchLog.Stop();
                         using (_logger.BeginScope(new Dictionary<string, object> { ["@Elapsed"] = stopwatchLog.Elapsed.TotalMilliseconds }))
                         {
                             _logger.LogInformation(
