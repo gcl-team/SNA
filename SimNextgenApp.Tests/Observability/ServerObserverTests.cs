@@ -180,10 +180,20 @@ public class ServerObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(5);
         mockServer.SetupGet(s => s.NumberInService).Returns(2);
 
+        // Register listener to ensure activity is created
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "TestSource",
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
         // Create an Activity to simulate warmup phase
         var activitySource = new ActivitySource("TestSource");
         using var activity = activitySource.StartActivity("TestActivity");
-        activity?.SetTag("sna.simulation.warmup", true);
+
+        Assert.NotNull(activity); // Ensure activity was actually created
+        activity.SetTag("sna.simulation.warmup", true);
 
         var load = new DummyLoad();
         mockServer.Setup(s => s.GetServiceStartTime(load)).Returns(100L);
@@ -197,7 +207,7 @@ public class ServerObserverTests
         // The observer should have captured warmup=true state
         // This state should persist even after the Activity ends
 
-        activity?.Stop();
+        activity.Stop();
 
         // Now simulate the ObservableGauge callback running on a background thread
         // (where Activity.Current would be null, but cached state should be used)
