@@ -131,6 +131,19 @@ public sealed class SimulationTelemetry : IDisposable
         return new ResourceObserver<TResource>(resourcePool, meter, ownsMeter: true, _volumeEstimator);
     }
 
+    /// <summary>
+    /// Creates an observer for the whole simulation.
+    /// Each observer owns its own meter to allow independent disposal and avoid memory leaks.
+    /// </summary>
+    /// <param name="engine">The simulation engine to observe.</param>
+    /// <param name="warmupEndTime">Optional warmup end time (in simulation time units).</param>
+    public SimulationObserver ObserveSimulation(Core.SimulationEngine engine, long? warmupEndTime = null)
+    {
+        // Create owned meter to allow observer to be disposed independently
+        var meter = new System.Diagnostics.Metrics.Meter(MeterName);
+        return new SimulationObserver(engine, meter, ownsMeter: true, _volumeEstimator, warmupEndTime);
+    }
+
     public void Dispose()
     {
         _tracerProvider?.Dispose();
