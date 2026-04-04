@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using SimNextgenApp.Core;
-using SimNextgenApp.Observability.Metrics;
 
 namespace SimNextgenApp.Modeling.Resource;
 
@@ -19,11 +18,6 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
     public int BusyCount => TotalCapacity - AvailableCount;
 
     /// <summary>
-    /// Gets the utilisation metric, which represents time-based performance data for the resource pool.
-    /// </summary>
-    public TimeBasedMetric UtilizationMetric { get; }
-
-    /// <summary>
     /// Initialises a new instance of the <see cref="ResourcePool{TResource}"/> class with the specified resources,
     /// instance name, and logger factory.
     /// </summary>
@@ -39,7 +33,6 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
         _idleResources = new List<TResource>(resources);
         TotalCapacity = _idleResources.Count;
         _logger = loggerFactory.CreateLogger<ResourcePool<TResource>>();
-        UtilizationMetric = new TimeBasedMetric(enableHistory: false);
         _logger.LogInformation("ResourcePool '{PoolName}' created with capacity {Capacity}.", Name, TotalCapacity);
     }
 
@@ -53,7 +46,6 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
             var resource = _idleResources[^1];
             _idleResources.RemoveAt(_idleResources.Count - 1);
 
-            UtilizationMetric.ObserveCount(BusyCount, currentTime);
             _logger.LogTrace("Resource acquired from '{PoolName}' at {Time}. Available: {Available}", Name, currentTime, AvailableCount);
 
             ResourceAcquired?.Invoke(resource, currentTime);
@@ -61,7 +53,7 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
         }
 
         _logger.LogWarning("Failed to acquire resource from '{PoolName}' at {Time}. None available.", Name, currentTime);
-        
+
         RequestFailed?.Invoke(currentTime);
         return default;
     }
@@ -86,28 +78,24 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
         }
 
         _idleResources.Add(resource);
-        UtilizationMetric.ObserveCount(BusyCount, currentTime);
+
         _logger.LogTrace("Resource released to '{PoolName}' at {Time}. Available: {Available}", Name, currentTime, AvailableCount);
 
         ResourceReleased?.Invoke(resource, currentTime);
     }
 
-    /// <summary>
-    /// Initialises the current instance with the specified run context.
-    /// </summary>
-    /// <remarks>This method sets up the necessary state for the instance to function within the provided test
-    /// run context. It is typically called at the start of a test run and should not be invoked multiple times without
-    /// proper cleanup.</remarks>
-    /// <param name="runContext">The context for the current test run, providing access to run-specific data and settings.</param>
+    /// <inheritdoc/>
     public override void Initialize(IRunContext runContext)
     {
-        UtilizationMetric.ObserveCount(0, 0);
+        ArgumentNullException.ThrowIfNull(runContext);
+
+        _logger.LogInformation("ResourcePool '{PoolName}' initialized.", Name);
     }
 
     /// <inheritdoc/>
     public override void WarmedUp(long simulationTime)
     {
-        UtilizationMetric.WarmedUp(simulationTime, 0);
-        UtilizationMetric.ObserveCount(BusyCount, simulationTime);
+        _logger.LogInformation("ResourcePool '{PoolName}' warmed up at {Time}. Current utilization: {InUse}/{Total}",
+            Name, simulationTime, BusyCount, TotalCapacity);
     }
 }

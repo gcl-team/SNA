@@ -4,8 +4,7 @@ using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.CustomModels;
-using SimNextgenApp.Observability.Logs;
-using SimNextgenApp.Observability.Metrics;
+using SimNextgenApp.Observability;
 using SimNextgenApp.Observability.Exporters;
 
 namespace SimNextgenApp.Demo.Scenarios;
@@ -88,9 +87,10 @@ internal static class SimpleMmck
 
         var runStrategy = new DurationRunStrategy(runDurationInUnits, warmupDurationInUnits);
 
-        // 6. Create a Memory Tracer to capture simulation events
-        //    The MemoryTracer records every event that is scheduled and executed.
-        var tracer = new MemoryTracer();
+        // 6. Create Telemetry Configuration
+        var telemetry = SimulationTelemetry.Create()
+            .WithConsoleExporter()
+            .Build();
 
         // 7. Create the Simulation Profile to bundle all settings for a reproducible run
         //    This is useful for managing complex simulations with many parameters.
@@ -100,7 +100,7 @@ internal static class SimpleMmck
             "M/M/c/K Profile",
             timeUnit, // Use Milliseconds for precision
             loggerFactory: loggerFactory,
-            tracer: tracer
+            telemetry: telemetry
         );
 
         // 8. Create and run the Simulation Engine
@@ -128,26 +128,20 @@ internal static class SimpleMmck
         programLogger.LogInformation($"Total Balked Loads (System Full): {mmckSystem.BalkedLoadsCount}");
 
         programLogger.LogInformation("\n--- Queue Stats ('{QueueName}', Post-Warmup) ---", mmckSystem.WaitingLine.Name);
-        var queueMetric = mmckSystem.WaitingLine.TimeBasedMetric;
         programLogger.LogInformation($"Capacity (Waiting Spots): {mmckSystem.WaitingLine.Capacity}");
         programLogger.LogInformation($"Final Occupancy: {mmckSystem.WaitingLine.Occupancy}");
-        programLogger.LogInformation($"Average Queue Length: {queueMetric.AverageCount:F3}");
-        programLogger.LogInformation($"Max Queue Length Observed (from history if enabled, or need separate tracker)");
-
 
         programLogger.LogInformation("\n--- Server Stats (Aggregated for {NumServers} Servers, Post-Warmup) ---", mmckSystem.NumberOfServersC);
 
         for (int s = 0; s < mmckSystem.ServiceChannels.Count; s++)
         {
-            var serverReporter = new ServerConsoleReporter<MyLoad>(
-                mmckSystem.ServiceChannels[s],
-                mmckSystem.ServiceChannelObservers[s],
-                programLogger,
-                timeUnit); // Use the same unit as the simulation
-            serverReporter.Report();
+            var obs = mmckSystem.ServiceChannelObservers[s];
+            programLogger.LogInformation($"Server {s+1}: Loads Completed = {obs.LoadsCompleted}");
         }
+        programLogger.LogInformation($"Note: Server utilization metrics are emitted to OpenTelemetry throughout the simulation. Check your observability backend (e.g., Prometheus, Grafana) for time-weighted utilization.");
 
-        Console.WriteLine("\n--- Events recorded by MemoryTracer ---");
-        tracer.PrintToConsole();
+        // Flush and dispose telemetry
+        telemetry.Flush();
+        telemetry.Dispose();
     }
 }

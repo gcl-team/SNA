@@ -50,7 +50,6 @@ public class ResourcePoolTests
         Assert.Equal(5, pool.TotalCapacity);
         Assert.Equal(5, pool.AvailableCount);
         Assert.Equal(0, pool.BusyCount);
-        Assert.NotNull(pool.UtilizationMetric);
     }
 
     [Fact(DisplayName = "Constructor should throw ArgumentNullException for null resource collection.")]
@@ -73,21 +72,6 @@ public class ResourcePoolTests
         );
     }
 
-    [Fact(DisplayName = "Initialize should reset the utilisation metric to its base state.")]
-    public void Initialize_SetsUtilizationMetricToBaseState()
-    {
-        // Arrange
-        var pool = CreatePool(resources: CreateDefaultResources(3));
-        // Mess up the metric to ensure Initialize fixes it
-        pool.TryAcquire(_mockEngineContext.Object);
-        Assert.NotEqual(0, pool.UtilizationMetric.CurrentCount);
-
-        // Act
-        pool.Initialize(_mockEngineContext.Object);
-
-        // Assert
-        Assert.Equal(0, pool.UtilizationMetric.CurrentCount);
-    }
 
     [Fact(DisplayName = "TryAcquire should succeed and update state when resources are available.")]
     public void TryAcquire_WhenResourcesAvailable_SucceedsAndUpdatesState()
@@ -104,7 +88,6 @@ public class ResourcePoolTests
         Assert.Equal(3, pool.TotalCapacity);
         Assert.Equal(2, pool.AvailableCount);
         Assert.Equal(1, pool.BusyCount);
-        Assert.Equal(1, pool.UtilizationMetric.CurrentCount); // BusyCount should be observed
     }
 
     [Fact(DisplayName = "TryAcquire should return null when no resources are available.")]
@@ -123,7 +106,6 @@ public class ResourcePoolTests
         Assert.Equal(1, pool.TotalCapacity);
         Assert.Equal(0, pool.AvailableCount);
         Assert.Equal(1, pool.BusyCount);
-        Assert.Equal(1, pool.UtilizationMetric.CurrentCount);
     }
 
     [Fact(DisplayName = "Release should succeed and update state for a valid resource.")]
@@ -143,7 +125,6 @@ public class ResourcePoolTests
         Assert.Equal(3, pool.TotalCapacity);
         Assert.Equal(3, pool.AvailableCount);
         Assert.Equal(0, pool.BusyCount);
-        Assert.Equal(0, pool.UtilizationMetric.CurrentCount);
     }
 
     [Fact(DisplayName = "Release should throw ArgumentNullException for a null resource.")]
@@ -244,24 +225,5 @@ public class ResourcePoolTests
         Assert.NotNull(releasedResource);
         Assert.Equal(resourceToRelease, releasedResource);
         Assert.Equal(15, eventTime);
-    }
-
-    [Fact(DisplayName = "WarmedUp should reset the metric and observe the current busy count.")]
-    public void WarmedUp_ResetsMetricAndObservesCurrentState()
-    {
-        // Arrange
-        var pool = CreatePool(resources: CreateDefaultResources(5));
-        pool.TryAcquire(_mockEngineContext.Object);
-        pool.TryAcquire(_mockEngineContext.Object);
-        Assert.Equal(2, pool.BusyCount);
-
-        long warmupTime = 100;
-
-        // Act
-        pool.WarmedUp(warmupTime);
-
-        // Assert
-        // Metric should be reset and then the current BusyCount (2) observed.
-        Assert.Equal(2, pool.UtilizationMetric.CurrentCount);
     }
 }

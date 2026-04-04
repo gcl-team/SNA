@@ -1,12 +1,11 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Serilog.Context;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Observability.Logs;
 using SimNextgenApp.Observability.Exporters;
+using SimNextgenApp.Observability.Internal;
 
 namespace SimNextgenApp.Core;
 
@@ -32,7 +31,7 @@ namespace SimNextgenApp.Core;
 public class SimulationEngine : IScheduler, IRunContext
 {
     private readonly ILogger<SimulationEngine> _logger;
-    private readonly ISimulationTracer? _tracer;
+    private readonly OTelActivitySource _activitySource;
 
     private readonly SimulationProfile _profile;
     private readonly PriorityQueue<AbstractEvent, (long Time, long Sequence)> _fel;
@@ -61,6 +60,11 @@ public class SimulationEngine : IScheduler, IRunContext
     public long ExecutedEventCount => _executedEventCount;
 
     /// <summary>
+    /// Gets the simulation time unit used for this run.
+    /// </summary>
+    public SimulationTimeUnit TimeUnit => _profile.TimeUnit;
+
+    /// <summary>
     /// Gets a value indicating whether there are any events pending in the FEL.
     /// </summary>
     public bool HasFutureEvents => _fel.Count > 0;
@@ -84,7 +88,10 @@ public class SimulationEngine : IScheduler, IRunContext
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
 
         _logger = _profile.LoggerFactory?.CreateLogger<SimulationEngine>() ?? new NullLogger<SimulationEngine>();
-        _tracer = _profile.Tracer;
+        _activitySource = new OTelActivitySource(
+            _profile.Telemetry?.VolumeEstimator,
+            _profile.Telemetry?.CardinalityGuard,
+            enableTraceContext: _profile.Telemetry?.EnableTraceContext ?? false);
 
         Model = _profile.Model;
 
@@ -130,92 +137,147 @@ public class SimulationEngine : IScheduler, IRunContext
             stopwatch.Stop();
             throw new SimulationException($"Model initialization failed for Model ID {Model.Id}.", ex);
         }
+        finally
+        {
+            try
+            {
+                _profile.Telemetry?.Flush();
+            }
+            catch (Exception flushEx)
+            {
+                _logger.LogError(flushEx, "Failed to flush simulation telemetry during initialization for Model ID {ModelId}.", Model.Id);
+            }
+        }
 
         try
         {
-            using (LogContext.PushProperty("ProfileRunId", _profile.RunId))
+            using var rootSpan = _activitySource.CreateSimulationSpan(_profile);
+            using (_logger.BeginScope(new Dictionary<string, object> { ["ProfileRunId"] = _profile.RunId }))
             {
-                while (strategy.ShouldContinue(this))
+                // Create warmup span if warmup period is configured
+                System.Diagnostics.Activity? warmupSpan = null;
+                if (strategy.WarmupEndTime.HasValue)
                 {
-                    if (!_fel.TryDequeue(out var currentEvent, out var priority))
+                    warmupSpan = _activitySource.CreateWarmupSpan(strategy.WarmupEndTime.Value);
+                }
+
+                try
+                {
+                    while (strategy.ShouldContinue(this))
                     {
-                        break;
-                    }
-
-                    // currentEvent is guaranteed non-null here since TryDequeue succeeded
-
-
-                    _executedEventCount += 1;
-
-                    // 1. Advance Clock
-                    if (priority.Time < ClockTime)
-                    {
-                        // Should not happen with correct scheduling and FEL logic
-                        throw new SimulationException($"FEL Error: Event {currentEvent.GetType().Name} time {priority.Time} is before ClockTime {ClockTime}. FEL is corrupted.");
-                    }
-
-                    _clockTime = priority.Time;
-
-                    // 2. Check for Warm-up Completion (only if applicable and not yet notified)
-                    if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
-                    {
-                        if (Model is IWarmupAware warmupAwareModel)
+                        if (!_fel.TryDequeue(out var currentEvent, out var priority))
                         {
-                            _logger.LogInformation("Warm-up period complete at simulation time {WarmupEndTime}.", ClockTime);
-                            warmupAwareModel.WarmedUp(ClockTime); // Notify model
+                            break;
                         }
 
-                        _warmupCompleteNotified = true; // Ensure notification only happens once
-                    }
+                        // currentEvent is guaranteed non-null here since TryDequeue succeeded
 
-                    // 3. Execute Event
-                    var traceId = currentEvent.EventId.ToString();
-                    var spanId = Guid.NewGuid().ToString();
-                    var startTime = DateTime.UtcNow;
-                    using (LogContext.PushProperty("TraceId", traceId))
-                    using (LogContext.PushProperty("SpanId", spanId))
-                    using (LogContext.PushProperty("@Start", startTime))
-                    {
-                        var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
 
-                        _tracer?.Trace(new TraceRecord(
-                            Point: TracePoint.EventExecuting,
-                            ClockTime: ClockTime,
-                            EventId: currentEvent.EventId,
-                            EventType: currentEvent.GetType().Name,
-                            Details: currentEvent.GetTraceDetails()
-                        ));
+                        _executedEventCount += 1;
 
-                        _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
+                        // 1. Advance Clock
+                        if (priority.Time < ClockTime)
+                        {
+                            // Should not happen with correct scheduling and FEL logic
+                            throw new SimulationException($"FEL Error: Event {currentEvent.GetType().Name} time {priority.Time} is before ClockTime {ClockTime}. FEL is corrupted.");
+                        }
+
+                        _clockTime = priority.Time;
+
+                        // 2. Check for Warm-up Completion (only if applicable and not yet notified)
+                        if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
+                        {
+                            // Close warmup span when warmup completes
+                            warmupSpan?.Dispose();
+                            warmupSpan = null;
+
+                            if (Model is IWarmupAware warmupAwareModel)
+                            {
+                                _logger.LogInformation("Warm-up period complete at simulation time {WarmupEndTime}.", ClockTime);
+                                warmupAwareModel.WarmedUp(ClockTime); // Notify model
+                            }
+
+                            _warmupCompleteNotified = true; // Ensure notification only happens once
+                        }
+
+                        // 3. Execute Event
+                        var startTime = DateTime.UtcNow;
+
+                        bool isWarmupPhase = strategy.WarmupEndTime.HasValue && ClockTime < strategy.WarmupEndTime.Value;
+
+                        using var eventScope = _activitySource.CreateEventSpan(
+                            currentEvent.GetType().Name,
+                            ClockTime,
+                            currentEvent.EventId.ToString(),
+                            isWarmupPhase);
+
+                        // Add rich context as requested in plan.md
+                        eventScope.Span?.SetTag("sna.event.type", currentEvent.GetType().Name);
+                        eventScope.Span?.SetTag("sna.event.number", _executedEventCount);
+                        if (currentEvent.GetTraceDetails() is { } details)
+                        {
+                            foreach (var kvp in details)
+                            {
+                                eventScope.Span?.SetTag($"sna.event.detail.{kvp.Key.ToLowerInvariant()}", kvp.Value);
+                            }
+                        }
+
+                        // TraceId and SpanId are automatically added by OTel from Activity.Current
+                        // Guard scope creation with IsEnabled to avoid allocations when logging is disabled
+                        if (_logger.IsEnabled(LogLevel.Trace))
+                        {
+                            using (_logger.BeginScope(new Dictionary<string, object> { ["@Start"] = startTime }))
+                            {
+                                _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
+                            }
+                        }
+
+                        // Only create stopwatch if we'll actually log the elapsed time
+                        System.Diagnostics.Stopwatch? stopwatchLog = null;
+                        if (_logger.IsEnabled(LogLevel.Information))
+                        {
+                            stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
+                        }
+
                         currentEvent.Execute(this);
 
-                        stopwatchLog.Stop();
-
-                        using (LogContext.PushProperty("@Elapsed", stopwatch.Elapsed.TotalMilliseconds))
+                        if (_logger.IsEnabled(LogLevel.Information) && stopwatchLog != null)
                         {
-                            _logger.LogInformation(
-                                "Executed event {EventType} (ID: {EventId})",
-                                currentEvent.GetType().Name,
-                                currentEvent.EventId);
+                            stopwatchLog.Stop();
+                            using (_logger.BeginScope(new Dictionary<string, object> { ["@Elapsed"] = stopwatchLog.Elapsed.TotalMilliseconds }))
+                            {
+                                _logger.LogInformation(
+                                    "Executed event {EventType} (ID: {EventId})",
+                                    currentEvent.GetType().Name,
+                                    currentEvent.EventId);
+                            }
                         }
-
-                        _tracer?.Trace(new TraceRecord(
-                            Point: TracePoint.EventCompleted,
-                            ClockTime: ClockTime,
-                            EventId: currentEvent.EventId,
-                            EventType: currentEvent.GetType().Name,
-                            Details: currentEvent.GetTraceDetails()
-                        ));
-                    }                    
+                    }
+                }
+                finally
+                {
+                    // Ensure warmup span is disposed if still active
+                    warmupSpan?.Dispose();
                 }
             }
-            
+
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Simulation run failed during execution for Model ID {ModelId} at simulation time {ClockTime}.", Model.Id, ClockTime);
             stopwatch.Stop();
             throw new SimulationException($"Simulation run failed for Model ID {Model.Id}.", ex);
+        }
+        finally
+        {
+            try
+            {
+                _profile.Telemetry?.Flush();
+            }
+            catch (Exception flushEx)
+            {
+                _logger.LogError(flushEx, "Failed to flush simulation telemetry for Model ID {ModelId}.", Model.Id);
+            }
         }
 
         stopwatch.Stop();
@@ -260,14 +322,6 @@ public class SimulationEngine : IScheduler, IRunContext
         _fel.Enqueue(ev, (time, sequence));
 
         _logger.LogTrace("Scheduled event {EventType} for time {ExecutionTime} (Sequence {Sequence})", ev.GetType().Name, time, sequence);
-
-        _tracer?.Trace(new TraceRecord(
-            Point: TracePoint.EventScheduled,
-            ClockTime: ClockTime,
-            EventId: ev.EventId,
-            EventType: ev.GetType().Name,
-            Details: ev.GetTraceDetails()
-        ));
     }
 
     /// <summary>

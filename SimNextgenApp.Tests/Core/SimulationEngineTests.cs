@@ -6,7 +6,8 @@ using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
-using SimNextgenApp.Observability.Logs;
+using SimNextgenApp.Observability;
+using System.Diagnostics;
 
 namespace SimNextgenApp.Tests.Core;
 
@@ -14,13 +15,11 @@ public class SimulationEngineTests
 {
     private readonly Mock<ISimulationModel> _mockModel;
     private readonly Mock<IRunStrategy> _mockStrategy;
-    private readonly Mock<ISimulationTracer> _mockTracer;
 
     public SimulationEngineTests()
     {
         _mockModel = new Mock<ISimulationModel>();
         _mockStrategy = new Mock<IRunStrategy>();
-        _mockTracer = new Mock<ISimulationTracer>();
     }
 
     private SimulationEngine CreateEngine(SimulationProfile profile) => new(profile);
@@ -31,7 +30,7 @@ public class SimulationEngineTests
         "TestProfile",
         SimulationTimeUnit.Seconds,
         NullLoggerFactory.Instance,
-        _mockTracer.Object
+        telemetry: null
     );
 
     [Fact(DisplayName = "Run should initialize the model and execute a scheduled event.")]
@@ -190,25 +189,163 @@ public class SimulationEngineTests
         Assert.Throws<ArgumentOutOfRangeException>("time", () => engine.Schedule(new TestEvent(), 9));
     }
 
-    [Fact(DisplayName = "Run should call tracer for scheduling, execution, and completion.")]
-    public void Run_WithTracer_CallsTraceAtCorrectPoints()
+    [Fact(DisplayName = "Run should create OpenTelemetry spans when telemetry is configured.")]
+    public void Run_WithTelemetry_CreatesSpans()
     {
         // Arrange
-        var testEvent = new TestEvent();
-        _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
-                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(testEvent, 1));
+        var capturedActivities = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == SimulationTelemetry.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStarted = activity => capturedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
 
+        var telemetry = SimulationTelemetry.Create().Build();
+        var profile = new SimulationProfile(
+            _mockModel.Object,
+            _mockStrategy.Object,
+            "TestProfile",
+            SimulationTimeUnit.Seconds,
+            NullLoggerFactory.Instance,
+            telemetry
+        );
+
+        _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(new TestEvent(), 1));
         _mockStrategy.Setup(s => s.ShouldContinue(It.Is<IRunContext>(ctx => ctx.ExecutedEventCount < 1)))
                      .Returns(true);
 
-        var engine = CreateEngine(CreateProfile());
+        var engine = CreateEngine(profile);
 
         // Act
         engine.Run();
 
         // Assert
-        _mockTracer.Verify(t => t.Trace(It.Is<TraceRecord>(r => r.Point == TracePoint.EventScheduled)), Times.Once);
-        _mockTracer.Verify(t => t.Trace(It.Is<TraceRecord>(r => r.Point == TracePoint.EventExecuting)), Times.Once);
-        _mockTracer.Verify(t => t.Trace(It.Is<TraceRecord>(r => r.Point == TracePoint.EventCompleted)), Times.Once);
+        Assert.NotEmpty(capturedActivities);
+
+        // Should have a simulation span
+        var simulationSpan = capturedActivities.FirstOrDefault(a => a.OperationName.Contains("Simulation"));
+        Assert.NotNull(simulationSpan);
+
+        // Should have an event span
+        var eventSpan = capturedActivities.FirstOrDefault(a => a.OperationName.Contains("TestEvent"));
+        Assert.NotNull(eventSpan);
+
+        // Cleanup
+        telemetry.Dispose();
     }
+
+    [Fact(DisplayName = "Run should tag event spans with warmup state correctly.")]
+    public void Run_WithWarmup_TagsSpansCorrectly()
+    {
+        // Arrange
+        var capturedActivities = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == SimulationTelemetry.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStarted = activity => capturedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var telemetry = SimulationTelemetry.Create().Build();
+        var profile = new SimulationProfile(
+            _mockModel.Object,
+            _mockStrategy.Object,
+            "TestProfile",
+            SimulationTimeUnit.Seconds,
+            NullLoggerFactory.Instance,
+            telemetry
+        );
+
+        // Schedule events before and after warmup
+        _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+                  .Callback<IRunContext>(ctx =>
+                  {
+                      ctx.Scheduler.Schedule(new NamedEvent("WarmupEvent", new List<string>()), 3);
+                      ctx.Scheduler.Schedule(new NamedEvent("PostWarmupEvent", new List<string>()), 12);
+                  });
+
+        _mockStrategy.SetupGet(s => s.WarmupEndTime).Returns(10); // Warmup ends at time 10
+        _mockStrategy.Setup(s => s.ShouldContinue(It.Is<IRunContext>(ctx => ctx.ExecutedEventCount < 2)))
+                     .Returns(true);
+
+        var engine = CreateEngine(profile);
+
+        // Act
+        engine.Run();
+
+        // Assert
+        // Filter to only event spans (not the simulation span)
+        var eventSpans = capturedActivities.Where(a => a.OperationName.Contains("NamedEvent")).ToList();
+
+        Assert.True(eventSpans.Count >= 2, $"Expected at least 2 event spans but got {eventSpans.Count}");
+
+        var warmupEventSpan = eventSpans[0]; // First event (at time 3)
+        var postWarmupEventSpan = eventSpans[1]; // Second event (at time 12)
+
+        // Check warmup tags
+        var warmupTag = warmupEventSpan.GetTagItem("sna.simulation.warmup");
+        Assert.NotNull(warmupTag);
+        Assert.True((bool)warmupTag!);
+
+        var postWarmupTag = postWarmupEventSpan.GetTagItem("sna.simulation.warmup");
+        Assert.NotNull(postWarmupTag);
+        Assert.False((bool)postWarmupTag!);
+
+        // Cleanup
+        telemetry.Dispose();
+    }
+
+    [Fact(DisplayName = "Run should tag event spans with event details when provided.")]
+    public void Run_EventWithTraceDetails_TagsSpanCorrectly()
+    {
+        // Arrange
+        var capturedActivities = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == SimulationTelemetry.ActivitySourceName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStarted = activity => capturedActivities.Add(activity)
+        };
+        ActivitySource.AddActivityListener(listener);
+
+        var telemetry = SimulationTelemetry.Create().Build();
+        var profile = new SimulationProfile(
+            _mockModel.Object,
+            _mockStrategy.Object,
+            "TestProfile",
+            SimulationTimeUnit.Seconds,
+            NullLoggerFactory.Instance,
+            telemetry
+        );
+
+        var testEvent = new TestEventWithDetails();
+        _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(testEvent, 1));
+        _mockStrategy.Setup(s => s.ShouldContinue(It.Is<IRunContext>(ctx => ctx.ExecutedEventCount < 1)))
+                     .Returns(true);
+
+        var engine = CreateEngine(profile);
+
+        // Act
+        engine.Run();
+
+        // Assert
+        var eventSpan = capturedActivities.FirstOrDefault(a => a.OperationName.Contains("TestEventWithDetails"));
+        Assert.NotNull(eventSpan);
+
+        // Check detail tags
+        var customerIdTag = eventSpan.GetTagItem("sna.event.detail.customerid");
+        var orderIdTag = eventSpan.GetTagItem("sna.event.detail.orderid");
+
+        Assert.Equal("CUST123", customerIdTag);
+        Assert.Equal("ORD456", orderIdTag);
+
+        // Cleanup
+        telemetry.Dispose();
+    }
+
 }

@@ -5,8 +5,6 @@ using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.AwsRdsSample;
 using SimNextgenApp.Demo.CustomModels;
-using SimNextgenApp.Observability.Logs;
-using SimNextgenApp.Observability.Exporters;
 
 namespace SimNextgenApp.Demo.Scenarios;
 
@@ -67,8 +65,7 @@ internal static class AwsBurstScenario
             new DurationRunStrategy(runDurationInUnits, null),
             "AWS RDS Burstable Simulation",
             timeUnit,
-            loggerFactory,
-            new MemoryTracer()
+            loggerFactory
         );
 
         var engine = new SimulationEngine(profile);
@@ -103,8 +100,7 @@ internal static class AwsBurstScenario
                 new DurationRunStrategy(runDurationInUnits, null),
                 "AWS RDS Burstable Simulation",
                 timeUnit,
-                loggerFactory,
-                new MemoryTracer()
+                loggerFactory
             );
 
             engine = new SimulationEngine(profile);

@@ -2,7 +2,6 @@
 using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Events;
-using SimNextgenApp.Observability.Metrics;
 
 namespace SimNextgenApp.Modeling.Queue;
 
@@ -31,11 +30,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     public bool ToDequeue => _toDequeue;
 
     /// <summary>
-    /// Gets the time-based metric instance used for tracking queue occupancy statistics over time.
-    /// </summary>
-    public TimeBasedMetric TimeBasedMetric { get; private set; }    
-
-    /// <summary>
     /// Gets the configuration settings for the queue.
     /// </summary>
     /// <remarks>Expose configuration if needed, e.g., for events or external checks</remarks>
@@ -60,7 +54,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
 
         _config = config;
         _logger = loggerFactory.CreateLogger<SimQueue<TLoad>>();
-        TimeBasedMetric = new TimeBasedMetric(enableHistory: false);
         _logger.LogInformation("Queue '{QueueName}' created with capacity {Capacity}.", Name, _config.Capacity == int.MaxValue ? "Infinite" : _config.Capacity.ToString());
     }
 
@@ -126,14 +119,12 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     {
         ArgumentNullException.ThrowIfNull(runContext);
 
-        TimeBasedMetric.ObserveCount(0, 0); // Initialise metric at time 0 with 0 count
         _logger.LogInformation("Queue '{QueueName}' initialized.", Name);
     }
 
     /// <inheritdoc/>
     public override void WarmedUp(long simulationTime)
     {
-        TimeBasedMetric.WarmedUp(simulationTime, Occupancy);
         _logger.LogInformation("Queue '{QueueName}' warmed up at {Time}. Current occupancy: {Occupancy}", Name, simulationTime, Occupancy);
     }
 
@@ -152,7 +143,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         }
 
         _waitingItems.Enqueue(load);
-        TimeBasedMetric.ObserveCount(Occupancy, currentTime);
         _logger.LogTrace("Enqueued {Load} into {QueueName} at {Time}. New Occupancy: {Occupancy}",
             load, Name, currentTime, Occupancy);
 
@@ -180,7 +170,6 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
         }
 
         var load = _waitingItems.Dequeue();
-        TimeBasedMetric.ObserveCount(Occupancy, currentTime);
         _logger.LogTrace("Dequeued {Load} from {QueueName} at {Time}. New Occupancy: {Occupancy}",
             load, Name, currentTime, Occupancy);
 

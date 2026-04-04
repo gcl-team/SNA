@@ -41,6 +41,12 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
     public IReadOnlyDictionary<TLoad, long> ServiceStartTimes => new ReadOnlyDictionary<TLoad, long>(_serviceStartTimes);
 
     /// <inheritdoc/>
+    public long? GetServiceStartTime(TLoad load)
+    {
+        return _serviceStartTimes.TryGetValue(load, out var startTime) ? startTime : null;
+    }
+
+    /// <inheritdoc/>
     public event Action<TLoad, long>? LoadDeparted;
 
     /// <inheritdoc/>
@@ -115,11 +121,12 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
             throw new SimulationException($"Attempted to complete service for load '{load}' which was not in service at Server '{Name}'. The simulation state is inconsistent.");
         }
 
-        _serviceStartTimes.Remove(load);
-
-        // Notify observers
+        // Notify observers BEFORE removing start time so they can query it for sojourn time calculation
         OnLoadDeparted(load, currentTime);
         OnStateChanged(currentTime);
+
+        // Clean up state after observers have been notified
+        _serviceStartTimes.Remove(load);
     }
 
     void IOperatableServer<TLoad>.HandleServiceCompletion(TLoad load, long currentTime)

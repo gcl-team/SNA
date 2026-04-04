@@ -57,10 +57,6 @@ public class SimQueueTests
         Assert.Equal(int.MaxValue, queue.Capacity);
         Assert.True(queue.ToDequeue);
         Assert.Empty(queue.WaitingItems);
-
-        // --- Statistics ---
-        Assert.NotNull(queue.TimeBasedMetric);
-        Assert.Equal(0, queue.TimeBasedMetric.CurrentCount);
     }
 
     [Fact(DisplayName = "Constructor with finite capacity should initialise properties correctly.")]
@@ -76,10 +72,6 @@ public class SimQueueTests
         Assert.Equal(2, queue.Capacity);
         Assert.True(queue.ToDequeue);
         Assert.Empty(queue.WaitingItems);
-
-        // --- Statistics ---
-        Assert.NotNull(queue.TimeBasedMetric);
-        Assert.Equal(0, queue.TimeBasedMetric.CurrentCount);
     }
 
     [Fact(DisplayName = "Constructor should throw ArgumentNullException if config is null.")]
@@ -119,21 +111,6 @@ public class SimQueueTests
         Assert.Equal("config", ex.ParamName);
     }
 
-    [Fact(DisplayName = "Initialize should prepare the TimeBasedMetric correctly.")]
-    public void Initialize_WithValidContext_InitializesMetric()
-    {
-        // Arrange
-        var queue = CreateQueue();
-        _currentTestTime = 0;
-
-        // Act
-        queue.Initialize(_mockEngineContext.Object);
-
-        // Assert
-        Assert.Equal(0, queue.TimeBasedMetric.CurrentCount);
-        Assert.Equal(0.0, queue.TimeBasedMetric.CurrentTime);
-        Assert.Equal(0.0, queue.TimeBasedMetric.InitialTime);
-    }
 
     [Fact(DisplayName = "Initialize should throw ArgumentNullException for a null context.")]
     public void Initialize_NullContext_ThrowsArgumentNullException()
@@ -294,7 +271,6 @@ public class SimQueueTests
         // Assert
         Assert.Equal(1, queue.Occupancy);
         Assert.Contains(load, queue.WaitingItems);
-        Assert.Equal(1, queue.TimeBasedMetric.CurrentCount);
     }
 
     [Fact(DisplayName ="HandleDequeue should remove a load and update metrics when enabled.")]
@@ -312,10 +288,8 @@ public class SimQueueTests
 
         // Assert
         Assert.Equal(1, queue.Occupancy);
-        Assert.Equal(1, queue.TimeBasedMetric.CurrentCount);
         var remainingLoad = Assert.Single(queue.WaitingItems);
         Assert.Same(load2, remainingLoad); // Verifies FIFO
-        Assert.Equal(1, queue.TimeBasedMetric.CurrentCount);
     }
 
     [Fact(DisplayName ="HandleUpdateToDequeue should update the ToDequeue property.")]
@@ -380,9 +354,6 @@ public class SimQueueTests
         queue.WarmedUp(warmupTime);
 
         // Assert
-        Assert.Equal(warmupTime, queue.TimeBasedMetric.InitialTime);
-        Assert.Equal(warmupTime, queue.TimeBasedMetric.CurrentTime);
-        Assert.Equal(2, queue.TimeBasedMetric.CurrentCount); // Should observe the 2 items
         Assert.Equal(2, queue.Occupancy); // Occupancy should remain
         Assert.Equal(2, queue.WaitingItems.Count());
     }

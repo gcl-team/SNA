@@ -37,6 +37,14 @@ public interface IServer<TLoad> : IWarmupAware
     IReadOnlySet<TLoad> LoadsInService { get; }
 
     /// <summary>
+    /// Gets the simulation time when the specified load started service, if it's currently being processed.
+    /// Used for calculating sojourn time when the load departs.
+    /// </summary>
+    /// <param name="load">The load to query.</param>
+    /// <returns>The simulation time when service started, or null if the load is not currently in service.</returns>
+    long? GetServiceStartTime(TLoad load);
+
+    /// <summary>
     /// Attempts to start serving the given load if capacity is available.
     /// If successful, the server's state is updated and a service completion event is scheduled.
     /// </summary>
