@@ -53,7 +53,7 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
         }
 
         _logger.LogWarning("Failed to acquire resource from '{PoolName}' at {Time}. None available.", Name, currentTime);
-        
+
         RequestFailed?.Invoke(currentTime);
         return default;
     }
@@ -78,24 +78,24 @@ public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TR
         }
 
         _idleResources.Add(resource);
+
         _logger.LogTrace("Resource released to '{PoolName}' at {Time}. Available: {Available}", Name, currentTime, AvailableCount);
 
         ResourceReleased?.Invoke(resource, currentTime);
     }
 
-    /// <summary>
-    /// Initialises the current instance with the specified run context.
-    /// </summary>
-    /// <remarks>This method sets up the necessary state for the instance to function within the provided test
-    /// run context. It is typically called at the start of a test run and should not be invoked multiple times without
-    /// proper cleanup.</remarks>
-    /// <param name="runContext">The context for the current test run, providing access to run-specific data and settings.</param>
+    /// <inheritdoc/>
     public override void Initialize(IRunContext runContext)
     {
+        ArgumentNullException.ThrowIfNull(runContext);
+
+        _logger.LogInformation("ResourcePool '{PoolName}' initialized.", Name);
     }
 
     /// <inheritdoc/>
     public override void WarmedUp(long simulationTime)
     {
+        _logger.LogInformation("ResourcePool '{PoolName}' warmed up at {Time}. Current utilization: {InUse}/{Total}",
+            Name, simulationTime, BusyCount, TotalCapacity);
     }
 }
