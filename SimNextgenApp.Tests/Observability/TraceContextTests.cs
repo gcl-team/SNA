@@ -71,14 +71,18 @@ public class TraceContextTests
     [Fact]
     public void InjectContext_WithActiveActivity_InjectsHeaders()
     {
+        // Register listener to ensure activity is created
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "test-source",
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
         var activitySource = new ActivitySource("test-source");
         using var activity = activitySource.StartActivity("test-activity");
 
-        if (activity == null)
-        {
-            // Skip test if no listener is attached
-            return;
-        }
+        Assert.NotNull(activity);
 
         var headers = new Dictionary<string, string>();
         TraceContext.InjectContext(headers, activity);
@@ -108,14 +112,18 @@ public class TraceContextTests
     [Fact]
     public void InjectAndExtract_RoundTrip_PreservesContext()
     {
+        // Register listener to ensure activity is created
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "test-source",
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
         var activitySource = new ActivitySource("test-source");
         using var activity = activitySource.StartActivity("test-activity");
 
-        if (activity == null)
-        {
-            // Skip test if no listener is attached
-            return;
-        }
+        Assert.NotNull(activity);
 
         // Inject
         var headers = new Dictionary<string, string>();
@@ -131,14 +139,18 @@ public class TraceContextTests
     [Fact]
     public void CreateLinkedSpan_WithValidParentContext_CreatesLinkedSpan()
     {
+        // Register listener to ensure activity is created
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "test-source",
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
         var activitySource = new ActivitySource("test-source");
         using var parentActivity = activitySource.StartActivity("parent-activity");
 
-        if (parentActivity == null)
-        {
-            // Skip test if no listener is attached
-            return;
-        }
+        Assert.NotNull(parentActivity);
 
         var parentContext = parentActivity.Context;
 
@@ -147,12 +159,8 @@ public class TraceContextTests
             "linked-span",
             parentContext);
 
-        // The linked span should exist if listeners are attached
-        // In test environment without listeners, it may be null
-        if (linkedSpan != null)
-        {
-            Assert.Equal("linked-span", linkedSpan.DisplayName);
-        }
+        Assert.NotNull(linkedSpan);
+        Assert.Equal("linked-span", linkedSpan.DisplayName);
     }
 
     [Fact]
@@ -196,16 +204,23 @@ public class TraceContextTests
     [Fact]
     public void GetCurrentTraceId_WithActiveActivity_ReturnsTraceId()
     {
+        // Register listener to ensure activity is created
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "test-source",
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
         var activitySource = new ActivitySource("test-source");
         using var activity = activitySource.StartActivity("test-activity");
 
-        if (activity != null)
-        {
-            Activity.Current = activity;
-            var traceId = TraceContext.GetCurrentTraceId();
-            Assert.NotNull(traceId);
-            Assert.Equal(activity.TraceId.ToHexString(), traceId);
-        }
+        Assert.NotNull(activity);
+
+        Activity.Current = activity;
+        var traceId = TraceContext.GetCurrentTraceId();
+        Assert.NotNull(traceId);
+        Assert.Equal(activity.TraceId.ToHexString(), traceId);
     }
 
     [Fact]
@@ -220,16 +235,23 @@ public class TraceContextTests
     [Fact]
     public void GetCurrentSpanId_WithActiveActivity_ReturnsSpanId()
     {
+        // Register listener to ensure activity is created
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "test-source",
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
         var activitySource = new ActivitySource("test-source");
         using var activity = activitySource.StartActivity("test-activity");
 
-        if (activity != null)
-        {
-            Activity.Current = activity;
-            var spanId = TraceContext.GetCurrentSpanId();
-            Assert.NotNull(spanId);
-            Assert.Equal(activity.SpanId.ToHexString(), spanId);
-        }
+        Assert.NotNull(activity);
+
+        Activity.Current = activity;
+        var spanId = TraceContext.GetCurrentSpanId();
+        Assert.NotNull(spanId);
+        Assert.Equal(activity.SpanId.ToHexString(), spanId);
     }
 
     [Fact]
@@ -244,15 +266,22 @@ public class TraceContextTests
     [Fact]
     public void IsTracingActive_WithActiveActivity_ReturnsTrue()
     {
+        // Register listener to ensure activity is created
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "test-source",
+            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
+        };
+        ActivitySource.AddActivityListener(listener);
+
         var activitySource = new ActivitySource("test-source");
         using var activity = activitySource.StartActivity("test-activity");
 
-        if (activity != null)
-        {
-            Activity.Current = activity;
-            var isActive = TraceContext.IsTracingActive();
-            Assert.True(isActive);
-        }
+        Assert.NotNull(activity);
+
+        Activity.Current = activity;
+        var isActive = TraceContext.IsTracingActive();
+        Assert.True(isActive);
     }
 
     [Fact]
