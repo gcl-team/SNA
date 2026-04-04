@@ -11,7 +11,7 @@ namespace SimNextgenApp.Observability;
 /// and automatically emits OpenTelemetry measurements underneath.
 /// </summary>
 /// <typeparam name="TLoad">The type of load being processed by the server.</typeparam>
-public class SimulationObserver<TLoad> : IDisposable
+public class ServerObserver<TLoad> : IDisposable
 {
     private readonly IServer<TLoad> _server;
     private readonly Meter? _meter;
@@ -65,7 +65,7 @@ public class SimulationObserver<TLoad> : IDisposable
         _timeUnit = timeUnit;
     }
 
-    internal SimulationObserver(IServer<TLoad> server, Meter? meter, bool ownsMeter = false, VolumeEstimator? volumeEstimator = null)
+    internal ServerObserver(IServer<TLoad> server, Meter? meter, bool ownsMeter = false, VolumeEstimator? volumeEstimator = null)
     {
         _server = server ?? throw new ArgumentNullException(nameof(server));
         _meter = meter;
@@ -172,11 +172,11 @@ public class SimulationObserver<TLoad> : IDisposable
     /// The observer creates a dedicated meter instance that is disposed when the observer is disposed,
     /// preventing memory leaks when running multiple simulations.
     /// </remarks>
-    public static SimulationObserver<TLoad> CreateSimple(IServer<TLoad> server)
+    public static ServerObserver<TLoad> CreateSimple(IServer<TLoad> server)
     {
         // Create a new meter for this observer to avoid memory leaks from static shared meters
         var meter = new Meter(SimulationTelemetry.MeterName);
-        return new SimulationObserver<TLoad>(server, meter, ownsMeter: true);
+        return new ServerObserver<TLoad>(server, meter, ownsMeter: true);
     }
 
     public void Dispose()
@@ -192,11 +192,11 @@ public class SimulationObserver<TLoad> : IDisposable
     }
 }
 
-public static class SimulationObserver
+public static class ServerObserver
 {
     // Helper to avoid specifying TLoad for type inference where possible, or factory methods
-    public static SimulationObserver<TLoad> CreateSimple<TLoad>(IServer<TLoad> server)
+    public static ServerObserver<TLoad> CreateSimple<TLoad>(IServer<TLoad> server)
     {
-        return SimulationObserver<TLoad>.CreateSimple(server);
+        return ServerObserver<TLoad>.CreateSimple(server);
     }
 }

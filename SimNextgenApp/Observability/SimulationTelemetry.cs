@@ -86,11 +86,11 @@ public sealed class SimulationTelemetry : IDisposable
     /// Creates an observer for a server component.
     /// Each observer owns its own meter to allow independent disposal and avoid memory leaks.
     /// </summary>
-    public SimulationObserver<TLoad> ObserveServer<TLoad>(IServer<TLoad> server)
+    public ServerObserver<TLoad> ObserveServer<TLoad>(IServer<TLoad> server)
     {
         // Create owned meter to allow observer to be disposed independently
         var meter = new System.Diagnostics.Metrics.Meter(MeterName);
-        return new SimulationObserver<TLoad>(server, meter, ownsMeter: true, _volumeEstimator);
+        return new ServerObserver<TLoad>(server, meter, ownsMeter: true, _volumeEstimator);
     }
 
     /// <summary>

@@ -76,7 +76,13 @@ var telemetry = SimulationTelemetry.Create()
     .Build();
 
 // Observe server metrics
-var observer = SimulationObserver.CreateSimple(server);
+var observer = ServerObserver.CreateSimple(server);
+
+// IMPORTANT: Set time unit for proper sojourn time conversion
+// This should be called in your model's Initialize() method
+observer.SetTimeUnit(context.TimeUnit);
+
+// Access metrics
 Console.WriteLine($"Utilization: {observer.Utilization:F2}");
 Console.WriteLine($"Loads Completed: {observer.LoadsCompleted}");
 ```

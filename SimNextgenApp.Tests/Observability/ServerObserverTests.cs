@@ -7,7 +7,7 @@ using System.Diagnostics.Metrics;
 
 namespace SimNextgenApp.Tests.Observability;
 
-public class SimulationObserverTests
+public class ServerObserverTests
 {
     [Fact(DisplayName = "CreateSimple should create observer with valid server.")]
     public void CreateSimple_WithValidServer_CreatesObserver()
@@ -17,7 +17,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Name).Returns("TestServer");
 
         // Act
-        using var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        using var observer = ServerObserver.CreateSimple(mockServer.Object);
 
         // Assert
         Assert.NotNull(observer);
@@ -33,7 +33,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(5);
         mockServer.SetupGet(s => s.NumberInService).Returns(0);
 
-        using var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        using var observer = ServerObserver.CreateSimple(mockServer.Object);
 
         var load1 = new DummyLoad();
         var load2 = new DummyLoad();
@@ -76,7 +76,7 @@ public class SimulationObserverTests
         var load = new DummyLoad();
         mockServer.Setup(s => s.GetServiceStartTime(load)).Returns(100L); // Started at time 100
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        var observer = ServerObserver.CreateSimple(mockServer.Object);
         observer.SetTimeUnit(SimulationTimeUnit.Milliseconds);
 
         // Act - Load departs at time 300, sojourn time = 200ms = 0.2 seconds
@@ -122,7 +122,7 @@ public class SimulationObserverTests
         var load = new DummyLoad();
         mockServer.Setup(s => s.GetServiceStartTime(load)).Returns((long?)null); // No start time
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        var observer = ServerObserver.CreateSimple(mockServer.Object);
 
         // Act
         mockServer.Raise(s => s.LoadDeparted += null, load, 300L);
@@ -144,7 +144,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(10);
         mockServer.SetupGet(s => s.NumberInService).Returns(7);
 
-        using var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        using var observer = ServerObserver.CreateSimple(mockServer.Object);
 
         // Act
         var utilization = observer.Utilization;
@@ -162,7 +162,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(0);
         mockServer.SetupGet(s => s.NumberInService).Returns(0);
 
-        using var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        using var observer = ServerObserver.CreateSimple(mockServer.Object);
 
         // Act
         var utilization = observer.Utilization;
@@ -188,7 +188,7 @@ public class SimulationObserverTests
         var load = new DummyLoad();
         mockServer.Setup(s => s.GetServiceStartTime(load)).Returns(100L);
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        var observer = ServerObserver.CreateSimple(mockServer.Object);
         observer.SetTimeUnit(SimulationTimeUnit.Milliseconds); // Required for sojourn time recording
 
         // Act - Fire LoadDeparted event within the Activity context (warmup=true)
@@ -221,7 +221,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(5);
         mockServer.SetupGet(s => s.NumberInService).Returns(1);
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        var observer = ServerObserver.CreateSimple(mockServer.Object);
 
         // Act & Assert - Should not throw
         observer.SetTimeUnit(SimulationTimeUnit.Seconds);
@@ -240,7 +240,7 @@ public class SimulationObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(5);
         mockServer.SetupGet(s => s.NumberInService).Returns(0);
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        var observer = ServerObserver.CreateSimple(mockServer.Object);
         var load = new DummyLoad();
 
         // Act
@@ -265,7 +265,7 @@ public class SimulationObserverTests
         var load = new DummyLoad();
         mockServer.Setup(s => s.GetServiceStartTime(load)).Returns(100L); // Has start time
 
-        var observer = SimulationObserver.CreateSimple(mockServer.Object);
+        var observer = ServerObserver.CreateSimple(mockServer.Object);
         // NOTE: Not calling observer.SetTimeUnit() - this is the bug!
 
         // Act & Assert

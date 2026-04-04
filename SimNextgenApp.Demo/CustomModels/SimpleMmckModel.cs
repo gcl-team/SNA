@@ -14,7 +14,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
     public Generator<MyLoad> LoadGenerator { get; }
     public SimQueue<MyLoad> WaitingLine { get; }
     public List<Server<MyLoad>> ServiceChannels { get; }
-    public List<SimulationObserver<MyLoad>> ServiceChannelObservers { get; }
+    public List<ServerObserver<MyLoad>> ServiceChannelObservers { get; }
 
     private readonly ILogger<SimpleMmckModel> _modelLogger;
     private IRunContext _runContext = null!;
@@ -65,7 +65,7 @@ internal class SimpleMmckModel : AbstractSimulationModel
             ));
 
             // Create an observer for each server
-            ServiceChannelObservers.Add(SimulationObserver.CreateSimple(ServiceChannels[i]));
+            ServiceChannelObservers.Add(ServerObserver.CreateSimple(ServiceChannels[i]));
         }
 
         foreach (var server in ServiceChannels)

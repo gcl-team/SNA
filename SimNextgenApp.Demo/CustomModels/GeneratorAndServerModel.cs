@@ -17,7 +17,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
 {
     public Generator<MyLoad> LoadGenerator { get; }
     public Server<MyLoad> ServicePoint { get; }
-    public SimulationObserver<MyLoad> ServicePointObserver { get; }
+    public ServerObserver<MyLoad> ServicePointObserver { get; }
     public int BalkedLoadsCount { get; private set; } = 0;
 
     private readonly ILogger<GeneratorAndServerModel> _modelLogger;
@@ -44,7 +44,7 @@ internal class GeneratorAndServerModel : AbstractSimulationModel
             _modelLogger.LogInformation($"--- [LOAD DEPARTED] SimTime: {departureTime} -> {load}. Service time: {load.ServiceEndTime - load.ServiceStartTime} ---");
         };
 
-        ServicePointObserver = SimulationObserver.CreateSimple(this.ServicePoint);
+        ServicePointObserver = ServerObserver.CreateSimple(this.ServicePoint);
     }
 
     private void HandleLoadGenerated(MyLoad load, long generationTime)
