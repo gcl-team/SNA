@@ -70,9 +70,6 @@ public sealed class CardinalityGuard : IDisposable
     /// <exception cref="ArgumentNullException">Thrown when value is null.</exception>
     public void RecordAttributeValue(string attributeName, string value)
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(CardinalityGuard));
-
         if (string.IsNullOrWhiteSpace(attributeName))
             throw new ArgumentException("Attribute name cannot be null or whitespace.", nameof(attributeName));
 
@@ -84,6 +81,9 @@ public sealed class CardinalityGuard : IDisposable
 
         lock (_lock)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(CardinalityGuard));
+
             var values = _attributeValues.GetOrAdd(attributeName, _ => new HashSet<string>());
 
             if (!values.Contains(value))
@@ -109,11 +109,11 @@ public sealed class CardinalityGuard : IDisposable
     /// </summary>
     public void Reset()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(CardinalityGuard));
-
         lock (_lock)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(CardinalityGuard));
+
             _attributeValues.Clear();
         }
     }
@@ -124,11 +124,11 @@ public sealed class CardinalityGuard : IDisposable
     /// <returns>A record containing cardinality statistics.</returns>
     public CardinalityStatistics GetStatistics()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(CardinalityGuard));
-
         lock (_lock)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(CardinalityGuard));
+
             var attributeStats = _attributeValues.ToDictionary(
                 kvp => kvp.Key,
                 kvp => kvp.Value.Count);
