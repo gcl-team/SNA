@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SimNextgenApp.Core.Utilities;
@@ -200,59 +201,59 @@ public class SimulationEngine : IScheduler, IRunContext
                             _warmupCompleteNotified = true; // Ensure notification only happens once
                         }
 
-                    // 3. Execute Event
-                    var startTime = DateTime.UtcNow;
+                        // 3. Execute Event
+                        var startTime = DateTime.UtcNow;
 
-                    bool isWarmupPhase = strategy.WarmupEndTime.HasValue && ClockTime < strategy.WarmupEndTime.Value;
+                        bool isWarmupPhase = strategy.WarmupEndTime.HasValue && ClockTime < strategy.WarmupEndTime.Value;
 
-                    using var eventSpan = _activitySource.CreateEventSpan(
-                        currentEvent.GetType().Name,
-                        ClockTime,
-                        currentEvent.EventId.ToString(),
-                        isWarmupPhase);
+                        using var eventScope = _activitySource.CreateEventSpan(
+                            currentEvent.GetType().Name,
+                            ClockTime,
+                            currentEvent.EventId.ToString(),
+                            isWarmupPhase);
 
-                    // Add rich context as requested in plan.md
-                    eventSpan?.SetTag("sna.event.type", currentEvent.GetType().Name);
-                    eventSpan?.SetTag("sna.event.number", _executedEventCount);
-                    if (currentEvent.GetTraceDetails() is { } details)
-                    {
-                        foreach (var kvp in details)
+                        // Add rich context as requested in plan.md
+                        eventScope.Span?.SetTag("sna.event.type", currentEvent.GetType().Name);
+                        eventScope.Span?.SetTag("sna.event.number", _executedEventCount);
+                        if (currentEvent.GetTraceDetails() is { } details)
                         {
-                            eventSpan?.SetTag($"sna.event.detail.{kvp.Key.ToLowerInvariant()}", kvp.Value);
+                            foreach (var kvp in details)
+                            {
+                                eventScope.Span?.SetTag($"sna.event.detail.{kvp.Key.ToLowerInvariant()}", kvp.Value);
+                            }
+                        }
+
+                        // TraceId and SpanId are automatically added by OTel from Activity.Current
+                        // Guard scope creation with IsEnabled to avoid allocations when logging is disabled
+                        if (_logger.IsEnabled(LogLevel.Trace))
+                        {
+                            using (_logger.BeginScope(new Dictionary<string, object> { ["@Start"] = startTime }))
+                            {
+                                _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
+                            }
+                        }
+
+                        // Only create stopwatch if we'll actually log the elapsed time
+                        System.Diagnostics.Stopwatch? stopwatchLog = null;
+                        if (_logger.IsEnabled(LogLevel.Information))
+                        {
+                            stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
+                        }
+
+                        currentEvent.Execute(this);
+
+                        if (_logger.IsEnabled(LogLevel.Information) && stopwatchLog != null)
+                        {
+                            stopwatchLog.Stop();
+                            using (_logger.BeginScope(new Dictionary<string, object> { ["@Elapsed"] = stopwatchLog.Elapsed.TotalMilliseconds }))
+                            {
+                                _logger.LogInformation(
+                                    "Executed event {EventType} (ID: {EventId})",
+                                    currentEvent.GetType().Name,
+                                    currentEvent.EventId);
+                            }
                         }
                     }
-
-                    // TraceId and SpanId are automatically added by OTel from Activity.Current
-                    // Guard scope creation with IsEnabled to avoid allocations when logging is disabled
-                    if (_logger.IsEnabled(LogLevel.Trace))
-                    {
-                        using (_logger.BeginScope(new Dictionary<string, object> { ["@Start"] = startTime }))
-                        {
-                            _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
-                        }
-                    }
-
-                    // Only create stopwatch if we'll actually log the elapsed time
-                    System.Diagnostics.Stopwatch? stopwatchLog = null;
-                    if (_logger.IsEnabled(LogLevel.Information))
-                    {
-                        stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
-                    }
-
-                    currentEvent.Execute(this);
-
-                    if (_logger.IsEnabled(LogLevel.Information) && stopwatchLog != null)
-                    {
-                        stopwatchLog.Stop();
-                        using (_logger.BeginScope(new Dictionary<string, object> { ["@Elapsed"] = stopwatchLog.Elapsed.TotalMilliseconds }))
-                        {
-                            _logger.LogInformation(
-                                "Executed event {EventType} (ID: {EventId})",
-                                currentEvent.GetType().Name,
-                                currentEvent.EventId);
-                        }
-                    }
-                }
                 }
                 finally
                 {

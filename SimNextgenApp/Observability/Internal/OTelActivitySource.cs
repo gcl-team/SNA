@@ -71,11 +71,18 @@ internal sealed class OTelActivitySource
         return activity;
     }
 
-    public Activity? CreateEventSpan(string eventName, long clockTime, string eventId, bool isWarmupPhase)
+    /// <summary>
+    /// Creates an event span wrapped in a scope that automatically restores Activity.Current context.
+    /// When trace context is disabled, the scope ensures the simulation/warmup span context is restored
+    /// after the event span is disposed, preventing context leakage.
+    /// </summary>
+    /// <returns>An EventSpanScope that must be disposed to restore context properly.</returns>
+    public EventSpanScope CreateEventSpan(string eventName, long clockTime, string eventId, bool isWarmupPhase)
     {
-        if (!IsEnabled) return null;
+        if (!IsEnabled) return new EventSpanScope(null, null);
 
         Activity? activity;
+        Activity? savedContext = null;
 
         // When trace context is disabled, create independent root spans (better performance for high-volume events)
         // When enabled, create hierarchical spans as children of the simulation run (shows causality)
@@ -89,16 +96,17 @@ internal sealed class OTelActivitySource
             // Create root span by temporarily suppressing Activity.Current during creation
             // This ensures event spans are truly independent and not parented to the simulation span
             // The created span becomes Activity.Current so downstream code (observers) can access its tags
-            var savedCurrent = Activity.Current;
+            // EventSpanScope will automatically restore savedContext when disposed
+            savedContext = Activity.Current;
             Activity.Current = null;
             activity = _sharedSource.StartActivity(eventName, ActivityKind.Internal);
 
-            // If creation failed, restore previous context
+            // If creation failed, restore previous context immediately
             if (activity == null)
             {
-                Activity.Current = savedCurrent;
+                Activity.Current = savedContext;
+                savedContext = null; // No need to restore again
             }
-            // Otherwise, leave the new activity as Current - caller will dispose it to restore context
         }
 
         if (activity != null)
@@ -113,6 +121,6 @@ internal sealed class OTelActivitySource
             // Track span creation for volume estimation
             _volumeEstimator?.RecordSpan();
         }
-        return activity;
+        return new EventSpanScope(activity, savedContext);
     }
 }
