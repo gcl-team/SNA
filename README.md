@@ -89,8 +89,11 @@ var simulationObserver = SimulationObserver.CreateSimple(engine);
 
 // IMPORTANT: Set time unit for proper time conversion
 // This should be called in your model's Initialize() method
-serverObserver.SetTimeUnit(context.TimeUnit);
-generatorObserver.SetTimeUnit(context.TimeUnit);
+// Required for observers that record time-based histograms
+serverObserver.SetTimeUnit(context.TimeUnit);      // For sojourn time
+queueObserver.SetTimeUnit(context.TimeUnit);       // For wait time
+generatorObserver.SetTimeUnit(context.TimeUnit);   // For inter-arrival time
+// Note: ResourceObserver and SimulationObserver don't require SetTimeUnit
 
 // Access metrics
 Console.WriteLine($"Server Utilization: {serverObserver.Utilization:F2}");
@@ -166,11 +169,13 @@ var telemetry = SimulationTelemetry.Create()
 
 ### Available Observers
 
-- **ServerObserver** - Tracks server utilization, loads completed, sojourn time
-- **QueueObserver** - Monitors queue occupancy, wait time, throughput (enqueued/dequeued/balked)
-- **GeneratorObserver** - Observes load generation rate, inter-arrival time
+- **ServerObserver** - Tracks server utilization, loads completed, sojourn time *(requires SetTimeUnit)*
+- **QueueObserver** - Monitors queue occupancy, wait time, throughput (enqueued/dequeued/balked) *(requires SetTimeUnit)*
+- **GeneratorObserver** - Observes load generation rate, inter-arrival time *(requires SetTimeUnit)*
 - **ResourceObserver** - Tracks resource utilization, availability, waiting count
 - **SimulationObserver** - Whole-simulation metrics (events executed, clock time, performance)
+
+**Note:** Observers that record time-based histograms (Server, Queue, Generator) require `SetTimeUnit()` to be called during model initialization. This converts simulation time units to seconds for proper OpenTelemetry metric reporting. If not set, an `InvalidOperationException` will be thrown when time-based metrics are recorded.
 
 For complete examples, see [SimpleMmck.cs](SimNextgenApp.Demo/Scenarios/SimpleMmck.cs).
 
