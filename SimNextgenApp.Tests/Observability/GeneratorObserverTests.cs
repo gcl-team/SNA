@@ -1,4 +1,5 @@
 using Moq;
+using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Generator;
 using SimNextgenApp.Observability;
 using System.Diagnostics.Metrics;
@@ -31,6 +32,7 @@ public class GeneratorObserverTests
         mockGenerator.SetupGet(g => g.Name).Returns("TestGenerator");
 
         using var observer = GeneratorObserver.CreateSimple(mockGenerator.Object);
+        observer.SetTimeUnit(SimulationTimeUnit.Seconds);
 
         var load1 = new DummyLoad();
         var load2 = new DummyLoad();
@@ -51,6 +53,7 @@ public class GeneratorObserverTests
         mockGenerator.SetupGet(g => g.Name).Returns("TestGenerator");
 
         using var observer = GeneratorObserver.CreateSimple(mockGenerator.Object);
+        observer.SetTimeUnit(SimulationTimeUnit.Seconds);
 
         var load1 = new DummyLoad();
         var load2 = new DummyLoad();
@@ -96,18 +99,19 @@ public class GeneratorObserverTests
         mockGenerator.SetupGet(g => g.Name).Returns("TestGenerator");
 
         var observer = GeneratorObserver.CreateSimple(mockGenerator.Object);
+        observer.SetTimeUnit(SimulationTimeUnit.Milliseconds);
 
         var load1 = new DummyLoad();
         var load2 = new DummyLoad();
 
-        // Act
+        // Act - Inter-arrival time: 250 - 100 = 150ms = 0.15 seconds
         mockGenerator.Raise(g => g.LoadGenerated += null, load1, 100L);
         mockGenerator.Raise(g => g.LoadGenerated += null, load2, 250L);
 
         // Assert
         Assert.True(capturedMeasurements.Count > 0, "Expected inter-arrival time measurement to be recorded");
         var measurement = capturedMeasurements.First();
-        Assert.Equal(150.0, measurement.Value); // 250 - 100 = 150 ticks
+        Assert.Equal(0.15, measurement.Value, 0.001); // 150ms = 0.15 seconds
 
         // Cleanup
         meterListener.Dispose();
@@ -140,6 +144,7 @@ public class GeneratorObserverTests
         mockGenerator.SetupGet(g => g.Name).Returns("TestGenerator");
 
         var observer = GeneratorObserver.CreateSimple(mockGenerator.Object);
+        observer.SetTimeUnit(SimulationTimeUnit.Seconds);
 
         var load1 = new DummyLoad();
         var load2 = new DummyLoad();
@@ -182,6 +187,29 @@ public class GeneratorObserverTests
 
         // Assert - LoadsGenerated should not increment after disposal
         Assert.Equal(0, observer.LoadsGenerated);
+    }
+
+    [Fact(DisplayName = "OnLoadGenerated should throw InvalidOperationException if time unit not set.")]
+    public void OnLoadGenerated_WithoutTimeUnit_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var mockGenerator = new Mock<IGenerator<DummyLoad>>();
+        mockGenerator.SetupGet(g => g.Name).Returns("TestGenerator");
+
+        using var observer = GeneratorObserver.CreateSimple(mockGenerator.Object);
+        // Note: NOT calling SetTimeUnit()
+
+        var load1 = new DummyLoad();
+        var load2 = new DummyLoad();
+
+        // Act - First load is fine (no inter-arrival time yet)
+        mockGenerator.Raise(g => g.LoadGenerated += null, load1, 100L);
+
+        // Act & Assert - Second load should throw because inter-arrival time needs conversion
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            mockGenerator.Raise(g => g.LoadGenerated += null, load2, 250L));
+
+        Assert.Contains("Time unit must be set", exception.Message);
     }
 }
 

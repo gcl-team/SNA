@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Generator;
 using SimNextgenApp.Observability.VolumeEstimation;
 
@@ -16,6 +17,7 @@ public class GeneratorObserver<TLoad> : IDisposable where TLoad : notnull
     private readonly Meter? _meter;
     private readonly bool _ownsMeter;
     private readonly VolumeEstimator? _volumeEstimator;
+    private SimulationTimeUnit? _timeUnit;
 
     // Local lightweight scalar counters for convenience API
     private int _loadsGenerated;
@@ -48,6 +50,15 @@ public class GeneratorObserver<TLoad> : IDisposable where TLoad : notnull
     public long? LastInterArrivalTime =>
         _loadsGenerated >= 2 ? _lastGenerationTime - _previousGenerationTime : null;
 
+    /// <summary>
+    /// Sets the simulation time unit for proper inter-arrival time conversion.
+    /// Should be called during model initialization when the time unit is known.
+    /// </summary>
+    public void SetTimeUnit(SimulationTimeUnit timeUnit)
+    {
+        _timeUnit = timeUnit;
+    }
+
     internal GeneratorObserver(IGenerator<TLoad> generator, Meter? meter, bool ownsMeter = false, VolumeEstimator? volumeEstimator = null)
     {
         _generator = generator ?? throw new ArgumentNullException(nameof(generator));
@@ -58,7 +69,7 @@ public class GeneratorObserver<TLoad> : IDisposable where TLoad : notnull
         if (_meter != null)
         {
             _loadsGeneratedCounter = _meter.CreateCounter<int>("sna.generator.loads_generated", description: "Total loads created by the generator");
-            _interArrivalTimeHistogram = _meter.CreateHistogram<double>("sna.generator.inter_arrival_time", unit: "ticks", description: "Time between successive load generations");
+            _interArrivalTimeHistogram = _meter.CreateHistogram<double>("sna.generator.inter_arrival_time", unit: "s", description: "Time between successive load generations");
         }
 
         Subscribe();
@@ -94,11 +105,21 @@ public class GeneratorObserver<TLoad> : IDisposable where TLoad : notnull
         // Track inter-arrival time
         if (_loadsGenerated >= 2)
         {
-            long interArrivalTime = clockTime - _lastGenerationTime;
+            long interArrivalTimeUnits = clockTime - _lastGenerationTime;
 
             if (_interArrivalTimeHistogram != null)
             {
-                _interArrivalTimeHistogram.Record(interArrivalTime,
+                if (!_timeUnit.HasValue)
+                {
+                    throw new InvalidOperationException(
+                        $"Time unit must be set before recording inter-arrival time metrics. " +
+                        $"Call SetTimeUnit() during model initialization (e.g., in Initialize(IRunContext context) using context.TimeUnit).");
+                }
+
+                // Convert inter-arrival time from simulation units to seconds
+                double interArrivalSeconds = TimeUnitConverter.ConvertFromSimulationUnits(interArrivalTimeUnits, _timeUnit.Value).TotalSeconds;
+
+                _interArrivalTimeHistogram.Record(interArrivalSeconds,
                     new KeyValuePair<string, object?>("sna.generator.name", _generator.Name),
                     new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
 
