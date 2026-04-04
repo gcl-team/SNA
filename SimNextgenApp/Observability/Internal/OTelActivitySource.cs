@@ -86,18 +86,19 @@ internal sealed class OTelActivitySource
         }
         else
         {
-            // Create root span by temporarily suppressing Activity.Current
+            // Create root span by temporarily suppressing Activity.Current during creation
             // This ensures event spans are truly independent and not parented to the simulation span
+            // The created span becomes Activity.Current so downstream code (observers) can access its tags
             var savedCurrent = Activity.Current;
             Activity.Current = null;
-            try
-            {
-                activity = _sharedSource.StartActivity(eventName, ActivityKind.Internal);
-            }
-            finally
+            activity = _sharedSource.StartActivity(eventName, ActivityKind.Internal);
+
+            // If creation failed, restore previous context
+            if (activity == null)
             {
                 Activity.Current = savedCurrent;
             }
+            // Otherwise, leave the new activity as Current - caller will dispose it to restore context
         }
 
         if (activity != null)
