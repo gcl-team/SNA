@@ -23,14 +23,8 @@ public class SimulationObserver : IDisposable
     private readonly Stopwatch _realTimeStopwatch;
     private readonly long? _warmupEndTime;
 
-    // Track warmup state explicitly for observable gauge callbacks.
-    // Stored as int (0=false, 1=true) to use Interlocked operations for thread-safe cross-thread visibility.
-    // Written by simulation thread, read by ObservableGauge callback thread.
-    private int _isWarmupPhaseInt = 1; // 1 = true initially
-    private int _warmupCompleteInt = 0; // 0 = false initially
-
     // OpenTelemetry Instruments
-    private readonly Counter<long>? _eventsCounter;
+    private readonly ObservableCounter<long>? _eventsCounter;
     private readonly ObservableGauge<long>? _clockTimeGauge;
     private readonly ObservableGauge<double>? _realTimeGauge;
     private readonly ObservableGauge<double>? _eventsPerSecondGauge;
@@ -77,7 +71,19 @@ public class SimulationObserver : IDisposable
         get
         {
             if (!_warmupEndTime.HasValue) return true;
-            return Interlocked.CompareExchange(ref _warmupCompleteInt, 0, 0) != 0;
+            return _engine.ClockTime >= _warmupEndTime.Value;
+        }
+    }
+
+    /// <summary>
+    /// Determines if the simulation is currently in warmup phase.
+    /// </summary>
+    private bool IsWarmupPhase
+    {
+        get
+        {
+            if (!_warmupEndTime.HasValue) return false;
+            return _engine.ClockTime < _warmupEndTime.Value;
         }
     }
 
@@ -97,94 +103,40 @@ public class SimulationObserver : IDisposable
 
         if (_meter != null)
         {
-            _eventsCounter = _meter.CreateCounter<long>(
+            // Use ObservableCounter to read ExecutedEventCount directly from engine
+            // No need for manual tracking - engine already maintains this count
+            _eventsCounter = _meter.CreateObservableCounter<long>(
                 "sna.simulation.events_total",
+                () => new Measurement<long>(
+                    TotalEventsExecuted,
+                    new KeyValuePair<string, object?>("sna.simulation.warmup", IsWarmupPhase)),
                 description: "Total simulation events processed");
 
             _clockTimeGauge = _meter.CreateObservableGauge<long>(
                 "sna.simulation.clock_time",
-                () =>
-                {
-                    // Thread-safe read of warmup state using Interlocked
-                    bool isWarmup = Interlocked.CompareExchange(ref _isWarmupPhaseInt, 0, 0) != 0;
-
-                    return new Measurement<long>(
-                        SimulationClockTime,
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
-                },
+                () => new Measurement<long>(
+                    SimulationClockTime,
+                    new KeyValuePair<string, object?>("sna.simulation.warmup", IsWarmupPhase)),
                 description: "Current simulation clock time"
             );
 
             _realTimeGauge = _meter.CreateObservableGauge<double>(
                 "sna.simulation.real_time_elapsed",
-                () =>
-                {
-                    // Thread-safe read of warmup state using Interlocked
-                    bool isWarmup = Interlocked.CompareExchange(ref _isWarmupPhaseInt, 0, 0) != 0;
-
-                    return new Measurement<double>(
-                        ElapsedRealTime,
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
-                },
+                () => new Measurement<double>(
+                    ElapsedRealTime,
+                    new KeyValuePair<string, object?>("sna.simulation.warmup", IsWarmupPhase)),
                 unit: "s",
                 description: "Wall-clock time elapsed since simulation start"
             );
 
             _eventsPerSecondGauge = _meter.CreateObservableGauge<double>(
                 "sna.simulation.events_per_second",
-                () =>
-                {
-                    // Thread-safe read of warmup state using Interlocked
-                    bool isWarmup = Interlocked.CompareExchange(ref _isWarmupPhaseInt, 0, 0) != 0;
-
-                    return new Measurement<double>(
-                        EventsPerSecond,
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
-                },
+                () => new Measurement<double>(
+                    EventsPerSecond,
+                    new KeyValuePair<string, object?>("sna.simulation.warmup", IsWarmupPhase)),
                 description: "Simulation performance metric: events processed per second of real time"
             );
         }
-    }
-
-    /// <summary>
-    /// Records an event execution and updates warmup state.
-    /// This should be called after each event is executed.
-    /// </summary>
-    internal void RecordEventExecution()
-    {
-        bool isWarmup = GetWarmupPhase();
-
-        // Update warmup state for observable gauge callbacks (which run on background threads)
-        // Use Interlocked for thread-safe write with memory barrier guarantees
-        Interlocked.Exchange(ref _isWarmupPhaseInt, isWarmup ? 1 : 0);
-
-        // Check if warmup just completed
-        if (!isWarmup && _warmupEndTime.HasValue)
-        {
-            Interlocked.Exchange(ref _warmupCompleteInt, 1);
-        }
-
-        if (_eventsCounter != null)
-        {
-            _eventsCounter.Add(1,
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
-
-            // Track metric data point for volume estimation
-            _volumeEstimator?.RecordMetricDataPoint();
-        }
-    }
-
-    /// <summary>
-    /// Reads the warmup phase state from the current Activity span context.
-    /// Returns false if no Activity is active or if the warmup tag is not set.
-    /// </summary>
-    private static bool GetWarmupPhase()
-    {
-        var activity = Activity.Current;
-        if (activity == null) return false;
-
-        var warmupTag = activity.GetTagItem("sna.simulation.warmup");
-        return warmupTag as bool? ?? false;
     }
 
     /// <summary>

@@ -98,8 +98,8 @@ public class SimulationObserverTests
         Assert.True(observer.WarmupComplete);
     }
 
-    [Fact(DisplayName = "RecordEventExecution should emit event counter metric.")]
-    public void RecordEventExecution_EmitsEventCounterMetric()
+    [Fact(DisplayName = "ObservableCounter should emit event count from engine.")]
+    public void ObservableCounter_EmitsEventCountFromEngine()
     {
         // Arrange
         var capturedMeasurements = new List<Measurement<long>>();
@@ -131,13 +131,13 @@ public class SimulationObserverTests
         var engine = new SimulationEngine(profile);
         var observer = SimulationObserver.CreateSimple(engine);
 
-        // Act
-        observer.RecordEventExecution();
-        observer.RecordEventExecution();
+        // Act - Trigger observable counter collection
+        // The observable counter reads directly from engine.ExecutedEventCount
+        meterListener.RecordObservableInstruments();
 
-        // Assert
-        Assert.Equal(2, capturedMeasurements.Count);
-        Assert.All(capturedMeasurements, m => Assert.Equal(1L, m.Value));
+        // Assert - ObservableCounter should report the engine's event count (0 initially)
+        Assert.NotEmpty(capturedMeasurements);
+        Assert.Equal(0L, capturedMeasurements[0].Value); // Engine hasn't executed any events yet
 
         // Cleanup
         meterListener.Dispose();
