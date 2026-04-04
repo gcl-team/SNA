@@ -38,14 +38,20 @@ public sealed class OtlpExporterConfiguration
     public Uri MetricsEndpoint { get; }
 
     /// <summary>
+    /// Gets the OTLP logs endpoint URI (OTLP/HTTP format).
+    /// </summary>
+    public Uri LogsEndpoint { get; }
+
+    /// <summary>
     /// Gets the headers required for authentication.
     /// </summary>
     public IReadOnlyDictionary<string, string> Headers { get; }
 
-    private OtlpExporterConfiguration(Uri tracesEndpoint, Uri metricsEndpoint, IReadOnlyDictionary<string, string> headers)
+    private OtlpExporterConfiguration(Uri tracesEndpoint, Uri metricsEndpoint, Uri logsEndpoint, IReadOnlyDictionary<string, string> headers)
     {
         TracesEndpoint = tracesEndpoint;
         MetricsEndpoint = metricsEndpoint;
+        LogsEndpoint = logsEndpoint;
         Headers = headers;
     }
 
@@ -85,7 +91,7 @@ public sealed class OtlpExporterConfiguration
     /// API key format: "instanceId:apiToken" where instanceId is your Grafana Cloud instance ID.
     /// Supported regions: us-central-0, eu-west-0, ap-southeast-0, au-southeast-0
     /// Endpoint format: https://otlp-gateway-prod-{region}.grafana.net/otlp (OTLP/HTTP)
-    /// Grafana Cloud uses a unified endpoint for both traces and metrics.
+    /// Grafana Cloud uses a unified endpoint for traces, metrics, and logs.
     /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateGrafanaCloudConfig(string apiKey, string? region = null)
@@ -100,8 +106,8 @@ public sealed class OtlpExporterConfiguration
             ["Authorization"] = $"Basic {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(apiKey))}"
         };
 
-        // Grafana Cloud uses unified endpoint for both signals
-        return new OtlpExporterConfiguration(endpoint, endpoint, headers);
+        // Grafana Cloud uses unified endpoint for all three signals
+        return new OtlpExporterConfiguration(endpoint, endpoint, endpoint, headers);
     }
 
     /// <summary>
@@ -113,7 +119,7 @@ public sealed class OtlpExporterConfiguration
     /// <remarks>
     /// Supported regions: us1, us3, us5, eu1, ap1, gov
     /// Endpoint format: https://api.{region}.datadoghq.com/api/v2/otlp (OTLP/HTTP)
-    /// Datadog uses a unified endpoint for both traces and metrics.
+    /// Datadog uses a unified endpoint for traces, metrics, and logs.
     /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateDatadogConfig(string apiKey, string? region = null)
@@ -128,8 +134,8 @@ public sealed class OtlpExporterConfiguration
             ["dd-api-key"] = apiKey
         };
 
-        // Datadog uses unified endpoint for both signals
-        return new OtlpExporterConfiguration(endpoint, endpoint, headers);
+        // Datadog uses unified endpoint for all three signals
+        return new OtlpExporterConfiguration(endpoint, endpoint, endpoint, headers);
     }
 
     /// <summary>
@@ -142,8 +148,10 @@ public sealed class OtlpExporterConfiguration
     /// Supported regions: us (default), eu1
     /// US traces endpoint: https://api.honeycomb.io/v1/traces (OTLP/HTTP)
     /// US metrics endpoint: https://api.honeycomb.io/v1/metrics (OTLP/HTTP)
+    /// US logs endpoint: https://api.honeycomb.io/v1/logs (OTLP/HTTP)
     /// EU traces endpoint: https://api.eu1.honeycomb.io/v1/traces (OTLP/HTTP)
     /// EU metrics endpoint: https://api.eu1.honeycomb.io/v1/metrics (OTLP/HTTP)
+    /// EU logs endpoint: https://api.eu1.honeycomb.io/v1/logs (OTLP/HTTP)
     /// Honeycomb uses signal-specific endpoints.
     /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
@@ -159,12 +167,13 @@ public sealed class OtlpExporterConfiguration
 
         var tracesEndpoint = new Uri($"{baseUrl}/v1/traces");
         var metricsEndpoint = new Uri($"{baseUrl}/v1/metrics");
+        var logsEndpoint = new Uri($"{baseUrl}/v1/logs");
         var headers = new Dictionary<string, string>
         {
             ["x-honeycomb-team"] = apiKey
         };
 
         // Honeycomb uses signal-specific endpoints
-        return new OtlpExporterConfiguration(tracesEndpoint, metricsEndpoint, headers);
+        return new OtlpExporterConfiguration(tracesEndpoint, metricsEndpoint, logsEndpoint, headers);
     }
 }

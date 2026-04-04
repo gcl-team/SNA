@@ -1,5 +1,7 @@
+using Microsoft.Extensions.Logging;
 using OpenTelemetry;
 using OpenTelemetry.Exporter;
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using SimNextgenApp.Observability.Sampling;
@@ -20,6 +22,7 @@ public sealed class SimulationTelemetry : IDisposable
 {
     private readonly TracerProvider? _tracerProvider;
     private readonly MeterProvider? _meterProvider;
+    private readonly ILoggerFactory? _loggerFactory;
     private readonly VolumeEstimator? _volumeEstimator;
     private readonly CardinalityGuard? _cardinalityGuard;
     private readonly bool _enableTraceContext;
@@ -48,6 +51,12 @@ public sealed class SimulationTelemetry : IDisposable
     public bool EnableTraceContext => _enableTraceContext;
 
     /// <summary>
+    /// Gets the logger factory for creating loggers.
+    /// Returns null if logging is not enabled.
+    /// </summary>
+    public ILoggerFactory? LoggerFactory => _loggerFactory;
+
+    /// <summary>
     /// Gets the current rate of spans per second.
     /// Returns 0 if volume estimation is not enabled.
     /// </summary>
@@ -59,10 +68,11 @@ public sealed class SimulationTelemetry : IDisposable
     /// </summary>
     public double MetricDataPointsPerSecond => _volumeEstimator?.MetricDataPointsPerSecond ?? 0;
 
-    internal SimulationTelemetry(TracerProvider? tracerProvider, MeterProvider? meterProvider, VolumeEstimator? volumeEstimator, CardinalityGuard? cardinalityGuard, bool enableTraceContext)
+    internal SimulationTelemetry(TracerProvider? tracerProvider, MeterProvider? meterProvider, ILoggerFactory? loggerFactory, VolumeEstimator? volumeEstimator, CardinalityGuard? cardinalityGuard, bool enableTraceContext)
     {
         _tracerProvider = tracerProvider;
         _meterProvider = meterProvider;
+        _loggerFactory = loggerFactory;
         _volumeEstimator = volumeEstimator;
         _cardinalityGuard = cardinalityGuard;
         _enableTraceContext = enableTraceContext;
@@ -148,6 +158,7 @@ public sealed class SimulationTelemetry : IDisposable
     {
         _tracerProvider?.Dispose();
         _meterProvider?.Dispose();
+        _loggerFactory?.Dispose();
         _volumeEstimator?.Dispose();
         _cardinalityGuard?.Dispose();
         ActivitySource.Dispose();
@@ -180,6 +191,9 @@ public class SimulationTelemetryBuilder
     private OtlpBackend? _otlpBackend;
     private string? _otlpApiKey;
     private string? _otlpRegion;
+    private bool _useLogging;
+    private bool _useLoggingConsoleExporter;
+    private bool _useLoggingOtlpExporter;
 
     /// <summary>
     /// Appends the Console Exporter to both the tracer and meter providers.
@@ -301,6 +315,23 @@ public class SimulationTelemetryBuilder
     public SimulationTelemetryBuilder WithTraceContext()
     {
         _enableTraceContext = true;
+        return this;
+    }
+
+    /// <summary>
+    /// Enables OpenTelemetry logging integration with automatic log-trace correlation.
+    /// </summary>
+    /// <param name="includeConsoleExporter">Whether to export logs to console (default: false).</param>
+    /// <param name="includeOtlpExporter">Whether to export logs via OTLP (default: true if OTLP exporter is configured).</param>
+    /// <remarks>
+    /// When enabled, logs will be automatically correlated with active traces via Activity.Current.
+    /// Logs will include TraceId and SpanId when emitted within an active span context.
+    /// </remarks>
+    public SimulationTelemetryBuilder WithLogging(bool includeConsoleExporter = false, bool includeOtlpExporter = true)
+    {
+        _useLogging = true;
+        _useLoggingConsoleExporter = includeConsoleExporter;
+        _useLoggingOtlpExporter = includeOtlpExporter;
         return this;
     }
 
@@ -443,7 +474,54 @@ public class SimulationTelemetryBuilder
             ? new CardinalityGuard(_cardinalityThreshold.Value)
             : null;
 
-        return new SimulationTelemetry(tracerProvider, meterProvider, volumeEstimator, cardinalityGuard, _enableTraceContext);
+        // Create logger factory with OpenTelemetry integration if logging is enabled
+        ILoggerFactory? loggerFactory = null;
+        if (_useLogging)
+        {
+            loggerFactory = LoggerFactory.Create(loggingBuilder =>
+            {
+                loggingBuilder.AddOpenTelemetry(options =>
+                {
+                    // Enable automatic log-trace correlation via Activity.Current
+                    options.IncludeScopes = true;
+                    options.IncludeFormattedMessage = true;
+                    options.ParseStateValues = true;
+
+                    // Add console exporter if requested
+                    if (_useLoggingConsoleExporter)
+                    {
+                        options.AddConsoleExporter();
+                    }
+
+                    // Add OTLP exporter if requested and OTLP is configured
+                    if (_useLoggingOtlpExporter && (_useOtlpExporter || _otlpBackend.HasValue))
+                    {
+                        if (_useOtlpExporter)
+                        {
+                            options.AddOtlpExporter(otlpOptions =>
+                                otlpOptions.Endpoint = new Uri(_otlpEndpoint));
+                        }
+                        else if (_otlpBackend.HasValue && !string.IsNullOrEmpty(_otlpApiKey))
+                        {
+                            var otlpConfig = OtlpExporterConfiguration.ConfigureForBackend(
+                                _otlpBackend.Value,
+                                _otlpApiKey,
+                                region: _otlpRegion);
+
+                            options.AddOtlpExporter(otlpOptions =>
+                            {
+                                otlpOptions.Endpoint = otlpConfig.LogsEndpoint;
+                                otlpOptions.Protocol = OtlpExportProtocol.HttpProtobuf;
+                                otlpOptions.Headers = string.Join(",",
+                                    otlpConfig.Headers.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+                            });
+                        }
+                    }
+                });
+            });
+        }
+
+        return new SimulationTelemetry(tracerProvider, meterProvider, loggerFactory, volumeEstimator, cardinalityGuard, _enableTraceContext);
     }
 
     private static Sampler CreateSampler(SamplingConfiguration config)
