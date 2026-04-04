@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace SimNextgenApp.Tests.Observability;
 
-public class LoggingIntegrationTests
+public class SimulationTelemetryLoggingTests
 {
     [Fact(DisplayName = "WithLogging should enable logging integration.")]
     public void WithLogging_EnablesLoggingIntegration()
