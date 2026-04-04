@@ -155,15 +155,15 @@ public class SimulationTelemetryBuilder
     /// Adds Prometheus as a metric exporter on the specified port.
     /// </summary>
     /// <param name="port">The port to listen on (default: 9090).</param>
-    /// <param name="hostname">The hostname to bind to (default: "localhost"). Use "+" to bind to all interfaces, but this may require URL ACL registration on Windows.</param>
+    /// <param name="hostname">The hostname to bind to (default: "localhost"). Supports HttpListener wildcards: "+" (all interfaces) or "*" (all interfaces with URL ACL required on Windows), or specific IP addresses/hostnames.</param>
     /// <remarks>
     /// <para><strong>Important:</strong> HttpListener may require URL ACL registration or administrator privileges on Windows.</para>
-    /// <para>By default, binds to localhost only. For remote Prometheus scraping, set hostname to "+" or a specific IP address.</para>
+    /// <para>By default, binds to localhost only. For remote Prometheus scraping, use "+" or "*" to bind to all interfaces, or specify a specific IP address.</para>
     /// <para>To register URL ACL on Windows: <c>netsh http add urlacl url=http://+:{port}/ user=DOMAIN\username</c></para>
     /// <para>If the listener fails to start, check Windows Event Log or consider running with elevated privileges.</para>
     /// </remarks>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if port is not between 1 and 65535.</exception>
-    /// <exception cref="ArgumentException">Thrown if hostname is null, empty, or contains invalid characters.</exception>
+    /// <exception cref="ArgumentException">Thrown if hostname is null, empty, or contains invalid characters for HttpListener.</exception>
     public SimulationTelemetryBuilder WithPrometheusExporter(int port = 9090, string hostname = "localhost")
     {
         if (port < 1 || port > 65535)
@@ -176,11 +176,15 @@ public class SimulationTelemetryBuilder
             throw new ArgumentException("Hostname cannot be null or empty.", nameof(hostname));
         }
 
-        // Validate that hostname forms a valid URI
-        string testUri = $"http://{hostname}:{port}/";
-        if (!Uri.TryCreate(testUri, UriKind.Absolute, out _))
+        // Allow HttpListener wildcards explicitly ("+", "*") which are valid for HttpListener but not Uri
+        if (hostname != "+" && hostname != "*")
         {
-            throw new ArgumentException($"Hostname '{hostname}' does not form a valid URI for Prometheus.", nameof(hostname));
+            // Validate that hostname forms a valid URI
+            string testUri = $"http://{hostname}:{port}/";
+            if (!Uri.TryCreate(testUri, UriKind.Absolute, out _))
+            {
+                throw new ArgumentException($"Hostname '{hostname}' does not form a valid URI for Prometheus.", nameof(hostname));
+            }
         }
 
         _usePrometheusExporter = true;
