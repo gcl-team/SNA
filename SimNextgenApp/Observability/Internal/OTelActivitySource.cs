@@ -75,11 +75,30 @@ internal sealed class OTelActivitySource
     {
         if (!IsEnabled) return null;
 
+        Activity? activity;
+
         // When trace context is disabled, create independent root spans (better performance for high-volume events)
         // When enabled, create hierarchical spans as children of the simulation run (shows causality)
-        var activity = _enableTraceContext
-            ? _sharedSource.StartActivity(eventName, ActivityKind.Internal)
-            : _sharedSource.StartActivity(eventName, ActivityKind.Internal, parentContext: default);
+        if (_enableTraceContext)
+        {
+            // Create child span parented to Activity.Current (the simulation span)
+            activity = _sharedSource.StartActivity(eventName, ActivityKind.Internal);
+        }
+        else
+        {
+            // Create root span by temporarily suppressing Activity.Current
+            // This ensures event spans are truly independent and not parented to the simulation span
+            var savedCurrent = Activity.Current;
+            Activity.Current = null;
+            try
+            {
+                activity = _sharedSource.StartActivity(eventName, ActivityKind.Internal);
+            }
+            finally
+            {
+                Activity.Current = savedCurrent;
+            }
+        }
 
         if (activity != null)
         {
