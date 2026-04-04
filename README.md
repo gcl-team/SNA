@@ -94,7 +94,7 @@ generatorObserver.SetTimeUnit(context.TimeUnit);
 
 // Access metrics
 Console.WriteLine($"Server Utilization: {serverObserver.Utilization:F2}");
-Console.WriteLine($"Queue Length: {queueObserver.CurrentLength}");
+Console.WriteLine($"Queue Occupancy: {queueObserver.Occupancy}");
 Console.WriteLine($"Total Events: {simulationObserver.TotalEventsExecuted}");
 ```
 
@@ -167,7 +167,7 @@ var telemetry = SimulationTelemetry.Create()
 ### Available Observers
 
 - **ServerObserver** - Tracks server utilization, loads completed, sojourn time
-- **QueueObserver** - Monitors queue length, wait time, throughput
+- **QueueObserver** - Monitors queue occupancy, wait time, throughput (enqueued/dequeued/balked)
 - **GeneratorObserver** - Observes load generation rate, inter-arrival time
 - **ResourceObserver** - Tracks resource utilization, availability, waiting count
 - **SimulationObserver** - Whole-simulation metrics (events executed, clock time, performance)

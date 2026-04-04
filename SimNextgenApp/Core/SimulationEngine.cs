@@ -223,15 +223,23 @@ public class SimulationEngine : IScheduler, IRunContext
                     }
 
                     // TraceId and SpanId are automatically added by OTel from Activity.Current
-                    using (_logger.BeginScope(new Dictionary<string, object> { ["@Start"] = startTime }))
+                    // Guard scope creation with IsEnabled to avoid allocations when logging is disabled
+                    var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
+
+                    if (_logger.IsEnabled(LogLevel.Trace))
                     {
-                        var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
+                        using (_logger.BeginScope(new Dictionary<string, object> { ["@Start"] = startTime }))
+                        {
+                            _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
+                        }
+                    }
 
-                        _logger.LogTrace("Executing event {EventType} at time {ExecutionTime}", currentEvent.GetType().Name, ClockTime);
-                        currentEvent.Execute(this);
+                    currentEvent.Execute(this);
 
-                        stopwatchLog.Stop();
+                    stopwatchLog.Stop();
 
+                    if (_logger.IsEnabled(LogLevel.Information))
+                    {
                         using (_logger.BeginScope(new Dictionary<string, object> { ["@Elapsed"] = stopwatchLog.Elapsed.TotalMilliseconds }))
                         {
                             _logger.LogInformation(
