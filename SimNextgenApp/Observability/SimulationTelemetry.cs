@@ -8,6 +8,8 @@ using SimNextgenApp.Observability.Advanced;
 using SimNextgenApp.Observability.Exporters;
 using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Modeling.Queue;
+using SimNextgenApp.Modeling.Generator;
+using SimNextgenApp.Modeling.Resource;
 
 namespace SimNextgenApp.Observability;
 
@@ -103,6 +105,30 @@ public sealed class SimulationTelemetry : IDisposable
         // Create owned meter to allow observer to be disposed independently
         var meter = new System.Diagnostics.Metrics.Meter(MeterName);
         return new QueueObserver<TLoad>(queue, meter, ownsMeter: true, _volumeEstimator);
+    }
+
+    /// <summary>
+    /// Creates an observer for a generator component.
+    /// Each observer owns its own meter to allow independent disposal and avoid memory leaks.
+    /// </summary>
+    public GeneratorObserver<TLoad> ObserveGenerator<TLoad>(IGenerator<TLoad> generator)
+        where TLoad : notnull
+    {
+        // Create owned meter to allow observer to be disposed independently
+        var meter = new System.Diagnostics.Metrics.Meter(MeterName);
+        return new GeneratorObserver<TLoad>(generator, meter, ownsMeter: true, _volumeEstimator);
+    }
+
+    /// <summary>
+    /// Creates an observer for a resource pool component.
+    /// Each observer owns its own meter to allow independent disposal and avoid memory leaks.
+    /// </summary>
+    public ResourceObserver<TResource> ObserveResource<TResource>(IResourcePool<TResource> resourcePool)
+        where TResource : notnull
+    {
+        // Create owned meter to allow observer to be disposed independently
+        var meter = new System.Diagnostics.Metrics.Meter(MeterName);
+        return new ResourceObserver<TResource>(resourcePool, meter, ownsMeter: true, _volumeEstimator);
     }
 
     public void Dispose()

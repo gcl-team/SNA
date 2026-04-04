@@ -1,6 +1,6 @@
 ﻿namespace SimNextgenApp.Modeling.Generator;
 
-internal interface IGenerator<TLoad> : IWarmupAware
+public interface IGenerator<TLoad> : IWarmupAware
 {
     /// <summary>
     /// Gets the unique identifier assigned to this simulation model instance.
