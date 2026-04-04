@@ -67,27 +67,112 @@ For a more detailed example, check out our [SimNextgenApp.Demo project](https://
 
 ## 📊 Observability
 
-SNA includes built-in OpenTelemetry-based observability for metrics and tracing.
+SNA includes built-in OpenTelemetry-based observability supporting all three pillars: **Traces**, **Metrics**, and **Logs**.
+
+### Quick Start
 
 ```csharp
-// Configure telemetry
+// Configure telemetry with console exporter (for development)
 var telemetry = SimulationTelemetry.Create()
     .WithConsoleExporter()
+    .WithLogging(includeConsoleExporter: true)
     .Build();
 
-// Observe server metrics
-var observer = ServerObserver.CreateSimple(server);
+// Observe component metrics
+var serverObserver = ServerObserver.CreateSimple(server);
+var queueObserver = QueueObserver.CreateSimple(queue);
+var generatorObserver = GeneratorObserver.CreateSimple(generator);
+var resourceObserver = ResourceObserver.CreateSimple(resourcePool);
 
-// IMPORTANT: Set time unit for proper sojourn time conversion
+// Observe whole-simulation metrics
+var simulationObserver = SimulationObserver.CreateSimple(engine);
+
+// IMPORTANT: Set time unit for proper time conversion
 // This should be called in your model's Initialize() method
-observer.SetTimeUnit(context.TimeUnit);
+serverObserver.SetTimeUnit(context.TimeUnit);
+generatorObserver.SetTimeUnit(context.TimeUnit);
 
 // Access metrics
-Console.WriteLine($"Utilization: {observer.Utilization:F2}");
-Console.WriteLine($"Loads Completed: {observer.LoadsCompleted}");
+Console.WriteLine($"Server Utilization: {serverObserver.Utilization:F2}");
+Console.WriteLine($"Queue Length: {queueObserver.CurrentLength}");
+Console.WriteLine($"Total Events: {simulationObserver.TotalEventsExecuted}");
 ```
 
-For a complete example, see [SimpleMmck.cs](SimNextgenApp.Demo/Scenarios/SimpleMmck.cs).
+### Exporters
+
+SNA supports multiple exporters for different environments:
+
+#### Console Exporter (Development Only)
+
+```csharp
+var telemetry = SimulationTelemetry.Create()
+    .WithConsoleExporter()
+    .WithLogging(includeConsoleExporter: true)
+    .Build();
+```
+
+**Use for**: Local development, debugging, learning, demos
+
+**⚠️ Not for Production**: The console exporter is intended for debugging and learning purposes only. The output format is not standardized and can change at any time. It lacks the reliability, performance, and features needed for production observability.
+
+**Why we keep it**: Essential for development workflow:
+- Instant feedback during development without external dependencies
+- Perfect for demos and tutorials
+- Useful for unit tests and debugging
+- Zero infrastructure setup required
+
+**Production recommendation**: Use `.WithOtlpExporter()` with a production observability backend.
+
+#### Production Exporters
+
+**OTLP (OpenTelemetry Protocol)** - For production observability backends:
+
+```csharp
+// Generic OTLP endpoint
+var telemetry = SimulationTelemetry.Create()
+    .WithOtlpExporter("http://localhost:4317")
+    .WithLogging(includeOtlpExporter: true)
+    .Build();
+
+// Backend-specific presets (Grafana Cloud, Datadog, Honeycomb)
+var telemetry = SimulationTelemetry.Create()
+    .WithOtlpExporter(OtlpBackend.GrafanaCloud, apiKey: "instanceId:apiToken", region: "us-central-0")
+    .WithLogging(includeOtlpExporter: true)
+    .Build();
+```
+
+**Use for**: Production deployments, cloud observability platforms
+
+**Prometheus HttpListener** - For direct Prometheus scraping:
+
+```csharp
+var telemetry = SimulationTelemetry.Create()
+    .WithPrometheusExporter(port: 9090)
+    .Build();
+// Metrics available at: http://localhost:9090/metrics
+```
+
+**Use for**: Local development with Prometheus, simple deployments, learning
+
+**⚠️ Production Note**: While Prometheus itself is production-ready, OpenTelemetry's HttpListener exporter is not their recommended production approach. For production environments, prefer **OTLP → OpenTelemetry Collector → Prometheus Remote Write** instead of direct scraping.
+
+**Why we keep it**: Despite the warning, this exporter is useful for:
+- Simple local Prometheus setups without OTLP Collector infrastructure
+- Development and testing environments
+- Learning and prototyping
+- Small-scale deployments where OTLP infrastructure isn't justified
+
+**Production recommendation**: Use `.WithOtlpExporter()` and configure your observability backend (Grafana Cloud, Datadog, etc.) to ingest OTLP data. This is the OpenTelemetry team's recommended production path and supports all three pillars (traces, metrics, logs).
+
+### Available Observers
+
+- **ServerObserver** - Tracks server utilization, loads completed, sojourn time
+- **QueueObserver** - Monitors queue length, wait time, throughput
+- **GeneratorObserver** - Observes load generation rate, inter-arrival time
+- **ResourceObserver** - Tracks resource utilization, availability, waiting count
+- **SimulationObserver** - Whole-simulation metrics (events executed, clock time, performance)
+
+For complete examples, see [SimpleMmck.cs](SimNextgenApp.Demo/Scenarios/SimpleMmck.cs).
 
 ## 🧠 Core Concepts
 

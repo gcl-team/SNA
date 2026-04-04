@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using Serilog.Context;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
@@ -153,7 +152,7 @@ public class SimulationEngine : IScheduler, IRunContext
         try
         {
             using var rootSpan = _activitySource.CreateSimulationSpan(_profile);
-            using (LogContext.PushProperty("ProfileRunId", _profile.RunId))
+            using (_logger.BeginScope(new Dictionary<string, object> { ["ProfileRunId"] = _profile.RunId }))
             {
                 // Create warmup span if warmup period is configured
                 System.Diagnostics.Activity? warmupSpan = null;
@@ -223,9 +222,8 @@ public class SimulationEngine : IScheduler, IRunContext
                         }
                     }
 
-                    using (eventSpan != null ? LogContext.PushProperty("TraceId", eventSpan.TraceId.ToHexString()) : null)
-                    using (eventSpan != null ? LogContext.PushProperty("SpanId", eventSpan.SpanId.ToHexString()) : null)
-                    using (LogContext.PushProperty("@Start", startTime))
+                    // TraceId and SpanId are automatically added by OTel from Activity.Current
+                    using (_logger.BeginScope(new Dictionary<string, object> { ["@Start"] = startTime }))
                     {
                         var stopwatchLog = System.Diagnostics.Stopwatch.StartNew();
 
@@ -234,7 +232,7 @@ public class SimulationEngine : IScheduler, IRunContext
 
                         stopwatchLog.Stop();
 
-                        using (LogContext.PushProperty("@Elapsed", stopwatchLog.Elapsed.TotalMilliseconds))
+                        using (_logger.BeginScope(new Dictionary<string, object> { ["@Elapsed"] = stopwatchLog.Elapsed.TotalMilliseconds }))
                         {
                             _logger.LogInformation(
                                 "Executed event {EventType} (ID: {EventId})",
