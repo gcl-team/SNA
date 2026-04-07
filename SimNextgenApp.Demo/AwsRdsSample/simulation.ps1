@@ -35,17 +35,19 @@ Write-Host "Generating graphs..." -ForegroundColor Green
 if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
     Write-Host "graph-cli not found. Please run: pip install graph-cli" -ForegroundColor Yellow
 } else {
-    # Calculate Max for scaling
+    # Calculate Max for scaling (check both Credits and Surplus Credits columns)
     $credits = Import-Csv ./output/simulation_credits.csv
-    $creditMax = ($credits | Measure-Object -Property "Credits" -Maximum).Maximum
-    if ($null -eq $creditMax) { $creditMax = 1 }
+    $creditsMax = ($credits | Measure-Object -Property "Credits" -Maximum).Maximum
+    $surplusMax = ($credits | Measure-Object -Property "Surplus Credits" -Maximum).Maximum
+    $creditMax = [Math]::Max($creditsMax, $surplusMax)
+    if ($null -eq $creditMax -or $creditMax -eq 0) { $creditMax = 1 }
 
     $latency = Import-Csv ./output/simulation_latency.csv
     # Use index-based property access since header has parentheses
     $latencyMax = ($latency | ForEach-Object { $_."Latency (ms)" } | Measure-Object -Maximum).Maximum
     if ($null -eq $latencyMax) { $latencyMax = 1 }
 
-    graph ./output/simulation_credits.csv --title "Simulation Credits" --yrange="0:$creditMax" -o ./output/simulation_credits.png
+    graph ./output/simulation_credits.csv --title "AWS RDS Credits (Regular vs Surplus)" --yrange="0:$creditMax" -o ./output/simulation_credits.png
     graph ./output/simulation_latency.csv --title "Simulation Latency" --yrange="0:$latencyMax" -o ./output/simulation_latency.png
 }
 
