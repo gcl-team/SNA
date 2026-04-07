@@ -16,7 +16,7 @@ internal abstract record AwsRdsInstanceSpec(
 /// SlowSecs is modeled as FastSecs / BaselineFraction, assuming CPU-bound linear scaling.
 /// This is a first-order approximation. The real-world performance depends on workload characteristics.
 /// </summary>
-/// <param name="BaselineFraction">The baseline CPU as a fraction (e.g., 0.20 for 20% baseline, 0.10 for 10%). Range: 0.0 to 1.0.</param>
+/// <param name="BaselineFraction">The baseline CPU as a fraction (e.g., 0.20 for 20% baseline, 0.10 for 10%). Must be in range (0.0, 1.0].</param>
 internal record BurstableInstanceSpec(
     string Family,
     string Size,
@@ -25,7 +25,24 @@ internal record BurstableInstanceSpec(
     double EarnRatePerHour,
     double MaxCredits,
     double BaselineFraction
-) : AwsRdsInstanceSpec(Family, Size, VCpus, FastSecs, FastSecs / BaselineFraction);
+) : AwsRdsInstanceSpec(Family, Size, VCpus, FastSecs, ValidateAndCalculateSlowSecs(FastSecs, BaselineFraction))
+{
+    /// <summary>
+    /// Validates BaselineFraction and calculates SlowSecs safely.
+    /// </summary>
+    private static double ValidateAndCalculateSlowSecs(double fastSecs, double baselineFraction)
+    {
+        if (baselineFraction <= 0 || baselineFraction > 1.0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(baselineFraction),
+                baselineFraction,
+                "BaselineFraction must be > 0 and <= 1.0 (e.g., 0.20 for 20% baseline).");
+        }
+
+        return fastSecs / baselineFraction;
+    }
+};
 
 /// <summary>
 /// Specification for fixed-performance (M, R, C series) instances.
