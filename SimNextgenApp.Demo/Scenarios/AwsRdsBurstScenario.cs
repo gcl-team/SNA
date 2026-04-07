@@ -107,11 +107,10 @@ internal static class AwsBurstScenario
         }
 
         // =========================================================
-        // 6. THE CRITICAL STEP: CONNECT PHYSICS TO TIME
+        // 6. THE CRITICAL STEP: CONNECT PHYSICS TO ENGINE
         // =========================================================
-        // We inject the engine into our physics object so it can read ClockTime
-        // and tell it what time unit is being used so it can convert to seconds
-        rdsBehavior.SetContext(engine, timeUnit);
+        // We inject the engine context so the behavior can access ClockTime and TimeUnit
+        rdsBehavior.SetContext(engine);
         // =========================================================
 
         programLogger.LogInformation("Starting Simulation. Watch console for CSV output...");

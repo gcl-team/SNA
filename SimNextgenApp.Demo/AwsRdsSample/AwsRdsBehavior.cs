@@ -13,8 +13,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 {
     private IRunContext? _engineContext;
     private double _credits = initialCredits < 0 ? 0 : initialCredits;
-    private double _lastUpdateTime = 0.0;
-    private double _timeUnitToSecondsMultiplier = 1.0; // Default: assume time units are seconds
+    private long _lastUpdateTimeInSimUnits = 0L;
 
     private readonly BurstableInstanceSpec? _burstableSpec = spec as BurstableInstanceSpec;
     private readonly StringBuilder _latencyBuffer = new("Time (s),Latency (ms)\n");
@@ -25,38 +24,33 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private double BurnRatePerSec => (spec.VCpus) / 60.0;
     private bool IsBurstable => _burstableSpec != null;
 
-    public void SetContext(IRunContext context, SimulationTimeUnit timeUnit)
+    public void SetContext(IRunContext context)
     {
         _engineContext = context;
-
-        // Calculate conversion factor from simulation time units to seconds
-        _timeUnitToSecondsMultiplier = timeUnit switch
-        {
-            SimulationTimeUnit.Ticks => 1.0 / TimeSpan.TicksPerSecond,
-            SimulationTimeUnit.Microseconds => 1.0 / 1_000_000.0,
-            SimulationTimeUnit.Milliseconds => 1.0 / 1_000.0,
-            SimulationTimeUnit.Seconds => 1.0,
-            SimulationTimeUnit.Minutes => 60.0,
-            SimulationTimeUnit.Hours => 3600.0,
-            SimulationTimeUnit.Days => 86400.0,
-            _ => 1.0
-        };
+        // Initialize last update time to current simulation time
+        _lastUpdateTimeInSimUnits = context.ClockTime;
     }
 
     public TimeSpan GetServiceTime(MyLoad load, Random rnd)
     {
         if (_engineContext == null) throw new InvalidOperationException("Context missing");
 
-        // ClockTime is in simulation units, convert to seconds for credit calculations (AWS credit logic is per-second)
-        double now = _engineContext.ClockTime * _timeUnitToSecondsMultiplier;
-        double timeDelta = now - _lastUpdateTime;
+        // Keep time as long (simulation units) for precision
+        long currentTimeInSimUnits = _engineContext.ClockTime;
+        long timeDeltaInSimUnits = currentTimeInSimUnits - _lastUpdateTimeInSimUnits;
 
         // 1. Earn Credits
-        if (IsBurstable && timeDelta > 0)
+        if (IsBurstable && timeDeltaInSimUnits > 0)
         {
-            double earned = timeDelta * EarnRatePerSec;
+            // Convert to seconds only for AWS credit calculations
+            double timeDeltaSeconds = TimeUnitConverter.ConvertFromSimulationUnits(
+                timeDeltaInSimUnits,
+                _engineContext.TimeUnit
+            ).TotalSeconds;
+
+            double earned = timeDeltaSeconds * EarnRatePerSec;
             _credits = Math.Min(MaxCredits, _credits + earned);
-            _lastUpdateTime = now;
+            _lastUpdateTimeInSimUnits = currentTimeInSimUnits;
         }
 
         // 2. Burn Logic (Look Ahead)
@@ -75,7 +69,12 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         }
 
         // 5. Export Data (CSV)
-        ExportMetrics(now, actualDuration);
+        // Convert current simulation time to seconds for CSV export
+        double nowInSeconds = TimeUnitConverter.ConvertFromSimulationUnits(
+            currentTimeInSimUnits,
+            _engineContext.TimeUnit
+        ).TotalSeconds;
+        ExportMetrics(nowInSeconds, actualDuration);
 
         return TimeSpan.FromSeconds(actualDuration);
     }
