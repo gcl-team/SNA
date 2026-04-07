@@ -39,8 +39,13 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
     $credits = Import-Csv ./output/simulation_credits.csv
     $creditsMax = ($credits | Measure-Object -Property "Credits" -Maximum).Maximum
     $surplusMax = ($credits | Measure-Object -Property "Surplus Credits" -Maximum).Maximum
+
+    # Normalize nulls to 0 before calling Math::Max to handle empty CSV edge case
+    if ($null -eq $creditsMax) { $creditsMax = 0 }
+    if ($null -eq $surplusMax) { $surplusMax = 0 }
+
     $creditMax = [Math]::Max($creditsMax, $surplusMax)
-    if ($null -eq $creditMax -or $creditMax -eq 0) { $creditMax = 1 }
+    if ($creditMax -eq 0) { $creditMax = 1 }
 
     $latency = Import-Csv ./output/simulation_latency.csv
     # Use index-based property access since header has parentheses
