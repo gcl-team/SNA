@@ -39,37 +39,38 @@ internal static class AwsBurstScenario
                 programLogger.LogError("GRAFANA_API_KEY environment variable not set!");
                 programLogger.LogError("Please set: export GRAFANA_API_KEY=\"<stack_id>:<token>\"");
                 programLogger.LogWarning("Continuing simulation without Grafana export...");
-                return;
             }
-
-            try
+            else
             {
-                // Create OTLP config to inspect endpoint
-                var otlpConfig = OtlpExporterConfiguration.ConfigureForBackend(
-                    OtlpBackend.GrafanaCloud,
-                    apiKey: grafanaApiKey,
-                    region: grafanaRegion);
-
-                telemetry = SimulationTelemetry.Create()
-                    .WithServiceInfo("AWS-RDS-Simulation", "1.0.0")
-                    .WithOtlpExporter(
+                try
+                {
+                    // Create OTLP config to inspect endpoint
+                    var otlpConfig = OtlpExporterConfiguration.ConfigureForBackend(
                         OtlpBackend.GrafanaCloud,
                         apiKey: grafanaApiKey,
-                        region: grafanaRegion
-                    )
-                    .WithLogging(includeConsoleExporter: false, includeOtlpExporter: true)
-                    .Build();
+                        region: grafanaRegion);
 
-                // Connect the RDS behavior to emit metrics
-                rdsBehavior.SetMeter(telemetry.Meter);
+                    telemetry = SimulationTelemetry.Create()
+                        .WithServiceInfo("AWS-RDS-Simulation", "1.0.0")
+                        .WithOtlpExporter(
+                            OtlpBackend.GrafanaCloud,
+                            apiKey: grafanaApiKey,
+                            region: grafanaRegion
+                        )
+                        .WithLogging(includeConsoleExporter: false, includeOtlpExporter: true)
+                        .Build();
 
-                programLogger.LogInformation($"OpenTelemetry configured for Grafana Cloud (region: {grafanaRegion})");
-                programLogger.LogInformation($"Using API key starting with: {grafanaApiKey.Substring(0, Math.Min(15, grafanaApiKey.Length))}...");
-            }
-            catch (Exception ex)
-            {
-                programLogger.LogError($"Failed to configure Grafana Cloud export: {ex.Message}");
-                programLogger.LogWarning("Continuing simulation without Grafana export...");
+                    // Connect the RDS behavior to emit metrics
+                    rdsBehavior.SetMeter(telemetry.Meter);
+
+                    programLogger.LogInformation($"OpenTelemetry configured for Grafana Cloud (region: {grafanaRegion})");
+                    programLogger.LogInformation($"Using API key starting with: {grafanaApiKey.Substring(0, Math.Min(15, grafanaApiKey.Length))}...");
+                }
+                catch (Exception ex)
+                {
+                    programLogger.LogError($"Failed to configure Grafana Cloud export: {ex.Message}");
+                    programLogger.LogWarning("Continuing simulation without Grafana export...");
+                }
             }
         }
 
