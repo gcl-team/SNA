@@ -63,12 +63,12 @@ internal static class AwsBurstScenario
                     // Connect the RDS behavior to emit metrics
                     rdsBehavior.SetMeter(telemetry.Meter);
 
-                    programLogger.LogInformation($"OpenTelemetry configured for Grafana Cloud (region: {grafanaRegion})");
-                    programLogger.LogInformation($"Using API key starting with: {grafanaApiKey.Substring(0, Math.Min(15, grafanaApiKey.Length))}...");
+                    programLogger.LogInformation("OpenTelemetry configured for Grafana Cloud (region: {GrafanaRegion})", grafanaRegion);
+                    programLogger.LogInformation("Grafana API key is set (length: {ApiKeyLength})", grafanaApiKey.Length);
                 }
                 catch (Exception ex)
                 {
-                    programLogger.LogError($"Failed to configure Grafana Cloud export: {ex.Message}");
+                    programLogger.LogError("Failed to configure Grafana Cloud export: {ExMessage}", ex.Message);
                     programLogger.LogWarning("Continuing simulation without Grafana export...");
                 }
             }
