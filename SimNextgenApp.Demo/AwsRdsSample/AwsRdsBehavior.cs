@@ -16,8 +16,8 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private long _lastUpdateTimeInSimUnits = 0L;
 
     private readonly BurstableInstanceSpec? _burstableSpec = spec as BurstableInstanceSpec;
-    private readonly StringBuilder _latencyBuffer = new("Time (s),Latency (ms)\n");
-    private readonly StringBuilder _creditBuffer = new("Time (s),Credits\n");
+    private readonly StringBuilder _latencyBuffer = new("Simulation Time (s),Latency (ms)\n");
+    private readonly StringBuilder _creditBuffer = new("Simulation Time (s),Credits\n");
 
     private double MaxCredits => _burstableSpec?.MaxCredits ?? 0;
     private double EarnRatePerSec => (_burstableSpec?.EarnRatePerHour ?? 0) / 3600.0;
