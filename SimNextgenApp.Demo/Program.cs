@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog;
+using SimNextgenApp.Demo;
 using SimNextgenApp.Demo.AwsRdsSample;
 using SimNextgenApp.Demo.RestaurantSample;
 using SimNextgenApp.Demo.Scenarios;
@@ -305,18 +306,25 @@ var unlimitedCreditsOption = new Option<bool>(
     getDefaultValue: () => false
 );
 
+var grafanaOption = new Option<bool>(
+    name: "--grafana",
+    description: "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
+    getDefaultValue: () => false
+);
+
 awsRdsBurstCommand.AddOption(familyOption);
 awsRdsBurstCommand.AddOption(sizeOption);
 awsRdsBurstCommand.AddOption(awsRdsBurstDurationOption);
 awsRdsBurstCommand.AddOption(initialCreditsOption);
 awsRdsBurstCommand.AddOption(unlimitedCreditsOption);
+awsRdsBurstCommand.AddOption(grafanaOption);
 
-awsRdsBurstCommand.SetHandler((string family, string size, double duration, double initialCredits, bool isUnlimitedCredits) =>
+awsRdsBurstCommand.SetHandler((string family, string size, double duration, double initialCredits, bool isUnlimitedCredits, bool enableGrafana) =>
 {
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
             .Enrich.FromLogContext()
-            .WriteTo.Seq("http://localhost:5341")
+            .WriteTo.Console()
             .CreateLogger();
 
     // Create a logger factory that uses Serilog
@@ -326,13 +334,15 @@ awsRdsBurstCommand.SetHandler((string family, string size, double duration, doub
     var rdsBehavior = new AwsRdsBehavior(spec, initialCredits, isUnlimitedCredits);
 
     Console.WriteLine($"====== Running AWS RDS Burst Demo (Instance={family}.{size}, Duration={duration} seconds) ======");
+    Console.WriteLine($"Initial Credits: {initialCredits}, Unlimited Mode: {isUnlimitedCredits}");
     AwsBurstScenario.RunDemo(
         loggerFactory,
         duration,
         rdsBehavior,
-        genSeed: 1234
+        genSeed: 1234,
+        enableGrafana: enableGrafana
     );
-}, familyOption, sizeOption, awsRdsBurstDurationOption, initialCreditsOption, unlimitedCreditsOption);
+}, familyOption, sizeOption, awsRdsBurstDurationOption, initialCreditsOption, unlimitedCreditsOption, grafanaOption);
 
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");

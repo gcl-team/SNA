@@ -6,8 +6,17 @@
 #     This script builds the SimNextgenApp.Demo project and runs the AWS RDS simulation with the provided arguments.
 #     Supported instance types include t3, t4g, and m5 families with various sizes.
 #     After the simulation completes, it generates graphs for credits and latency if the graph-cli tool is installed.
-# EXAMPLE
-#     ./simulation.sh aws-rds-burst --family t3 --size medium --duration 720 --initial-credits 10 --unlimited-credits true
+# GRAFANA CLOUD INTEGRATION
+#     Use --grafana true to export metrics to Grafana Cloud via OpenTelemetry.
+#     Requires GRAFANA_API_KEY environment variable (format: INSTANCE_ID:API_TOKEN).
+#     See GRAFANA_SETUP.md for detailed setup instructions.
+# EXAMPLES
+#     # Basic simulation with CSV export
+#     ./simulation.sh aws-rds-burst --family t3 --size medium --duration 720 --initial-credits 10
+#
+#     # With Grafana Cloud export
+#     export GRAFANA_API_KEY="123456:glc_abc123..."
+#     ./simulation.sh aws-rds-burst --family t3 --size medium --duration 720 --grafana true
 
 # ANSI color codes
 CYAN='\033[0;36m'

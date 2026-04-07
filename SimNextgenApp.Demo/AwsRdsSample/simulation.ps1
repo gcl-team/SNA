@@ -5,10 +5,21 @@
     This script builds the SimNextgenApp.Demo project and runs the AWS RDS simulation with the provided arguments.
     Supported instance types include t3, t4g, and m5 families with various sizes.
     After the simulation completes, it generates graphs for credits and latency if the graph-cli tool is installed.
+
+    GRAFANA CLOUD INTEGRATION:
+    Use --grafana true to export metrics to Grafana Cloud via OpenTelemetry.
+    Requires GRAFANA_API_KEY environment variable (format: INSTANCE_ID:API_TOKEN).
+    See GRAFANA_SETUP.md for detailed setup instructions.
 .EXAMPLE
-    ./simulation.ps1 aws-rds-burst --family t3 --size medium --duration 720 --initial-credits 10 --unlimited-credits true
+    # Basic simulation with CSV export
+    ./simulation.ps1 aws-rds-burst --family t3 --size medium --duration 720 --initial-credits 10
 .EXAMPLE
+    # With unlimited credits
     ./simulation.ps1 aws-rds-burst --family t4g --size large --duration 1200 --unlimited-credits true
+.EXAMPLE
+    # With Grafana Cloud export
+    $env:GRAFANA_API_KEY = "123456:glc_abc123..."
+    ./simulation.ps1 aws-rds-burst --family t3 --size medium --duration 720 --grafana true
 .LINK
     https://github.com/gcl-team/SNAS
 #>
@@ -68,4 +79,6 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
     }
 }
 
-Write-Host "Simulation completed successfully!" -ForegroundColor Green
+$elapsedTime = (Get-Date) - $startTime
+$elapsedSeconds = [int]$elapsedTime.TotalSeconds
+Write-Host "Simulation completed successfully! (Duration: $elapsedSeconds`s)" -ForegroundColor Green

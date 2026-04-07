@@ -1,8 +1,8 @@
 using System.Text;
-using System.IO;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Demo.CustomModels;
+using System.Diagnostics.Metrics;
 
 namespace SimNextgenApp.Demo.AwsRdsSample;
 
@@ -15,6 +15,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private double _credits = initialCredits < 0 ? 0 : initialCredits;
     private double _surplusCreditDebt = 0.0; // Outstanding debt balance accrued when unlimited mode is enabled (can be repaid)
     private long _lastUpdateTimeInSimUnits = 0L;
+    private int _metricCallCount = 0; // DEBUG: Track how many times metrics are recorded
 
     // AWS fixed pricing for surplus credits
     // private const double AWS_SURPLUS_COST_PER_VCPU_HOUR = 0.05;
@@ -22,6 +23,13 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private readonly BurstableInstanceSpec? _burstableSpec = spec as BurstableInstanceSpec;
     private readonly StringBuilder _latencyBuffer = new("Simulation Time (s),Latency (ms)\n");
     private readonly StringBuilder _creditBuffer = new("Simulation Time (s),Credits,Surplus Credit Debt\n");
+
+    // OpenTelemetry metrics (optional - enabled via SetMeter)
+    private Meter? _meter;
+    // ObservableGauges are kept as fields to prevent GC - they auto-report via callbacks
+    private ObservableGauge<double>? _creditsGauge;
+    private ObservableGauge<double>? _surplusDebtGauge;
+    private Histogram<double>? _latencyHistogram;
 
     private double MaxCredits => _burstableSpec?.MaxCredits ?? 0;
     private double EarnRatePerSec => (_burstableSpec?.EarnRatePerHour ?? 0) / 3600.0;
@@ -33,6 +41,43 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         _engineContext = context;
         // Initialize last update time to current simulation time
         _lastUpdateTimeInSimUnits = context.ClockTime;
+    }
+
+    /// <summary>
+    /// Sets up OpenTelemetry metrics for exporting to Grafana Cloud or other OTLP backends.
+    /// </summary>
+    public void SetMeter(Meter meter)
+    {
+        _meter = meter;
+
+        Console.WriteLine($"[DEBUG] SetMeter called - creating RDS metrics (Meter: {meter.Name})");
+
+        // Create observable gauges for real-time credit tracking
+        _creditsGauge = _meter.CreateObservableGauge(
+            "rds.cpu_credits",
+            () => {
+                Console.WriteLine($"[DEBUG] ObservableGauge callback: rds.cpu_credits = {_credits}");
+                return _credits;
+            },
+            unit: "credits",
+            description: "Current CPU credits balance");
+
+        _surplusDebtGauge = _meter.CreateObservableGauge(
+            "rds_surplus_credit_debt",
+            () => {
+                Console.WriteLine($"[DEBUG] ObservableGauge callback: rds_surplus_credit_debt = {_surplusCreditDebt}");
+                return _surplusCreditDebt;
+            },
+            unit: "credits",
+            description: "Surplus credit debt accrued in unlimited mode");
+
+        // Create histogram for latency distribution
+        _latencyHistogram = _meter.CreateHistogram<double>(
+            "rds.query_latency",
+            unit: "ms",
+            description: "Query latency distribution in milliseconds");
+
+        Console.WriteLine("[DEBUG] RDS metrics created successfully (credits gauge, surplus debt gauge, latency histogram)");
     }
 
     public TimeSpan GetServiceTime(MyLoad load, Random rnd)
@@ -105,17 +150,41 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
             currentTimeInSimUnits,
             _engineContext.TimeUnit
         ).TotalSeconds;
-        ExportMetrics(nowInSeconds, actualDuration);
+        ExportMetrics(nowInSeconds, actualDuration, isThrottled);
 
         return TimeSpan.FromSeconds(actualDuration);
     }
 
-    private void ExportMetrics(double now, double actualDuration)
+    private void ExportMetrics(double now, double actualDuration, bool isThrottled)
     {
+        // Export to CSV buffers (always enabled)
         _latencyBuffer.AppendLine($"{now:F2},{actualDuration * 1000:F0}");
 
         // Export credit data (Credits and Surplus Credits share the same unit for easy plotting)
         _creditBuffer.AppendLine($"{now:F2},{_credits:F4},{_surplusCreditDebt:F4}");
+
+        // Export to OpenTelemetry histogram (if enabled via SetMeter)
+        if (_latencyHistogram != null)
+        {
+            _latencyHistogram.Record(
+                actualDuration * 1000, // Convert to milliseconds
+                new KeyValuePair<string, object?>("instance_family", spec.Family),
+                new KeyValuePair<string, object?>("instance_size", spec.Size),
+                new KeyValuePair<string, object?>("is_throttled", isThrottled),
+                new KeyValuePair<string, object?>("is_burstable", IsBurstable)
+            );
+
+            _metricCallCount++;
+            if (_metricCallCount % 100 == 0)
+            {
+                Console.WriteLine($"[DEBUG] Recorded {_metricCallCount} latency measurements to rds.query_latency histogram");
+            }
+        }
+        else if (_metricCallCount == 0)
+        {
+            Console.WriteLine("[DEBUG] WARNING: _latencyHistogram is null - metrics not being recorded!");
+            _metricCallCount = -1; // Only print once
+        }
     }
 
     public void FinalizeExport(string directory)

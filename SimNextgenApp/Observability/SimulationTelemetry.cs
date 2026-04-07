@@ -3,6 +3,7 @@ using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using SimNextgenApp.Observability.Sampling;
 using SimNextgenApp.Observability.VolumeEstimation;
@@ -194,6 +195,8 @@ public class SimulationTelemetryBuilder
     private bool _useLogging;
     private bool _useLoggingConsoleExporter;
     private bool _useLoggingOtlpExporter;
+    private string _serviceName = "SimNextgenApp";
+    private string _serviceVersion = "1.0.0";
 
     /// <summary>
     /// Appends the Console Exporter to both the tracer and meter providers.
@@ -336,6 +339,21 @@ public class SimulationTelemetryBuilder
     }
 
     /// <summary>
+    /// Sets the service name and version for telemetry resource attributes.
+    /// </summary>
+    /// <param name="serviceName">The name of the service (default: "SimNextgenApp").</param>
+    /// <param name="serviceVersion">The version of the service (default: "1.0.0").</param>
+    public SimulationTelemetryBuilder WithServiceInfo(string serviceName, string? serviceVersion = null)
+    {
+        if (string.IsNullOrWhiteSpace(serviceName))
+            throw new ArgumentException("Service name cannot be null or empty.", nameof(serviceName));
+
+        _serviceName = serviceName;
+        _serviceVersion = serviceVersion ?? "1.0.0";
+        return this;
+    }
+
+    /// <summary>
     /// Adds OTLP exporter with backend-specific configuration presets.
     /// </summary>
     /// <param name="backend">The backend provider (GrafanaCloud, Datadog, Honeycomb).</param>
@@ -378,10 +396,14 @@ public class SimulationTelemetryBuilder
         }
 
         var tracerBuilder = Sdk.CreateTracerProviderBuilder()
-            .AddSource(SimulationTelemetry.ActivitySourceName);
+            .AddSource(SimulationTelemetry.ActivitySourceName)
+            .SetResourceBuilder(ResourceBuilder.CreateDefault()
+                .AddService(serviceName: _serviceName, serviceVersion: _serviceVersion));
 
         var meterBuilder = Sdk.CreateMeterProviderBuilder()
-            .AddMeter(SimulationTelemetry.MeterName);
+            .AddMeter(SimulationTelemetry.MeterName)
+            .SetResourceBuilder(ResourceBuilder.CreateDefault()
+                .AddService(serviceName: _serviceName, serviceVersion: _serviceVersion));
 
         // Apply sampling configuration if specified
         if (_samplingConfig != null)
