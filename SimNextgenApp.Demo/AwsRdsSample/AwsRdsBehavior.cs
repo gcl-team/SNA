@@ -15,7 +15,6 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private double _credits = initialCredits < 0 ? 0 : initialCredits;
     private double _surplusCreditDebt = 0.0; // Outstanding debt balance accrued when unlimited mode is enabled (can be repaid)
     private long _lastUpdateTimeInSimUnits = 0L;
-    private int _metricCallCount = 0; // DEBUG: Track how many times metrics are recorded
 
     // AWS fixed pricing for surplus credits
     // private const double AWS_SURPLUS_COST_PER_VCPU_HOUR = 0.05;
@@ -50,13 +49,10 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     {
         _meter = meter;
 
-        Console.WriteLine($"[DEBUG] SetMeter called - creating RDS metrics (Meter: {meter.Name})");
-
         // Create observable gauges for real-time credit tracking
         _creditsGauge = _meter.CreateObservableGauge(
             "rds.cpu_credits",
             () => {
-                Console.WriteLine($"[DEBUG] ObservableGauge callback: rds.cpu_credits = {_credits}");
                 return _credits;
             },
             unit: "credits",
@@ -65,7 +61,6 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         _surplusDebtGauge = _meter.CreateObservableGauge(
             "rds_surplus_credit_debt",
             () => {
-                Console.WriteLine($"[DEBUG] ObservableGauge callback: rds_surplus_credit_debt = {_surplusCreditDebt}");
                 return _surplusCreditDebt;
             },
             unit: "credits",
@@ -76,8 +71,6 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
             "rds.query_latency",
             unit: "ms",
             description: "Query latency distribution in milliseconds");
-
-        Console.WriteLine("[DEBUG] RDS metrics created successfully (credits gauge, surplus debt gauge, latency histogram)");
     }
 
     public TimeSpan GetServiceTime(MyLoad load, Random rnd)
@@ -173,17 +166,6 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
                 new KeyValuePair<string, object?>("is_throttled", isThrottled),
                 new KeyValuePair<string, object?>("is_burstable", IsBurstable)
             );
-
-            _metricCallCount++;
-            if (_metricCallCount % 100 == 0)
-            {
-                Console.WriteLine($"[DEBUG] Recorded {_metricCallCount} latency measurements to rds.query_latency histogram");
-            }
-        }
-        else if (_metricCallCount == 0)
-        {
-            Console.WriteLine("[DEBUG] WARNING: _latencyHistogram is null - metrics not being recorded!");
-            _metricCallCount = -1; // Only print once
         }
     }
 

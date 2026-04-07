@@ -50,14 +50,6 @@ internal static class AwsBurstScenario
                     apiKey: grafanaApiKey,
                     region: grafanaRegion);
 
-                programLogger.LogInformation($"[DEBUG] OTLP Endpoint: {otlpConfig.MetricsEndpoint}");
-                programLogger.LogInformation($"[DEBUG] Auth Header: {otlpConfig.Headers["Authorization"].Substring(0, 20)}...");
-
-                // Console.WriteLine("DEBUGGING OTLP EXPORT - ALL DETAILS BELOW:");
-                // Console.WriteLine($"   API Key: {grafanaApiKey}");
-                // Console.WriteLine($"   Region: {grafanaRegion}");
-                // Console.WriteLine($"   Expected Endpoint: https://otlp-gateway-prod-{grafanaRegion}.grafana.net/otlp");
-
                 telemetry = SimulationTelemetry.Create()
                     .WithServiceInfo("AWS-RDS-Simulation", "1.0.0")
                     .WithOtlpExporter(
