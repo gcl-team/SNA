@@ -17,7 +17,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private long _lastUpdateTimeInSimUnits = 0L;
 
     // AWS fixed pricing for surplus credits
-    private const double AWS_SURPLUS_COST_PER_VCPU_HOUR = 0.05;
+    // private const double AWS_SURPLUS_COST_PER_VCPU_HOUR = 0.05;
 
     private readonly BurstableInstanceSpec? _burstableSpec = spec as BurstableInstanceSpec;
     private readonly StringBuilder _latencyBuffer = new("Simulation Time (s),Latency (ms)\n");
