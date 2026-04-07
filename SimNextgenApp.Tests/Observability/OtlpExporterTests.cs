@@ -11,9 +11,9 @@ public class OtlpExporterTests
         var config = OtlpExporterConfiguration.ConfigureForBackend(OtlpBackend.GrafanaCloud, apiKey);
 
         Assert.NotNull(config);
-        // Grafana Cloud uses unified endpoint for both signals
-        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp", config.TracesEndpoint.ToString());
-        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp", config.MetricsEndpoint.ToString());
+        // Grafana Cloud uses signal-specific paths
+        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/traces", config.TracesEndpoint.ToString());
+        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics", config.MetricsEndpoint.ToString());
         Assert.Contains("Authorization", config.Headers.Keys);
         Assert.StartsWith("Basic ", config.Headers["Authorization"]);
     }
@@ -25,8 +25,8 @@ public class OtlpExporterTests
         var config = OtlpExporterConfiguration.ConfigureForBackend(OtlpBackend.GrafanaCloud, apiKey, region: "eu-west-0");
 
         Assert.NotNull(config);
-        Assert.Equal("https://otlp-gateway-prod-eu-west-0.grafana.net/otlp", config.TracesEndpoint.ToString());
-        Assert.Equal("https://otlp-gateway-prod-eu-west-0.grafana.net/otlp", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://otlp-gateway-prod-eu-west-0.grafana.net/otlp/v1/traces", config.TracesEndpoint.ToString());
+        Assert.Equal("https://otlp-gateway-prod-eu-west-0.grafana.net/otlp/v1/metrics", config.MetricsEndpoint.ToString());
         Assert.Contains("Authorization", config.Headers.Keys);
     }
 
@@ -99,8 +99,8 @@ public class OtlpExporterTests
         var config = OtlpExporterConfiguration.CreateGrafanaCloudConfig(apiKey);
 
         Assert.NotNull(config);
-        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp", config.TracesEndpoint.ToString());
-        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/traces", config.TracesEndpoint.ToString());
+        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics", config.MetricsEndpoint.ToString());
         Assert.Contains("Authorization", config.Headers.Keys);
 
         // Verify Base64 encoding
@@ -123,18 +123,18 @@ public class OtlpExporterTests
     }
 
     [Theory]
-    [InlineData("us-central-0", "https://otlp-gateway-prod-us-central-0.grafana.net/otlp")]
-    [InlineData("eu-west-0", "https://otlp-gateway-prod-eu-west-0.grafana.net/otlp")]
-    [InlineData("ap-southeast-0", "https://otlp-gateway-prod-ap-southeast-0.grafana.net/otlp")]
-    [InlineData("au-southeast-0", "https://otlp-gateway-prod-au-southeast-0.grafana.net/otlp")]
-    public void CreateGrafanaCloudConfig_WithDifferentRegions_ReturnsCorrectEndpoint(string region, string expectedEndpoint)
+    [InlineData("us-central-0", "https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1")]
+    [InlineData("eu-west-0", "https://otlp-gateway-prod-eu-west-0.grafana.net/otlp/v1")]
+    [InlineData("ap-southeast-0", "https://otlp-gateway-prod-ap-southeast-0.grafana.net/otlp/v1")]
+    [InlineData("au-southeast-0", "https://otlp-gateway-prod-au-southeast-0.grafana.net/otlp/v1")]
+    public void CreateGrafanaCloudConfig_WithDifferentRegions_ReturnsCorrectEndpoint(string region, string expectedEndpointPrefix)
     {
         var apiKey = "instance123:token456";
         var config = OtlpExporterConfiguration.CreateGrafanaCloudConfig(apiKey, region);
 
-        // Grafana Cloud uses unified endpoint
-        Assert.Equal(expectedEndpoint, config.TracesEndpoint.ToString());
-        Assert.Equal(expectedEndpoint, config.MetricsEndpoint.ToString());
+        // Grafana Cloud uses signal-specific endpoint
+        Assert.Equal($"{expectedEndpointPrefix}/traces", config.TracesEndpoint.ToString());
+        Assert.Equal($"{expectedEndpointPrefix}/metrics", config.MetricsEndpoint.ToString());
     }
 
     [Fact]
