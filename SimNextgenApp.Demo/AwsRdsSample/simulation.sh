@@ -37,20 +37,22 @@ then
 else
     # Generate credits graph only if credits CSV exists (burstable instances only)
     if [ -f ./output/simulation_credits.csv ]; then
-        # Calculate Max for scaling (check both Credits and Surplus Credits columns)
+        # Calculate Max for scaling (check both Credits and Surplus Credit Debt columns)
         # Initialize max=0 to handle empty CSV edge case
         CREDIT_MAX=$(awk -F, 'BEGIN {max=0} NR>1 {if($2>max) max=$2; if($3>max) max=$3} END {print (max==0?1:max)}' ./output/simulation_credits.csv)
         graph ./output/simulation_credits.csv --title "AWS RDS Credits (Regular vs Surplus)" --yrange=0:$CREDIT_MAX -o ./output/simulation_credits.png
-        echo -e "${GREEN}✓ Credits graph generated${NC}"
+        echo -e "${GREEN}Credits graph generated${NC}"
     else
-        echo -e "${YELLOW}⊘ Skipping credits graph (not a burstable instance)${NC}"
+        echo -e "${YELLOW}Skipping credits graph (not a burstable instance)${NC}"
     fi
 
-    # Latency graph is always generated
+    # Generate latency graph if CSV exists
     if [ -f ./output/simulation_latency.csv ]; then
         LATENCY_MAX=$(awk -F, 'BEGIN {max=0} NR>1 {if($2>max) max=$2} END {print (max==0?1:max)}' ./output/simulation_latency.csv)
         graph ./output/simulation_latency.csv --title "Simulation Latency" --yrange=0:$LATENCY_MAX -o ./output/simulation_latency.png
-        echo -e "${GREEN}✓ Latency graph generated${NC}"
+        echo -e "${GREEN}Latency graph generated${NC}"
+    else
+        echo -e "${YELLOW}Latency CSV not found${NC}"
     fi
 fi
 

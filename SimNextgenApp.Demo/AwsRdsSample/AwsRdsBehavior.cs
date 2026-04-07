@@ -13,7 +13,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 {
     private IRunContext? _engineContext;
     private double _credits = initialCredits < 0 ? 0 : initialCredits;
-    private double _surplusCredits = 0.0; // Debt accrued when unlimited mode is enabled
+    private double _surplusCreditDebt = 0.0; // Outstanding debt balance accrued when unlimited mode is enabled (can be repaid)
     private long _lastUpdateTimeInSimUnits = 0L;
 
     // AWS fixed pricing for surplus credits
@@ -21,7 +21,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 
     private readonly BurstableInstanceSpec? _burstableSpec = spec as BurstableInstanceSpec;
     private readonly StringBuilder _latencyBuffer = new("Simulation Time (s),Latency (ms)\n");
-    private readonly StringBuilder _creditBuffer = new("Simulation Time (s),Credits,Surplus Credits\n");
+    private readonly StringBuilder _creditBuffer = new("Simulation Time (s),Credits,Surplus Credit Debt\n");
 
     private double MaxCredits => _burstableSpec?.MaxCredits ?? 0;
     private double EarnRatePerSec => (_burstableSpec?.EarnRatePerHour ?? 0) / 3600.0;
@@ -55,10 +55,10 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
             double earned = timeDeltaSeconds * EarnRatePerSec;
 
             // First repay surplus credits (debt) if in unlimited mode
-            if (isUnlimited && _surplusCredits > 0)
+            if (isUnlimited && _surplusCreditDebt > 0)
             {
-                double surplusRepayment = Math.Min(_surplusCredits, earned);
-                _surplusCredits -= surplusRepayment;
+                double surplusRepayment = Math.Min(_surplusCreditDebt, earned);
+                _surplusCreditDebt -= surplusRepayment;
                 earned -= surplusRepayment;
             }
 
@@ -90,7 +90,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
                 // Unlimited mode: accrue surplus credits (debt)
                 double shortage = actualBurn - _credits;
                 _credits = 0;
-                _surplusCredits += shortage;
+                _surplusCreditDebt += shortage;
             }
             else
             {
@@ -115,7 +115,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         _latencyBuffer.AppendLine($"{now:F2},{actualDuration * 1000:F0}");
 
         // Export credit data (Credits and Surplus Credits share the same unit for easy plotting)
-        _creditBuffer.AppendLine($"{now:F2},{_credits:F4},{_surplusCredits:F4}");
+        _creditBuffer.AppendLine($"{now:F2},{_credits:F4},{_surplusCreditDebt:F4}");
     }
 
     public void FinalizeExport(string directory)

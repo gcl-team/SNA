@@ -39,7 +39,7 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
     if (Test-Path ./output/simulation_credits.csv) {
         $credits = Import-Csv ./output/simulation_credits.csv
         $creditsMax = ($credits | Measure-Object -Property "Credits" -Maximum).Maximum
-        $surplusMax = ($credits | Measure-Object -Property "Surplus Credits" -Maximum).Maximum
+        $surplusMax = ($credits | Measure-Object -Property "Surplus Credit Debt" -Maximum).Maximum
 
         # Normalize nulls to 0 before calling Math::Max to handle empty CSV edge case
         if ($null -eq $creditsMax) { $creditsMax = 0 }
@@ -49,12 +49,12 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
         if ($creditMax -eq 0) { $creditMax = 1 }
 
         graph ./output/simulation_credits.csv --title "AWS RDS Credits (Regular vs Surplus)" --yrange="0:$creditMax" -o ./output/simulation_credits.png
-        Write-Host "✓ Credits graph generated" -ForegroundColor Green
+        Write-Host "Credits graph generated" -ForegroundColor Green
     } else {
-        Write-Host "⊘ Skipping credits graph (not a burstable instance)" -ForegroundColor Yellow
+        Write-Host "Skipping credits graph (not a burstable instance)" -ForegroundColor Yellow
     }
 
-    # Latency graph is always generated
+    # Generate latency graph if CSV exists
     if (Test-Path ./output/simulation_latency.csv) {
         $latency = Import-Csv ./output/simulation_latency.csv
         # Use index-based property access since header has parentheses
@@ -62,7 +62,9 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
         if ($null -eq $latencyMax) { $latencyMax = 1 }
 
         graph ./output/simulation_latency.csv --title "Simulation Latency" --yrange="0:$latencyMax" -o ./output/simulation_latency.png
-        Write-Host "✓ Latency graph generated" -ForegroundColor Green
+        Write-Host "Latency graph generated" -ForegroundColor Green
+    } else {
+        Write-Host "Latency CSV not found" -ForegroundColor Yellow
     }
 }
 
