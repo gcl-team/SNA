@@ -14,6 +14,7 @@ public class OtlpExporterTests
         // Grafana Cloud uses signal-specific paths
         Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/traces", config.TracesEndpoint.ToString());
         Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/logs", config.LogsEndpoint.ToString());
         Assert.Contains("Authorization", config.Headers.Keys);
         Assert.StartsWith("Basic ", config.Headers["Authorization"]);
     }
@@ -27,6 +28,7 @@ public class OtlpExporterTests
         Assert.NotNull(config);
         Assert.Equal("https://otlp-gateway-prod-eu-west-0.grafana.net/otlp/v1/traces", config.TracesEndpoint.ToString());
         Assert.Equal("https://otlp-gateway-prod-eu-west-0.grafana.net/otlp/v1/metrics", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://otlp-gateway-prod-eu-west-0.grafana.net/otlp/v1/logs", config.LogsEndpoint.ToString());
         Assert.Contains("Authorization", config.Headers.Keys);
     }
 
@@ -37,9 +39,10 @@ public class OtlpExporterTests
         var config = OtlpExporterConfiguration.ConfigureForBackend(OtlpBackend.Datadog, apiKey);
 
         Assert.NotNull(config);
-        // Datadog uses unified endpoint for both signals
+        // Datadog uses unified endpoint for all signals
         Assert.Equal("https://api.us1.datadoghq.com/api/v2/otlp", config.TracesEndpoint.ToString());
         Assert.Equal("https://api.us1.datadoghq.com/api/v2/otlp", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://api.us1.datadoghq.com/api/v2/otlp", config.LogsEndpoint.ToString());
         Assert.Contains("dd-api-key", config.Headers.Keys);
         Assert.Equal(apiKey, config.Headers["dd-api-key"]);
     }
@@ -53,6 +56,7 @@ public class OtlpExporterTests
         Assert.NotNull(config);
         Assert.Equal("https://api.eu1.datadoghq.com/api/v2/otlp", config.TracesEndpoint.ToString());
         Assert.Equal("https://api.eu1.datadoghq.com/api/v2/otlp", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://api.eu1.datadoghq.com/api/v2/otlp", config.LogsEndpoint.ToString());
         Assert.Equal(apiKey, config.Headers["dd-api-key"]);
     }
 
@@ -66,6 +70,7 @@ public class OtlpExporterTests
         // Honeycomb uses signal-specific endpoints
         Assert.Equal("https://api.honeycomb.io/v1/traces", config.TracesEndpoint.ToString());
         Assert.Equal("https://api.honeycomb.io/v1/metrics", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://api.honeycomb.io/v1/logs", config.LogsEndpoint.ToString());
         Assert.Contains("x-honeycomb-team", config.Headers.Keys);
         Assert.Equal(apiKey, config.Headers["x-honeycomb-team"]);
     }
@@ -79,6 +84,7 @@ public class OtlpExporterTests
         Assert.NotNull(config);
         Assert.Equal("https://api.eu1.honeycomb.io/v1/traces", config.TracesEndpoint.ToString());
         Assert.Equal("https://api.eu1.honeycomb.io/v1/metrics", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://api.eu1.honeycomb.io/v1/logs", config.LogsEndpoint.ToString());
         Assert.Contains("x-honeycomb-team", config.Headers.Keys);
     }
 
@@ -101,6 +107,7 @@ public class OtlpExporterTests
         Assert.NotNull(config);
         Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/traces", config.TracesEndpoint.ToString());
         Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/metrics", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://otlp-gateway-prod-us-central-0.grafana.net/otlp/v1/logs", config.LogsEndpoint.ToString());
         Assert.Contains("Authorization", config.Headers.Keys);
 
         // Verify Base64 encoding
@@ -135,6 +142,7 @@ public class OtlpExporterTests
         // Grafana Cloud uses signal-specific endpoint
         Assert.Equal($"{expectedEndpointPrefix}/traces", config.TracesEndpoint.ToString());
         Assert.Equal($"{expectedEndpointPrefix}/metrics", config.MetricsEndpoint.ToString());
+        Assert.Equal($"{expectedEndpointPrefix}/logs", config.LogsEndpoint.ToString());
     }
 
     [Fact]
@@ -146,6 +154,7 @@ public class OtlpExporterTests
         Assert.NotNull(config);
         Assert.Equal("https://api.us1.datadoghq.com/api/v2/otlp", config.TracesEndpoint.ToString());
         Assert.Equal("https://api.us1.datadoghq.com/api/v2/otlp", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://api.us1.datadoghq.com/api/v2/otlp", config.LogsEndpoint.ToString());
         Assert.Equal(apiKey, config.Headers["dd-api-key"]);
     }
 
@@ -164,6 +173,7 @@ public class OtlpExporterTests
         // Datadog uses unified endpoint
         Assert.Equal(expectedEndpoint, config.TracesEndpoint.ToString());
         Assert.Equal(expectedEndpoint, config.MetricsEndpoint.ToString());
+        Assert.Equal(expectedEndpoint, config.LogsEndpoint.ToString());
     }
 
     [Theory]
@@ -186,6 +196,7 @@ public class OtlpExporterTests
         // Honeycomb uses signal-specific endpoints
         Assert.Equal("https://api.honeycomb.io/v1/traces", config.TracesEndpoint.ToString());
         Assert.Equal("https://api.honeycomb.io/v1/metrics", config.MetricsEndpoint.ToString());
+        Assert.Equal("https://api.honeycomb.io/v1/logs", config.LogsEndpoint.ToString());
         Assert.Equal(apiKey, config.Headers["x-honeycomb-team"]);
     }
 
@@ -200,12 +211,12 @@ public class OtlpExporterTests
     }
 
     [Theory]
-    [InlineData(null, "https://api.honeycomb.io/v1/traces", "https://api.honeycomb.io/v1/metrics")]
-    [InlineData("us", "https://api.honeycomb.io/v1/traces", "https://api.honeycomb.io/v1/metrics")]
-    [InlineData("US", "https://api.honeycomb.io/v1/traces", "https://api.honeycomb.io/v1/metrics")]
-    [InlineData("eu1", "https://api.eu1.honeycomb.io/v1/traces", "https://api.eu1.honeycomb.io/v1/metrics")]
-    [InlineData("EU1", "https://api.eu1.honeycomb.io/v1/traces", "https://api.eu1.honeycomb.io/v1/metrics")]
-    public void CreateHoneycombConfig_WithDifferentRegions_ReturnsCorrectEndpoint(string? region, string expectedTracesEndpoint, string expectedMetricsEndpoint)
+    [InlineData(null, "https://api.honeycomb.io/v1/traces", "https://api.honeycomb.io/v1/metrics", "https://api.honeycomb.io/v1/logs")]
+    [InlineData("us", "https://api.honeycomb.io/v1/traces", "https://api.honeycomb.io/v1/metrics", "https://api.honeycomb.io/v1/logs")]
+    [InlineData("US", "https://api.honeycomb.io/v1/traces", "https://api.honeycomb.io/v1/metrics", "https://api.honeycomb.io/v1/logs")]
+    [InlineData("eu1", "https://api.eu1.honeycomb.io/v1/traces", "https://api.eu1.honeycomb.io/v1/metrics", "https://api.eu1.honeycomb.io/v1/logs")]
+    [InlineData("EU1", "https://api.eu1.honeycomb.io/v1/traces", "https://api.eu1.honeycomb.io/v1/metrics", "https://api.eu1.honeycomb.io/v1/logs")]
+    public void CreateHoneycombConfig_WithDifferentRegions_ReturnsCorrectEndpoint(string? region, string expectedTracesEndpoint, string expectedMetricsEndpoint, string expectedLogsEndpoint)
     {
         var apiKey = "honeycomb-api-key-123";
         var config = OtlpExporterConfiguration.CreateHoneycombConfig(apiKey, region);
@@ -213,6 +224,7 @@ public class OtlpExporterTests
         // Honeycomb uses signal-specific endpoints
         Assert.Equal(expectedTracesEndpoint, config.TracesEndpoint.ToString());
         Assert.Equal(expectedMetricsEndpoint, config.MetricsEndpoint.ToString());
+        Assert.Equal(expectedLogsEndpoint, config.LogsEndpoint.ToString());
     }
 
     [Fact]
