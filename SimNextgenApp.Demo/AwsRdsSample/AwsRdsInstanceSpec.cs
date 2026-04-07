@@ -13,16 +13,18 @@ internal abstract record AwsRdsInstanceSpec(
 
 /// <summary>
 /// Specification for burstable (T-series) instances.
+/// SlowSecs is modeled as FastSecs / BaselinePercent, assuming CPU-bound linear scaling.
+/// This is a first-order approximation. The real-world performance depends on workload characteristics.
 /// </summary>
 internal record BurstableInstanceSpec(
     string Family,
     string Size,
     int VCpus,
     double FastSecs,
-    double SlowSecs,
     double EarnRatePerHour,
-    double MaxCredits
-) : AwsRdsInstanceSpec(Family, Size, VCpus, FastSecs, SlowSecs);
+    double MaxCredits,
+    double BaselinePercent
+) : AwsRdsInstanceSpec(Family, Size, VCpus, FastSecs, FastSecs / BaselinePercent);
 
 /// <summary>
 /// Specification for fixed-performance (M, R, C series) instances.
@@ -41,17 +43,18 @@ internal static class AwsRdsRegistry
 {
     private static readonly List<AwsRdsInstanceSpec> Specs = new()
     {
-        // T3 - Burstable Intel
-        new BurstableInstanceSpec("t3", "micro",  2, 0.050, 3.0, 6,  144),
-        new BurstableInstanceSpec("t3", "small",  2, 0.050, 3.0, 12, 288),
-        new BurstableInstanceSpec("t3", "medium", 2, 0.050, 3.0, 24, 576),
-        new BurstableInstanceSpec("t3", "large",  2, 0.050, 3.0, 36, 864),
-        
-        // T4g - Burstable Graviton (Faster)
-        new BurstableInstanceSpec("t4g", "micro",  2, 0.040, 2.4, 6,  144),
-        new BurstableInstanceSpec("t4g", "small",  2, 0.040, 2.4, 12, 288),
-        new BurstableInstanceSpec("t4g", "medium", 2, 0.040, 2.4, 24, 576),
-        new BurstableInstanceSpec("t4g", "large",  2, 0.040, 2.4, 36, 864),
+        // T3 - Burstable Intel (SlowSecs calculated from BaselinePercent)
+        // Format: Family, Size, VCpus, FastSecs, EarnRatePerHour, MaxCredits, BaselinePercent
+        new BurstableInstanceSpec("t3", "micro",  2, 0.050, 6,  144, 0.10),  // 10% baseline → SlowSecs = 0.500
+        new BurstableInstanceSpec("t3", "small",  2, 0.050, 12, 288, 0.20),  // 20% baseline → SlowSecs = 0.250
+        new BurstableInstanceSpec("t3", "medium", 2, 0.050, 24, 576, 0.20),  // 20% baseline → SlowSecs = 0.250
+        new BurstableInstanceSpec("t3", "large",  2, 0.050, 36, 864, 0.30),  // 30% baseline → SlowSecs = 0.167
+
+        // T4g - Burstable Graviton (Faster, similar baseline percentages)
+        new BurstableInstanceSpec("t4g", "micro",  2, 0.040, 6,  144, 0.10),  // 10% baseline → SlowSecs = 0.400
+        new BurstableInstanceSpec("t4g", "small",  2, 0.040, 12, 288, 0.20),  // 20% baseline → SlowSecs = 0.200
+        new BurstableInstanceSpec("t4g", "medium", 2, 0.040, 24, 576, 0.20),  // 20% baseline → SlowSecs = 0.200
+        new BurstableInstanceSpec("t4g", "large",  2, 0.040, 36, 864, 0.30),  // 30% baseline → SlowSecs = 0.133
 
         // M5 - Fixed Performance Intel
         new FixedInstanceSpec("m5", "large", 2, 0.045),
