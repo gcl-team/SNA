@@ -35,7 +35,7 @@ internal record BurstableInstanceSpec(
         if (baselineFraction <= 0 || baselineFraction > 1.0)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(baselineFraction),
+                "BaselineFraction",  // Use literal to match public record parameter name (not nameof)
                 baselineFraction,
                 "BaselineFraction must be > 0 and <= 1.0 (e.g., 0.20 for 20% baseline).");
         }
