@@ -509,6 +509,10 @@ public class SimulationTelemetryBuilder
                     options.IncludeFormattedMessage = true;
                     options.ParseStateValues = true;
 
+                    // Apply the same service name and version to logs
+                    options.SetResourceBuilder(ResourceBuilder.CreateDefault()
+                        .AddService(serviceName: _serviceName, serviceVersion: _serviceVersion));
+
                     // Add console exporter if requested
                     if (_useLoggingConsoleExporter)
                     {

@@ -44,12 +44,6 @@ internal static class AwsBurstScenario
             {
                 try
                 {
-                    // Create OTLP config to inspect endpoint
-                    var otlpConfig = OtlpExporterConfiguration.ConfigureForBackend(
-                        OtlpBackend.GrafanaCloud,
-                        apiKey: grafanaApiKey,
-                        region: grafanaRegion);
-
                     telemetry = SimulationTelemetry.Create()
                         .WithServiceInfo("AWS-RDS-Simulation", "1.0.0")
                         .WithOtlpExporter(
