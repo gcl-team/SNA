@@ -42,7 +42,7 @@ internal record BurstableInstanceSpec(
 
         return fastSecs / baselineFraction;
     }
-};
+}
 
 /// <summary>
 /// Specification for fixed-performance (M, R, C series) instances.
