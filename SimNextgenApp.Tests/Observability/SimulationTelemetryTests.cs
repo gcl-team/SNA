@@ -118,7 +118,7 @@ public class SimulationTelemetryTests
         Assert.NotNull(telemetry.Meter);
     }
 
-    [Fact(DisplayName = "Flush should flush telemetry data.")]
+    [Fact(DisplayName = "Flush should flush telemetry data and return success.")]
     public void Flush_FlushesTelemetryData()
     {
         // Arrange
@@ -126,11 +126,29 @@ public class SimulationTelemetryTests
             .WithConsoleExporter()
             .Build();
 
-        // Act & Assert - Should not throw
-        telemetry.Flush();
+        // Act
+        bool flushSuccess = telemetry.Flush();
+
+        // Assert
+        Assert.True(flushSuccess, "Flush should return true indicating all providers flushed successfully");
 
         // Cleanup
         telemetry.Dispose();
+    }
+
+    [Fact(DisplayName = "Flush should reject zero or negative timeout.")]
+    public void Flush_ZeroOrNegativeTimeout_ThrowsArgumentOutOfRangeException()
+    {
+        // Arrange
+        using var telemetry = SimulationTelemetry.Create().Build();
+
+        // Act & Assert - Zero timeout
+        var ex1 = Assert.Throws<ArgumentOutOfRangeException>(() => telemetry.Flush(0));
+        Assert.Equal("timeoutMilliseconds", ex1.ParamName);
+
+        // Negative timeout
+        var ex2 = Assert.Throws<ArgumentOutOfRangeException>(() => telemetry.Flush(-100));
+        Assert.Equal("timeoutMilliseconds", ex2.ParamName);
     }
 
     [Fact(DisplayName = "WithPrometheusExporter should accept custom port and hostname.")]
@@ -279,5 +297,44 @@ public class SimulationTelemetryTests
             SimulationTelemetry.Create().WithOtlpExporter(OtlpBackend.Datadog, "   ");
         });
         Assert.Equal("apiKey", ex3.ParamName);
+    }
+
+    [Fact(DisplayName = "WithServiceInfo should reject null or empty service name.")]
+    public void WithServiceInfo_NullOrEmptyServiceName_ThrowsArgumentException()
+    {
+        // Act & Assert - Null service name
+        var ex1 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create().WithServiceInfo(null!);
+        });
+        Assert.Equal("serviceName", ex1.ParamName);
+
+        // Empty service name
+        var ex2 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create().WithServiceInfo("");
+        });
+        Assert.Equal("serviceName", ex2.ParamName);
+
+        // Whitespace service name
+        var ex3 = Assert.Throws<ArgumentException>(() =>
+        {
+            SimulationTelemetry.Create().WithServiceInfo("   ");
+        });
+        Assert.Equal("serviceName", ex3.ParamName);
+    }
+
+    [Fact(DisplayName = "WithServiceInfo should accept valid inputs and return builder.")]
+    public void WithServiceInfo_ValidInputs_DoesNotThrow()
+    {
+        // Act
+        var builder = SimulationTelemetry.Create()
+            .WithServiceInfo("MyCustomService", "2.5.0");
+
+        // Assert
+        Assert.NotNull(builder);
+        
+        using var telemetry = builder.Build();
+        Assert.NotNull(telemetry);
     }
 }

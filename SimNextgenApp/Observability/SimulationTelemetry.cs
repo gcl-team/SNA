@@ -94,6 +94,9 @@ public sealed class SimulationTelemetry : IDisposable
     /// </remarks>
     public bool Flush(int timeoutMilliseconds = 5000)
     {
+        if (timeoutMilliseconds <= 0)
+            throw new ArgumentOutOfRangeException(nameof(timeoutMilliseconds), "Timeout must be greater than zero.");
+
         bool tracerFlushed = _tracerProvider?.ForceFlush(timeoutMilliseconds) ?? true;
         bool meterFlushed = _meterProvider?.ForceFlush(timeoutMilliseconds) ?? true;
         return tracerFlushed && meterFlushed;
