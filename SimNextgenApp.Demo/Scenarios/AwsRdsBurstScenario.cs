@@ -194,8 +194,7 @@ internal static class AwsBurstScenario
             }
             catch (Exception ex)
             {
-                programLogger.LogError($"FLUSH FAILED: {ex.Message}");
-                programLogger.LogError($"Stack trace: {ex.StackTrace}");
+                programLogger.LogError(ex, "FLUSH FAILED");
             }
 
             try
@@ -206,7 +205,7 @@ internal static class AwsBurstScenario
             }
             catch (Exception ex)
             {
-                programLogger.LogError($"DISPOSE FAILED: {ex.Message}");
+                programLogger.LogError(ex, "DISPOSE FAILED");
             }
         }
 
