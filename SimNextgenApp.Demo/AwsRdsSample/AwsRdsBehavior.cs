@@ -49,20 +49,26 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     {
         _meter = meter;
 
-        // Create observable gauges for real-time credit tracking
+        // Create observable gauges for real-time credit tracking with dimensional tags
         _creditsGauge = _meter.CreateObservableGauge(
             "rds.cpu_credits",
-            () => {
-                return _credits;
-            },
+            () => new Measurement<double>(
+                _credits,
+                new KeyValuePair<string, object?>("sna.rds.instance_family", spec.Family),
+                new KeyValuePair<string, object?>("sna.rds.instance_size", spec.Size),
+                new KeyValuePair<string, object?>("sna.rds.is_burstable", IsBurstable)
+            ),
             unit: "credits",
             description: "Current CPU credits balance");
 
         _surplusDebtGauge = _meter.CreateObservableGauge(
             "rds.surplus_credit_debt",
-            () => {
-                return _surplusCreditDebt;
-            },
+            () => new Measurement<double>(
+                _surplusCreditDebt,
+                new KeyValuePair<string, object?>("sna.rds.instance_family", spec.Family),
+                new KeyValuePair<string, object?>("sna.rds.instance_size", spec.Size),
+                new KeyValuePair<string, object?>("sna.rds.is_burstable", IsBurstable)
+            ),
             unit: "credits",
             description: "Surplus credit debt accrued in unlimited mode");
 

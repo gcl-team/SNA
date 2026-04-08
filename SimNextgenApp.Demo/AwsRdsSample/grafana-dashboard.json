@@ -53,7 +53,7 @@
                       "version": "v0",
                       "spec": {
                         "expr": "rds_cpu_credits{service_name=\"AWS-RDS-Simulation\"}",
-                        "legendFormat": "CPU Credits"
+                        "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
                       }
                     },
                     "refId": "A",
@@ -172,7 +172,7 @@
                       "version": "v0",
                       "spec": {
                         "expr": "rds_surplus_credit_debt_credits{service_name=\"AWS-RDS-Simulation\"}",
-                        "legendFormat": "Surplus Debt"
+                        "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
                       }
                     },
                     "refId": "A",
@@ -465,8 +465,8 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sum(rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})",
-                        "legendFormat": "Total Requests"
+                        "expr": "rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"}",
+                        "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
                       }
                     },
                     "refId": "A",
