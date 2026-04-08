@@ -13,6 +13,9 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 {
     private IRunContext? _engineContext;
 
+    // Store the isUnlimited parameter as a field (primary constructor params aren't automatic fields for classes)
+    private readonly bool _isUnlimited = isUnlimited;
+
     // Thread-safe storage for cross-thread access by OpenTelemetry's background metric collection
     // Using volatile read/write pattern via Volatile.Read() / Volatile.Write()
     // These are updated on the simulation thread but read by observable gauge callbacks
@@ -117,7 +120,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
             double earned = timeDeltaSeconds * EarnRatePerSec;
 
             // First repay surplus credits (debt) if in unlimited mode
-            if (isUnlimited && SurplusCreditDebt > 0)
+            if (_isUnlimited && SurplusCreditDebt > 0)
             {
                 double surplusRepayment = Math.Min(SurplusCreditDebt, earned);
                 SurplusCreditDebt -= surplusRepayment;
@@ -134,7 +137,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         bool isThrottled = IsBurstable && Credits < estimatedBurstCost;
 
         // 3. Determine Service Time
-        double baseTime = isThrottled && !isUnlimited ? spec.SlowSecs : spec.FastSecs;
+        double baseTime = isThrottled && !_isUnlimited ? spec.SlowSecs : spec.FastSecs;
         double actualDuration = -baseTime * Math.Log(1.0 - rnd.NextDouble());
 
         // 4. Pay the Bill
@@ -147,7 +150,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
                 // Normal case: sufficient credits available
                 Credits -= actualBurn;
             }
-            else if (isUnlimited)
+            else if (_isUnlimited)
             {
                 // Unlimited mode: accrue surplus credits (debt)
                 double shortage = actualBurn - Credits;
@@ -197,7 +200,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     {
         if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
 
-        string creditsFilePath = Path.Combine(directory, "simulationCredits.csv");
+        string creditsFilePath = Path.Combine(directory, "simulation_credits.csv");
         if (File.Exists(creditsFilePath))
         {
             File.Delete(creditsFilePath);
