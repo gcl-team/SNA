@@ -59,7 +59,7 @@ internal static class AwsBurstScenario
                 catch (Exception ex)
                 {
                     var tempLogger = loggerFactory.CreateLogger("AWS-Simulation");
-                    tempLogger.LogError("Failed to configure Grafana Cloud export: {ExMessage}", ex.Message);
+                    tempLogger.LogError(ex, "Failed to configure Grafana Cloud export");
                     tempLogger.LogWarning("Continuing simulation without Grafana export...");
                 }
             }
