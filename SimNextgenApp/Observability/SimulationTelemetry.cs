@@ -85,8 +85,11 @@ public sealed class SimulationTelemetry : IDisposable
     /// Forces the exporters to flush any pending telemetry data immediately to their targets.
     /// Useful at the end of a simulation run to ensure all data is exported before the application exits.
     /// </summary>
+    /// <param name="timeoutMilliseconds">The specified timeout for flush operations in milliseconds. Defaults to 5000ms.</param>
+    /// <returns>Returns true if the flush operation completed successfully for trace and metric providers, or false if it timed out.</returns>
     /// <remarks>
-    /// This method only flushes pending data and does not stop the providers from accepting new telemetry.
+    /// This method explicitly flushes pending traces and metrics. Note that OpenTelemetry logs (managed via ILoggerFactory) 
+    /// do not support on-demand flushing and will only be flushed during full shutdown when Dispose() is called.
     /// For full shutdown and cleanup, call Dispose() or use the telemetry object in a using statement.
     /// </remarks>
     public bool Flush(int timeoutMilliseconds = 5000)
