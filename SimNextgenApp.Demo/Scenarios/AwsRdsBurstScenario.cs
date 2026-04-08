@@ -27,7 +27,7 @@ internal static class AwsBurstScenario
             var grafanaApiKey = Environment.GetEnvironmentVariable("GRAFANA_API_KEY");
             var grafanaRegion = Environment.GetEnvironmentVariable("GRAFANA_REGION") ?? "us-central-0";
 
-            if (string.IsNullOrEmpty(grafanaApiKey))
+            if (string.IsNullOrWhiteSpace(grafanaApiKey))
             {
                 var tempLogger = loggerFactory.CreateLogger("AWS-Simulation");
                 tempLogger.LogError("GRAFANA_API_KEY environment variable not set!");
