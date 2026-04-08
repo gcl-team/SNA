@@ -90,8 +90,8 @@ public sealed class OtlpExporterConfiguration
     /// <remarks>
     /// API key format: "instanceId:apiToken" where instanceId is your Grafana Cloud instance ID.
     /// Supported regions: us-central-0, eu-west-0, ap-southeast-0, au-southeast-0
-    /// Endpoint format: https://otlp-gateway-prod-{region}.grafana.net/otlp (OTLP/HTTP)
-    /// Grafana Cloud uses a unified endpoint for traces, metrics, and logs.
+    /// Endpoint format: https://otlp-gateway-prod-{region}.grafana.net/otlp/v1/{signal} (OTLP/HTTP)
+    /// Grafana Cloud requires explicit signal-specific paths: /v1/metrics, /v1/traces, /v1/logs
     /// Protocol: OTLP/HTTP (HttpProtobuf)
     /// </remarks>
     public static OtlpExporterConfiguration CreateGrafanaCloudConfig(string apiKey, string? region = null)
@@ -100,14 +100,17 @@ public sealed class OtlpExporterConfiguration
             throw new ArgumentNullException(nameof(apiKey));
 
         region ??= "us-central-0"; // Default to US Central region
-        var endpoint = new Uri($"https://otlp-gateway-prod-{region}.grafana.net/otlp");
+        var baseUrl = $"https://otlp-gateway-prod-{region}.grafana.net/otlp";
+        var tracesEndpoint = new Uri($"{baseUrl}/v1/traces");
+        var metricsEndpoint = new Uri($"{baseUrl}/v1/metrics");
+        var logsEndpoint = new Uri($"{baseUrl}/v1/logs");
         var headers = new Dictionary<string, string>
         {
             ["Authorization"] = $"Basic {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(apiKey))}"
         };
 
-        // Grafana Cloud uses unified endpoint for all three signals
-        return new OtlpExporterConfiguration(endpoint, endpoint, endpoint, headers);
+        // Grafana Cloud requires explicit signal-specific paths
+        return new OtlpExporterConfiguration(tracesEndpoint, metricsEndpoint, logsEndpoint, headers);
     }
 
     /// <summary>

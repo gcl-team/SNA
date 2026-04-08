@@ -3,6 +3,7 @@ using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using SimNextgenApp.Observability.Sampling;
 using SimNextgenApp.Observability.VolumeEstimation;
@@ -84,14 +85,21 @@ public sealed class SimulationTelemetry : IDisposable
     /// Forces the exporters to flush any pending telemetry data immediately to their targets.
     /// Useful at the end of a simulation run to ensure all data is exported before the application exits.
     /// </summary>
+    /// <param name="timeoutMilliseconds">The specified timeout for flush operations in milliseconds. Defaults to 5000ms.</param>
+    /// <returns>Returns true if the flush operation completed successfully for trace and metric providers, or false if it timed out.</returns>
     /// <remarks>
-    /// This method only flushes pending data and does not stop the providers from accepting new telemetry.
+    /// This method explicitly flushes pending traces and metrics. Note that OpenTelemetry logs (managed via ILoggerFactory) 
+    /// do not support on-demand flushing and will only be flushed during full shutdown when Dispose() is called.
     /// For full shutdown and cleanup, call Dispose() or use the telemetry object in a using statement.
     /// </remarks>
-    public void Flush()
+    public bool Flush(int timeoutMilliseconds = 5000)
     {
-        _tracerProvider?.ForceFlush();
-        _meterProvider?.ForceFlush();
+        if (timeoutMilliseconds <= 0)
+            throw new ArgumentOutOfRangeException(nameof(timeoutMilliseconds), "Timeout must be greater than zero.");
+
+        bool tracerFlushed = _tracerProvider?.ForceFlush(timeoutMilliseconds) ?? true;
+        bool meterFlushed = _meterProvider?.ForceFlush(timeoutMilliseconds) ?? true;
+        return tracerFlushed && meterFlushed;
     }
 
     /// <summary>
@@ -194,6 +202,8 @@ public class SimulationTelemetryBuilder
     private bool _useLogging;
     private bool _useLoggingConsoleExporter;
     private bool _useLoggingOtlpExporter;
+    private string _serviceName = "SimNextgenApp";
+    private string _serviceVersion = "1.0.0";
 
     /// <summary>
     /// Appends the Console Exporter to both the tracer and meter providers.
@@ -336,6 +346,21 @@ public class SimulationTelemetryBuilder
     }
 
     /// <summary>
+    /// Sets the service name and version for telemetry resource attributes.
+    /// </summary>
+    /// <param name="serviceName">The name of the service (default: "SimNextgenApp").</param>
+    /// <param name="serviceVersion">The version of the service (default: "1.0.0").</param>
+    public SimulationTelemetryBuilder WithServiceInfo(string serviceName, string? serviceVersion = null)
+    {
+        if (string.IsNullOrWhiteSpace(serviceName))
+            throw new ArgumentException("Service name cannot be null, empty, or whitespace.", nameof(serviceName));
+
+        _serviceName = serviceName;
+        _serviceVersion = string.IsNullOrWhiteSpace(serviceVersion) ? "1.0.0" : serviceVersion;
+        return this;
+    }
+
+    /// <summary>
     /// Adds OTLP exporter with backend-specific configuration presets.
     /// </summary>
     /// <param name="backend">The backend provider (GrafanaCloud, Datadog, Honeycomb).</param>
@@ -378,10 +403,14 @@ public class SimulationTelemetryBuilder
         }
 
         var tracerBuilder = Sdk.CreateTracerProviderBuilder()
-            .AddSource(SimulationTelemetry.ActivitySourceName);
+            .AddSource(SimulationTelemetry.ActivitySourceName)
+            .SetResourceBuilder(ResourceBuilder.CreateDefault()
+                .AddService(serviceName: _serviceName, serviceVersion: _serviceVersion));
 
         var meterBuilder = Sdk.CreateMeterProviderBuilder()
-            .AddMeter(SimulationTelemetry.MeterName);
+            .AddMeter(SimulationTelemetry.MeterName)
+            .SetResourceBuilder(ResourceBuilder.CreateDefault()
+                .AddService(serviceName: _serviceName, serviceVersion: _serviceVersion));
 
         // Apply sampling configuration if specified
         if (_samplingConfig != null)
@@ -486,6 +515,10 @@ public class SimulationTelemetryBuilder
                     options.IncludeScopes = true;
                     options.IncludeFormattedMessage = true;
                     options.ParseStateValues = true;
+
+                    // Apply the same service name and version to logs
+                    options.SetResourceBuilder(ResourceBuilder.CreateDefault()
+                        .AddService(serviceName: _serviceName, serviceVersion: _serviceVersion));
 
                     // Add console exporter if requested
                     if (_useLoggingConsoleExporter)
