@@ -350,7 +350,7 @@ public class SimulationTelemetryBuilder
             throw new ArgumentException("Service name cannot be null or empty.", nameof(serviceName));
 
         _serviceName = serviceName;
-        _serviceVersion = serviceVersion ?? "1.0.0";
+        _serviceVersion = string.IsNullOrWhiteSpace(serviceVersion) ? "1.0.0" : serviceVersion;
         return this;
     }
 

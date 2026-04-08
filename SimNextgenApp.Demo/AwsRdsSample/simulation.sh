@@ -9,7 +9,7 @@
 # GRAFANA CLOUD INTEGRATION
 #     Use --grafana true to export metrics to Grafana Cloud via OpenTelemetry.
 #     Requires GRAFANA_API_KEY environment variable (format: INSTANCE_ID:API_TOKEN).
-#     See GRAFANA_SETUP.md for detailed setup instructions.
+#     Set the API key before running the script and use the example below as a reference for configuration.
 # EXAMPLES
 #     # Basic simulation with CSV export
 #     ./simulation.sh aws-rds-burst --family t3 --size medium --duration 720 --initial-credits 10
