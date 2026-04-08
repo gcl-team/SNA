@@ -51,7 +51,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 
         // Create observable gauges for real-time credit tracking with dimensional tags
         _creditsGauge = _meter.CreateObservableGauge(
-            "rds.cpu_credits",
+            "sna.rds.cpu_credits",
             () => new Measurement<double>(
                 _credits,
                 new KeyValuePair<string, object?>("sna.rds.instance_family", spec.Family),
@@ -62,7 +62,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
             description: "Current CPU credits balance");
 
         _surplusDebtGauge = _meter.CreateObservableGauge(
-            "rds.surplus_credit_debt",
+            "sna.rds.surplus_credit_debt",
             () => new Measurement<double>(
                 _surplusCreditDebt,
                 new KeyValuePair<string, object?>("sna.rds.instance_family", spec.Family),
@@ -74,7 +74,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 
         // Create histogram for latency distribution
         _latencyHistogram = _meter.CreateHistogram<double>(
-            "rds.query_latency",
+            "sna.rds.query_latency",
             unit: "ms",
             description: "Query latency distribution in milliseconds");
     }

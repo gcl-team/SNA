@@ -52,7 +52,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "rds_cpu_credits{service_name=\"AWS-RDS-Simulation\"}",
+                        "expr": "sna_rds_cpu_credits{service_name=\"AWS-RDS-Simulation\"}",
                         "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
                       }
                     },
@@ -171,7 +171,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "rds_surplus_credit_debt_credits{service_name=\"AWS-RDS-Simulation\"}",
+                        "expr": "sna_rds_surplus_credit_debt_credits{service_name=\"AWS-RDS-Simulation\"}",
                         "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
                       }
                     },
@@ -286,7 +286,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.50, sum(rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.50, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
                         "legendFormat": "P50 (median)"
                       }
                     },
@@ -302,7 +302,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.75, sum(rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.75, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
                         "legendFormat": "P75"
                       }
                     },
@@ -318,7 +318,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.90, sum(rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.90, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
                         "legendFormat": "P90"
                       }
                     },
@@ -334,7 +334,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.95, sum(rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.95, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
                         "legendFormat": "P95"
                       }
                     },
@@ -350,7 +350,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.99, sum(rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.99, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
                         "legendFormat": "P99"
                       }
                     },
@@ -465,7 +465,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"}",
+                        "expr": "sna_rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"}",
                         "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
                       }
                     },
@@ -580,7 +580,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sum(rds_query_latency_milliseconds_sum{service_name=\"AWS-RDS-Simulation\"}) / sum(rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})"
+                        "expr": "sum(sna_rds_query_latency_milliseconds_sum{service_name=\"AWS-RDS-Simulation\"}) / sum(sna_rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})"
                       }
                     },
                     "refId": "A",
@@ -663,7 +663,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "rds_cpu_credits{service_name=\"AWS-RDS-Simulation\"}"
+                        "expr": "sna_rds_cpu_credits{service_name=\"AWS-RDS-Simulation\"}"
                       }
                     },
                     "refId": "A",
@@ -747,7 +747,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sum(rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})"
+                        "expr": "sum(sna_rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})"
                       }
                     },
                     "refId": "A",
@@ -826,7 +826,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(1.0, sum(rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))"
+                        "expr": "histogram_quantile(1.0, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))"
                       }
                     },
                     "refId": "A",
