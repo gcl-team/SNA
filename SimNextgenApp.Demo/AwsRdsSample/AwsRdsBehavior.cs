@@ -14,24 +14,24 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     private IRunContext? _engineContext;
 
     // Thread-safe storage for cross-thread access by OpenTelemetry's background metric collection
-    // Using long to store double bit patterns for atomic operations via Interlocked
+    // Using volatile read/write pattern via Volatile.Read() / Volatile.Write()
     // These are updated on the simulation thread but read by observable gauge callbacks
-    private long _creditsAsLong = BitConverter.DoubleToInt64Bits(initialCredits < 0 ? 0 : initialCredits);
-    private long _surplusCreditDebtAsLong = 0L;
+    private double _credits = initialCredits < 0 ? 0 : initialCredits;
+    private double _surplusCreditDebt = 0.0;
 
     private long _lastUpdateTimeInSimUnits = 0L;
 
-    // Thread-safe properties for accessing credits across threads
+    // Thread-safe properties using volatile read/write pattern
     private double Credits
     {
-        get => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _creditsAsLong));
-        set => Interlocked.Exchange(ref _creditsAsLong, BitConverter.DoubleToInt64Bits(value));
+        get => Volatile.Read(ref _credits);
+        set => Volatile.Write(ref _credits, value);
     }
 
     private double SurplusCreditDebt
     {
-        get => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _surplusCreditDebtAsLong));
-        set => Interlocked.Exchange(ref _surplusCreditDebtAsLong, BitConverter.DoubleToInt64Bits(value));
+        get => Volatile.Read(ref _surplusCreditDebt);
+        set => Volatile.Write(ref _surplusCreditDebt, value);
     }
 
     // AWS fixed pricing for surplus credits
