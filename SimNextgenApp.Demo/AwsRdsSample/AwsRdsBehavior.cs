@@ -59,7 +59,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
             description: "Current CPU credits balance");
 
         _surplusDebtGauge = _meter.CreateObservableGauge(
-            "rds_surplus_credit_debt",
+            "rds.surplus_credit_debt",
             () => {
                 return _surplusCreditDebt;
             },
