@@ -338,6 +338,7 @@ awsRdsBurstCommand.SetHandler((string family, string size, double duration, doub
     AwsBurstScenario.RunDemo(
         loggerFactory,
         duration,
+        spec,
         rdsBehavior,
         genSeed: 1234,
         enableGrafana: enableGrafana
@@ -402,6 +403,7 @@ azureDbBurstCommand.SetHandler((string series, string size, double duration, dou
     AzureDbBurstScenario.RunDemo(
         loggerFactory,
         duration,
+        spec,
         dbBehavior,
         genSeed: 1234,
         enableGrafana: enableGrafana

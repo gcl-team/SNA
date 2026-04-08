@@ -15,6 +15,7 @@ internal static class AwsBurstScenario
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
+        AwsRdsInstanceSpec spec,
         AwsRdsBehavior rdsBehavior,
         int genSeed,
         bool enableGrafana = false)
@@ -99,13 +100,12 @@ internal static class AwsBurstScenario
         var queueConfig = new QueueStaticConfig<MyLoad>();
 
         // 4. Create Model
-        // Assuming SimpleMmckModel exists from your previous code
         var model = new SimpleMmckModel(
-            generatorConfig, 
+            generatorConfig,
             genSeed,
             queueConfig,
-            serverConfig, 
-            numberOfServers: 2, // db.t3.medium has 2 vCPUs
+            serverConfig,
+            numberOfServers: spec.VCpus, // Use actual vCPU count from spec
             serverSeedBase: 100,
             systemCapacityK: 50,
             activeLoggerFactory

@@ -15,6 +15,7 @@ internal static class AzureDbBurstScenario
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
+        AzureDbInstanceSpec spec,
         AzureDbBehavior dbBehavior,
         int genSeed,
         bool enableGrafana = false)
@@ -104,7 +105,7 @@ internal static class AzureDbBurstScenario
             genSeed,
             queueConfig,
             serverConfig,
-            numberOfServers: 2, // e.g., B2ms has 2 vCores
+            numberOfServers: spec.VCores, // Use actual vCore count from spec
             serverSeedBase: 100,
             systemCapacityK: 50,
             activeLoggerFactory
