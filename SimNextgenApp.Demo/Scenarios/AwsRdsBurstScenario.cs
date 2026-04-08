@@ -119,7 +119,7 @@ internal static class AwsBurstScenario
             new DurationRunStrategy(runDurationInUnits, null),
             "AWS RDS Burstable Simulation",
             timeUnit,
-            loggerFactory
+            activeLoggerFactory
         );
 
         var engine = new SimulationEngine(profile);
