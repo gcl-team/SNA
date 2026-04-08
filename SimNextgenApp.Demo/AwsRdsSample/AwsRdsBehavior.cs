@@ -12,9 +12,27 @@ namespace SimNextgenApp.Demo.AwsRdsSample;
 internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5.0, bool isUnlimited = false)
 {
     private IRunContext? _engineContext;
-    private double _credits = initialCredits < 0 ? 0 : initialCredits;
-    private double _surplusCreditDebt = 0.0; // Outstanding debt balance accrued when unlimited mode is enabled (can be repaid)
+
+    // Thread-safe storage for cross-thread access by OpenTelemetry's background metric collection
+    // Using long to store double bit patterns for atomic operations via Interlocked
+    // These are updated on the simulation thread but read by observable gauge callbacks
+    private long _creditsAsLong = BitConverter.DoubleToInt64Bits(initialCredits < 0 ? 0 : initialCredits);
+    private long _surplusCreditDebtAsLong = 0L;
+
     private long _lastUpdateTimeInSimUnits = 0L;
+
+    // Thread-safe properties for accessing credits across threads
+    private double Credits
+    {
+        get => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _creditsAsLong));
+        set => Interlocked.Exchange(ref _creditsAsLong, BitConverter.DoubleToInt64Bits(value));
+    }
+
+    private double SurplusCreditDebt
+    {
+        get => BitConverter.Int64BitsToDouble(Interlocked.Read(ref _surplusCreditDebtAsLong));
+        set => Interlocked.Exchange(ref _surplusCreditDebtAsLong, BitConverter.DoubleToInt64Bits(value));
+    }
 
     // AWS fixed pricing for surplus credits
     // private const double AWS_SURPLUS_COST_PER_VCPU_HOUR = 0.05;
@@ -53,7 +71,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         _creditsGauge = _meter.CreateObservableGauge(
             "sna.rds.cpu_credits",
             () => new Measurement<double>(
-                _credits,
+                Credits,
                 new KeyValuePair<string, object?>("sna.rds.instance_family", spec.Family),
                 new KeyValuePair<string, object?>("sna.rds.instance_size", spec.Size),
                 new KeyValuePair<string, object?>("sna.rds.is_burstable", IsBurstable)
@@ -64,7 +82,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         _surplusDebtGauge = _meter.CreateObservableGauge(
             "sna.rds.surplus_credit_debt",
             () => new Measurement<double>(
-                _surplusCreditDebt,
+                SurplusCreditDebt,
                 new KeyValuePair<string, object?>("sna.rds.instance_family", spec.Family),
                 new KeyValuePair<string, object?>("sna.rds.instance_size", spec.Size),
                 new KeyValuePair<string, object?>("sna.rds.is_burstable", IsBurstable)
@@ -99,21 +117,21 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
             double earned = timeDeltaSeconds * EarnRatePerSec;
 
             // First repay surplus credits (debt) if in unlimited mode
-            if (isUnlimited && _surplusCreditDebt > 0)
+            if (isUnlimited && SurplusCreditDebt > 0)
             {
-                double surplusRepayment = Math.Min(_surplusCreditDebt, earned);
-                _surplusCreditDebt -= surplusRepayment;
+                double surplusRepayment = Math.Min(SurplusCreditDebt, earned);
+                SurplusCreditDebt -= surplusRepayment;
                 earned -= surplusRepayment;
             }
 
             // Then add remaining earned credits to regular balance (capped at max)
-            _credits = Math.Min(MaxCredits, _credits + earned);
+            Credits = Math.Min(MaxCredits, Credits + earned);
             _lastUpdateTimeInSimUnits = currentTimeInSimUnits;
         }
 
         // 2. Burn Logic (Look Ahead)
         double estimatedBurstCost = spec.FastSecs * BurnRatePerSec;
-        bool isThrottled = IsBurstable && _credits < estimatedBurstCost;
+        bool isThrottled = IsBurstable && Credits < estimatedBurstCost;
 
         // 3. Determine Service Time
         double baseTime = isThrottled && !isUnlimited ? spec.SlowSecs : spec.FastSecs;
@@ -124,22 +142,22 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         {
             double actualBurn = actualDuration * BurnRatePerSec;
 
-            if (_credits >= actualBurn)
+            if (Credits >= actualBurn)
             {
                 // Normal case: sufficient credits available
-                _credits -= actualBurn;
+                Credits -= actualBurn;
             }
             else if (isUnlimited)
             {
                 // Unlimited mode: accrue surplus credits (debt)
-                double shortage = actualBurn - _credits;
-                _credits = 0;
-                _surplusCreditDebt += shortage;
+                double shortage = actualBurn - Credits;
+                Credits = 0;
+                SurplusCreditDebt += shortage;
             }
             else
             {
                 // Standard mode: deplete credits to zero (already throttled)
-                _credits = 0;
+                Credits = 0;
             }
         }
 
@@ -160,7 +178,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         _latencyBuffer.AppendLine($"{now:F2},{actualDuration * 1000:F0}");
 
         // Export credit data (Credits and Surplus Credits share the same unit for easy plotting)
-        _creditBuffer.AppendLine($"{now:F2},{_credits:F4},{_surplusCreditDebt:F4}");
+        _creditBuffer.AppendLine($"{now:F2},{Credits:F4},{SurplusCreditDebt:F4}");
 
         // Export to OpenTelemetry histogram (if enabled via SetMeter)
         if (_latencyHistogram != null)
@@ -179,7 +197,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
     {
         if (!Directory.Exists(directory)) Directory.CreateDirectory(directory);
 
-        string creditsFilePath = Path.Combine(directory, "simulation_credits.csv");
+        string creditsFilePath = Path.Combine(directory, "simulationCredits.csv");
         if (File.Exists(creditsFilePath))
         {
             File.Delete(creditsFilePath);
