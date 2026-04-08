@@ -65,9 +65,15 @@ internal static class AwsBurstScenario
             }
         }
 
+        // Create two separate loggers:
+        // - programLogger: May use telemetry.LoggerFactory (for OTel log correlation)
+        // - cleanupLogger: Always uses original loggerFactory (survives telemetry disposal)
+        // This prevents use-after-dispose bugs when logging cleanup/disposal messages
         var programLogger = activeLoggerFactory.CreateLogger("AWS-Simulation");
+        var cleanupLogger = loggerFactory.CreateLogger("AWS-Simulation-Cleanup");
+
         programLogger.LogInformation("--- Preparing AWS RDS Burst Simulation ---");
-        
+
         if (telemetry != null)
         {
             programLogger.LogInformation("Grafana Cloud OpenTelemetry export enabled!");
@@ -210,17 +216,19 @@ internal static class AwsBurstScenario
                 {
                     simObserver?.Dispose();
                     telemetry.Dispose();
-                    programLogger.LogInformation("Telemetry disposed successfully");
+                    // Use cleanupLogger here because telemetry (and its LoggerFactory) is now disposed
+                    cleanupLogger.LogInformation("Telemetry disposed successfully");
                 }
                 catch (Exception ex)
                 {
-                    programLogger.LogError(ex, "DISPOSE FAILED");
+                    // Use cleanupLogger for error logging during disposal
+                    cleanupLogger.LogError(ex, "Telemetry disposal failed");
                 }
             }
 
             rdsBehavior.FinalizeExport("output");
 
-            programLogger.LogInformation("Simulation Complete.");
+            cleanupLogger.LogInformation("Simulation Complete.");
         }
     }
 }
