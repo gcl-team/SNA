@@ -53,7 +53,7 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
 
     private double MaxCredits => _burstableSpec?.MaxCredits ?? 0;
     private double EarnRatePerSec => (_burstableSpec?.EarnRatePerHour ?? 0) / 3600.0;
-    private double BurnRatePerSec => (spec.VCpus) / 60.0;
+    private double BurnRatePerSec => spec.VCpus / 60.0;
     private bool IsBurstable => _burstableSpec != null;
 
     public void SetContext(IRunContext context)

@@ -350,13 +350,13 @@ var azureDbBurstCommand = new Command("azure-db-burst", "Run the Azure Database 
 
 var seriesOption = new Option<string>(
     name: "--series",
-    description: "The Azure instance series (B, D, E).",
+    description: "The Azure instance series. Currently supported: B (Burstable).",
     getDefaultValue: () => "B"
 );
 
 var azureSizeOption = new Option<string>(
     name: "--size",
-    description: "The Azure instance size (1ms, 2s, 2ms, 4ms, 8ms).",
+    description: "The Azure instance size. B-series: 1ms, 2s, 2ms, 4ms, 8ms.",
     getDefaultValue: () => "2ms"
 );
 
@@ -395,7 +395,22 @@ azureDbBurstCommand.SetHandler((string series, string size, double duration, dou
     // Create a logger factory that uses Serilog
     loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
 
-    var spec = AzureDbRegistry.GetSpec(series, size);
+    AzureDbInstanceSpec spec;
+    try
+    {
+        spec = AzureDbRegistry.GetSpec(series, size);
+    }
+    catch (ArgumentException ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+        Console.WriteLine();
+        Console.WriteLine("Currently supported Azure Database instances:");
+        Console.WriteLine("  B-series (Burstable): B.1ms, B.2s, B.2ms, B.4ms, B.8ms");
+        Console.WriteLine();
+        Console.WriteLine("D-series (General Purpose) and E-series (Memory Optimized) coming soon.");
+        return;
+    }
+
     var dbBehavior = new AzureDbBehavior(spec, initialCredits);
 
     Console.WriteLine($"====== Running Azure Database Burst Demo (Instance={series}.{size}, Duration={duration} seconds) ======");
