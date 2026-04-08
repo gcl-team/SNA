@@ -180,13 +180,17 @@ internal static class AwsBurstScenario
 
             try
             {
-                programLogger.LogInformation("Calling Flush()...");
-                telemetry.Flush();
-
-                // Extra aggressive: Sleep to let background threads finish
-                programLogger.LogInformation("Sleeping 5 seconds to ensure export completes...");
-                System.Threading.Thread.Sleep(5000);
-                programLogger.LogInformation("Flush completed - waited 5s for background export");
+                programLogger.LogInformation("Calling Flush() with 5s timeout...");
+                bool flushSuccess = telemetry.Flush(5000);
+                
+                if (flushSuccess)
+                {
+                    programLogger.LogInformation("Flush completed successfully");
+                }
+                else
+                {
+                    programLogger.LogWarning("Flush timed out before all telemetry was exported");
+                }
             }
             catch (Exception ex)
             {
