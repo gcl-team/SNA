@@ -161,10 +161,10 @@ internal class AwsRdsBehavior(AwsRdsInstanceSpec spec, double initialCredits = 5
         {
             _latencyHistogram.Record(
                 actualDuration * 1000, // Convert to milliseconds
-                new KeyValuePair<string, object?>("instance_family", spec.Family),
-                new KeyValuePair<string, object?>("instance_size", spec.Size),
-                new KeyValuePair<string, object?>("is_throttled", isThrottled),
-                new KeyValuePair<string, object?>("is_burstable", IsBurstable)
+                new KeyValuePair<string, object?>("sna.rds.instance_family", spec.Family),
+                new KeyValuePair<string, object?>("sna.rds.instance_size", spec.Size),
+                new KeyValuePair<string, object?>("sna.rds.is_throttled", isThrottled),
+                new KeyValuePair<string, object?>("sna.rds.is_burstable", IsBurstable)
             );
         }
     }

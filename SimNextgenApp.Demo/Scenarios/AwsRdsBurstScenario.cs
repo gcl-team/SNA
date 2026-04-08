@@ -19,26 +19,19 @@ internal static class AwsBurstScenario
         int genSeed,
         bool enableGrafana = false)
     {
-        var programLogger = loggerFactory.CreateLogger("AWS-Simulation");
-        programLogger.LogInformation("--- Preparing AWS RDS Burst Simulation ---");
-
-        // Setup OpenTelemetry if Grafana export is enabled
         SimulationTelemetry? telemetry = null;
+        ILoggerFactory activeLoggerFactory = loggerFactory;
+
         if (enableGrafana)
         {
-            programLogger.LogInformation("Grafana Cloud export enabled. Configuring OpenTelemetry...");
-
-            // Read credentials from environment variables
-            // Format: GRAFANA_API_KEY="<stack_id>:<token>"
-            // Example: GRAFANA_API_KEY="123456:glc_..."
             var grafanaApiKey = Environment.GetEnvironmentVariable("GRAFANA_API_KEY");
             var grafanaRegion = Environment.GetEnvironmentVariable("GRAFANA_REGION") ?? "us-central-0";
 
             if (string.IsNullOrEmpty(grafanaApiKey))
             {
-                programLogger.LogError("GRAFANA_API_KEY environment variable not set!");
-                programLogger.LogError("Please set: export GRAFANA_API_KEY=\"<stack_id>:<token>\"");
-                programLogger.LogWarning("Continuing simulation without Grafana export...");
+                var tempLogger = loggerFactory.CreateLogger("AWS-Simulation");
+                tempLogger.LogError("GRAFANA_API_KEY environment variable not set!");
+                tempLogger.LogWarning("Continuing simulation without Grafana export...");
             }
             else
             {
@@ -57,15 +50,27 @@ internal static class AwsBurstScenario
                     // Connect the RDS behavior to emit metrics
                     rdsBehavior.SetMeter(telemetry.Meter);
 
-                    programLogger.LogInformation("OpenTelemetry configured for Grafana Cloud (region: {GrafanaRegion})", grafanaRegion);
-                    programLogger.LogInformation("Grafana API key is set (length: {ApiKeyLength})", grafanaApiKey.Length);
+                    // Use the OpenTelemetry-configured logger factory!
+                    if (telemetry.LoggerFactory != null)
+                    {
+                        activeLoggerFactory = telemetry.LoggerFactory;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    programLogger.LogError("Failed to configure Grafana Cloud export: {ExMessage}", ex.Message);
-                    programLogger.LogWarning("Continuing simulation without Grafana export...");
+                    var tempLogger = loggerFactory.CreateLogger("AWS-Simulation");
+                    tempLogger.LogError("Failed to configure Grafana Cloud export: {ExMessage}", ex.Message);
+                    tempLogger.LogWarning("Continuing simulation without Grafana export...");
                 }
             }
+        }
+
+        var programLogger = activeLoggerFactory.CreateLogger("AWS-Simulation");
+        programLogger.LogInformation("--- Preparing AWS RDS Burst Simulation ---");
+        
+        if (telemetry != null)
+        {
+            programLogger.LogInformation("Grafana Cloud OpenTelemetry export enabled!");
         }
 
         // 2. Configure Generator (High Load)
@@ -97,7 +102,7 @@ internal static class AwsBurstScenario
             numberOfServers: 2, // db.t3.medium has 2 vCPUs
             serverSeedBase: 100,
             systemCapacityK: 50,
-            loggerFactory
+            activeLoggerFactory
         );
 
         // 5. Create Engine
@@ -149,7 +154,7 @@ internal static class AwsBurstScenario
                 new DurationRunStrategy(runDurationInUnits, null),
                 "AWS RDS Burstable Simulation",
                 timeUnit,
-                loggerFactory
+                activeLoggerFactory
             );
 
             engine = new SimulationEngine(profile);
@@ -171,46 +176,51 @@ internal static class AwsBurstScenario
             simObserver = telemetry.ObserveSimulation(engine);
         }
 
-        engine.Run();
-
-        // Flush telemetry data to ensure all metrics are sent
-        if (telemetry != null)
+        try
         {
-            programLogger.LogInformation("Flushing metrics to Grafana Cloud...");
-
-            try
-            {
-                programLogger.LogInformation("Calling Flush() with 5s timeout...");
-                bool flushSuccess = telemetry.Flush(5000);
-                
-                if (flushSuccess)
-                {
-                    programLogger.LogInformation("Flush completed successfully");
-                }
-                else
-                {
-                    programLogger.LogWarning("Flush timed out before all telemetry was exported");
-                }
-            }
-            catch (Exception ex)
-            {
-                programLogger.LogError(ex, "FLUSH FAILED");
-            }
-
-            try
-            {
-                simObserver?.Dispose();
-                telemetry.Dispose();
-                programLogger.LogInformation("Telemetry disposed successfully");
-            }
-            catch (Exception ex)
-            {
-                programLogger.LogError(ex, "DISPOSE FAILED");
-            }
+            engine.Run();
         }
+        finally
+        {
+            // Flush telemetry data to ensure all metrics are sent
+            if (telemetry != null)
+            {
+                programLogger.LogInformation("Flushing metrics to Grafana Cloud...");
 
-        rdsBehavior.FinalizeExport("output");
+                try
+                {
+                    programLogger.LogInformation("Calling Flush() with 5s timeout...");
+                    bool flushSuccess = telemetry.Flush(5000);
+                    
+                    if (flushSuccess)
+                    {
+                        programLogger.LogInformation("Flush completed successfully");
+                    }
+                    else
+                    {
+                        programLogger.LogWarning("Flush timed out before all telemetry was exported");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    programLogger.LogError(ex, "FLUSH FAILED");
+                }
 
-        programLogger.LogInformation("Simulation Complete.");
+                try
+                {
+                    simObserver?.Dispose();
+                    telemetry.Dispose();
+                    programLogger.LogInformation("Telemetry disposed successfully");
+                }
+                catch (Exception ex)
+                {
+                    programLogger.LogError(ex, "DISPOSE FAILED");
+                }
+            }
+
+            rdsBehavior.FinalizeExport("output");
+
+            programLogger.LogInformation("Simulation Complete.");
+        }
     }
 }
