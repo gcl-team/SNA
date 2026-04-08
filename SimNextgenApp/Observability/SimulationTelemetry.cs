@@ -89,10 +89,11 @@ public sealed class SimulationTelemetry : IDisposable
     /// This method only flushes pending data and does not stop the providers from accepting new telemetry.
     /// For full shutdown and cleanup, call Dispose() or use the telemetry object in a using statement.
     /// </remarks>
-    public void Flush()
+    public bool Flush(int timeoutMilliseconds = 5000)
     {
-        _tracerProvider?.ForceFlush();
-        _meterProvider?.ForceFlush();
+        bool tracerFlushed = _tracerProvider?.ForceFlush(timeoutMilliseconds) ?? true;
+        bool meterFlushed = _meterProvider?.ForceFlush(timeoutMilliseconds) ?? true;
+        return tracerFlushed && meterFlushed;
     }
 
     /// <summary>
