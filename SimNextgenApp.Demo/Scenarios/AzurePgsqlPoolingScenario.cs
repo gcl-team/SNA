@@ -201,14 +201,37 @@ internal static class AzurePgsqlPoolingScenario
         // Release connections back to pool when service completes
         if (pool != null && poolMode != PoolingMode.Direct)
         {
+            // Random number generator for session hold time
+            var holdTimeRandom = new Random(genSeed + 999);
+
             foreach (var server in model.ServiceChannels)
             {
                 server.LoadDeparted += (load, departureTime) =>
                 {
                     if (load is PostgresQuery query)
                     {
-                        // Release connection back to the pool
-                        pool.ReleaseConnection(query.Id.ToString());
+                        if (poolMode == PoolingMode.SessionPooling)
+                        {
+                            // SESSION POOLING: Hold connection for random time (simulates client session)
+                            // Client might run more queries on the same connection before releasing
+                            // Mean hold time: 100ms (typical think time between queries in a session)
+                            double holdTimeSecs = -0.1 * Math.Log(1.0 - holdTimeRandom.NextDouble());
+                            long holdTimeUnits = TimeUnitConverter.ConvertToSimulationUnits(
+                                TimeSpan.FromSeconds(holdTimeSecs),
+                                engine.TimeUnit
+                            );
+
+                            // Schedule delayed release event
+                            long releaseTime = departureTime + holdTimeUnits;
+                            var releaseEvent = new ConnectionReleaseEvent(pool, query.Id.ToString());
+                            engine.Schedule(releaseEvent, releaseTime);
+                        }
+                        else
+                        {
+                            // TRANSACTION POOLING: Release immediately
+                            // Connection returned to pool right away for next transaction
+                            pool.ReleaseConnection(query.Id.ToString());
+                        }
                     }
                 };
             }
