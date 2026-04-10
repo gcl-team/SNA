@@ -85,7 +85,7 @@ internal static class AzurePgsqlPoolingScenario
         }
 
         // Create connection pool (if not direct mode)
-        ConnectionPool? pool = poolMode != PoolingMode.Direct ? new ConnectionPool(poolSize, poolMode) : null;
+        ConnectionPool? pool = poolMode != PoolingMode.Direct ? new ConnectionPool(poolSize) : null;
 
         // Configure Generator with PostgreSQL query creation logic
         // High traffic: 20 req/sec (0.05s inter-arrival) to test connection overhead impact

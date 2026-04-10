@@ -2,19 +2,17 @@ namespace SimNextgenApp.Demo.AzureDbSample;
 
 /// <summary>
 /// Simulates a PgBouncer-style connection pool for PostgreSQL.
-/// Manages connection lifecycle based on pooling mode.
+/// Manages connection lifecycle for pooling modes.
 /// </summary>
 internal class ConnectionPool
 {
     private readonly int _poolSize;
-    private readonly PoolingMode _mode;
     private readonly HashSet<string> _availableConnections;
     private readonly Dictionary<string, string> _assignedConnections; // Query → Connection
 
-    public ConnectionPool(int poolSize, PoolingMode mode)
+    public ConnectionPool(int poolSize)
     {
         _poolSize = poolSize;
-        _mode = mode;
         _availableConnections = new HashSet<string>();
         _assignedConnections = new Dictionary<string, string>();
 
@@ -56,6 +54,11 @@ internal class ConnectionPool
             _availableConnections.Add(connectionId);
         }
     }
+
+    /// <summary>
+    /// Total capacity of the connection pool.
+    /// </summary>
+    public int Capacity => _poolSize;
 
     /// <summary>
     /// Number of available connections in the pool.
