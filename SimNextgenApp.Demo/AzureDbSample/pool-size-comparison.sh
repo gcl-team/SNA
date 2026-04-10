@@ -65,7 +65,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║     PostgreSQL Pool Size Optimization Analysis                ║${NC}"
+echo -e "${CYAN}║           PostgreSQL Pool Size Optimization Analysis           ║${NC}"
 echo -e "${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${BLUE}Configuration:${NC}"
@@ -191,7 +191,6 @@ else
         --xlabel "Pool Size" \
         --ylabel "Latency (ms)" \
         --bar \
-        --bar-label \
         -o "./output/pool_size_comparison/latency_bar_chart.png"
     echo -e "${GREEN}✓ Generated latency_bar_chart.png (full scale)${NC}"
 
@@ -203,7 +202,6 @@ else
 
     graph "./output/pool_size_comparison/latency_summary.csv" \
         --bar \
-        --bar-label \
         --title "Average Latency vs Pool Size (Zoomed)" \
         --xlabel "Pool Size" \
         --ylabel "Latency (ms)" \
@@ -256,11 +254,26 @@ done
 echo ""
 echo -e "${BLUE}Recommendations:${NC}"
 
-# Find optimal pool size (lowest average latency)
-OPTIMAL_SIZE=$(awk -F, 'NR>1 {if(NR==2 || $2<min){min=$2; size=$1}} END {print size}' "./output/pool_size_comparison/latency_summary.csv")
-OPTIMAL_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.2f", min}' "./output/pool_size_comparison/latency_summary.csv")
+# Find minimum latency
+MIN_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.2f", min}' "./output/pool_size_comparison/latency_summary.csv")
+
+# Find smallest pool size that achieves near-optimal performance (within 1% of minimum)
+OPTIMAL_SIZE=$(awk -F, -v minlat="$MIN_LATENCY" 'NR>1 {
+    threshold = minlat * 1.01;
+    if ($2 <= threshold) {
+        if (optimal == "" || $1 < optimal) {
+            optimal = $1;
+            optlat = $2;
+        }
+    }
+} END {
+    printf "%s", optimal
+}' "./output/pool_size_comparison/latency_summary.csv")
+
+OPTIMAL_LATENCY=$(awk -F, -v size="$OPTIMAL_SIZE" 'NR>1 && $1==size {printf "%.2f", $2}' "./output/pool_size_comparison/latency_summary.csv")
 
 echo -e "  • ${GREEN}Optimal pool size: ${OPTIMAL_SIZE} (avg latency: ${OPTIMAL_LATENCY}ms)${NC}"
+echo -e "  • ${CYAN}Note: Smallest pool size achieving near-optimal performance (≤1% of minimum)${NC}"
 
 # Check for diminishing returns (when improvement < 5%)
 LAST_AVG=""
@@ -286,7 +299,7 @@ done
 OVERALL_ELAPSED=$(($SECONDS - $OVERALL_START))
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║    Pool Size Comparison Complete! (Total: ${OVERALL_ELAPSED}s)           ║${NC}"
+echo -e "${GREEN}║            Pool Size Comparison Complete! (Total: ${OVERALL_ELAPSED}s)        ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "Results saved in: ${BLUE}./output/pool_size_comparison/${NC}"

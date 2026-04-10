@@ -216,67 +216,53 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
         }
     }
 
-    # Also generate combined overlay graph (all colors in one)
-    $latencyCombined = "./output/pooling_comparison/latency_combined.csv"
-    if (Test-Path $latencyCombined) {
-        $combinedData = Import-Csv $latencyCombined
-        $latencyMax = ($combinedData | ForEach-Object {
-            [math]::Max([math]::Max([double]$_."Direct (ms)", [double]$_."Session (ms)"), [double]$_."Transaction (ms)")
-        } | Measure-Object -Maximum).Maximum
-
-        if ($null -eq $latencyMax) { $latencyMax = 1 }
-
-        graph $latencyCombined --title "Connection Pooling Latency Comparison" --yrange="0:$latencyMax" -o "./output/pooling_comparison/latency_comparison.png"
-        Write-Host "✓ Generated latency_comparison.png (all modes)" -ForegroundColor Green
-    }
-
-    $creditsCombined = "./output/pooling_comparison/credits_combined.csv"
-    if (Test-Path $creditsCombined) {
-        $combinedData = Import-Csv $creditsCombined
-        $creditMax = ($combinedData | ForEach-Object {
-            [math]::Max([math]::Max([double]$_.Direct, [double]$_.Session), [double]$_.Transaction)
-        } | Measure-Object -Maximum).Maximum
-
-        if ($null -eq $creditMax) { $creditMax = 1 }
-
-        graph $creditsCombined --title "Connection Pooling CPU Credits Comparison" --yrange="0:$creditMax" -o "./output/pooling_comparison/credits_comparison.png"
-        Write-Host "✓ Generated credits_comparison.png (all modes)" -ForegroundColor Green
-    }
-
     # Generate summary bar charts
     Write-Host "Generating summary bar charts..." -ForegroundColor Blue
 
-    # Calculate average latencies
+    # Calculate median latencies (more robust than mean for latency comparisons)
     $directData = Import-Csv "./output/pooling_comparison/direct/simulation_latency.csv"
     $sessionData = Import-Csv "./output/pooling_comparison/session/simulation_latency.csv"
     $transactionData = Import-Csv "./output/pooling_comparison/transaction/simulation_latency.csv"
 
-    $directAvg = ($directData | ForEach-Object { [double]$_."Latency (ms)" } | Measure-Object -Average).Average
-    $sessionAvg = ($sessionData | ForEach-Object { [double]$_."Latency (ms)" } | Measure-Object -Average).Average
-    $transactionAvg = ($transactionData | ForEach-Object { [double]$_."Latency (ms)" } | Measure-Object -Average).Average
+    function Get-Median {
+        param([double[]]$values)
+        $sorted = $values | Sort-Object
+        $count = $sorted.Count
+        if ($count -eq 0) { return 0 }
+        $mid = [math]::Floor($count / 2)
+        if ($count % 2 -eq 1) {
+            return $sorted[$mid]
+        } else {
+            return ($sorted[$mid - 1] + $sorted[$mid]) / 2
+        }
+    }
+
+    $directMedian = Get-Median ($directData | ForEach-Object { [double]$_."Latency (ms)" })
+    $sessionMedian = Get-Median ($sessionData | ForEach-Object { [double]$_."Latency (ms)" })
+    $transactionMedian = Get-Median ($transactionData | ForEach-Object { [double]$_."Latency (ms)" })
 
     # Create summary CSV for bar chart
     $summaryCsv = @"
-Mode,Average Latency (ms)
-Direct,$([math]::Round($directAvg, 2))
-Session,$([math]::Round($sessionAvg, 2))
-Transaction,$([math]::Round($transactionAvg, 2))
+Mode,Median Latency (ms)
+Direct,$([math]::Round($directMedian, 2))
+Session,$([math]::Round($sessionMedian, 2))
+Transaction,$([math]::Round($transactionMedian, 2))
 "@
     $summaryCsv | Out-File "./output/pooling_comparison/latency_summary.csv" -Encoding UTF8
 
     # Generate bar chart (full scale from 0)
-    graph "./output/pooling_comparison/latency_summary.csv" --bar --bar-label --title "Average Latency Comparison" --ylabel "Latency (ms)" -o "./output/pooling_comparison/latency_bar_chart.png"
+    graph "./output/pooling_comparison/latency_summary.csv" --bar --title "Median Latency Comparison (P50)" --ylabel "Latency (ms)" -o "./output/pooling_comparison/latency_bar_chart.png"
     Write-Host "✓ Generated latency_bar_chart.png (full scale)" -ForegroundColor Green
 
     # Generate zoomed bar chart (emphasizes differences)
     $summaryData = Import-Csv "./output/pooling_comparison/latency_summary.csv"
-    $latencies = $summaryData | ForEach-Object { [double]$_."Average Latency (ms)" }
+    $latencies = $summaryData | ForEach-Object { [double]$_."Median Latency (ms)" }
     $minLatency = ($latencies | Measure-Object -Minimum).Minimum
     $maxLatency = ($latencies | Measure-Object -Maximum).Maximum
-    $rangeMin = [math]::Floor($minLatency - 0.1)
-    $rangeMax = [math]::Ceiling($maxLatency + 0.1)
+    $rangeMin = [math]::Floor($minLatency - 1.0)
+    $rangeMax = [math]::Ceiling($maxLatency + 1.0)
 
-    graph "./output/pooling_comparison/latency_summary.csv" --bar --bar-label --title "Average Latency Comparison (Zoomed)" --ylabel "Latency (ms)" --yrange="$rangeMin`:$rangeMax" -o "./output/pooling_comparison/latency_bar_chart_zoomed.png"
+    graph "./output/pooling_comparison/latency_summary.csv" --bar --title "Median Latency Comparison (Zoomed)" --ylabel "Latency (ms)" --yrange="$rangeMin`:$rangeMax" -o "./output/pooling_comparison/latency_bar_chart_zoomed.png"
     Write-Host "✓ Generated latency_bar_chart_zoomed.png (emphasizes differences)" -ForegroundColor Green
 }
 
@@ -287,7 +273,7 @@ Write-Host "Summary" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
 $summaryFormat = "{0,-30} {1,15} {2,15} {3,15}"
-Write-Host ($summaryFormat -f "Mode", "Avg Latency", "Min Latency", "Max Latency")
+Write-Host ($summaryFormat -f "Mode", "Median (P50)", "Min Latency", "Max Latency")
 Write-Host "───────────────────────────────────────────────────────────────────────────"
 
 foreach ($modeInfo in $modes) {
@@ -298,7 +284,7 @@ foreach ($modeInfo in $modes) {
         $data = Import-Csv $csvFile
         $latencies = $data | ForEach-Object { [double]$_."Latency (ms)" }
 
-        $avg = ($latencies | Measure-Object -Average).Average
+        $median = Get-Median $latencies
         $min = ($latencies | Measure-Object -Minimum).Minimum
         $max = ($latencies | Measure-Object -Maximum).Maximum
 
@@ -308,7 +294,7 @@ foreach ($modeInfo in $modes) {
             "transaction" { "Transaction (8ms overhead)" }
         }
 
-        Write-Host ($summaryFormat -f $modeLabel, "$([math]::Round($avg, 2)) ms", "$([math]::Round($min, 2)) ms", "$([math]::Round($max, 2)) ms")
+        Write-Host ($summaryFormat -f $modeLabel, "$([math]::Round($median, 2)) ms", "$([math]::Round($min, 2)) ms", "$([math]::Round($max, 2)) ms")
     }
 }
 

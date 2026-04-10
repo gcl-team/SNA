@@ -93,8 +93,8 @@ mmckCommand.AddOption(serverSeedBaseOption);
 
 // Set handler
 mmckCommand.SetHandler(
-    (int servers, int capacity, double arrivalSecs, double serviceSecs,
-     double duration, double warmup, int genSeed, int serverSeedBase) =>
+    (servers, capacity, arrivalSecs, serviceSecs,
+     duration, warmup, genSeed, serverSeedBase) =>
     {
         Console.WriteLine($"====== Running MMCK Demo (c={servers}, K={capacity}) ======");
         SimpleMmck.RunDemo(
@@ -251,8 +251,8 @@ simpleRestaurantCommand.AddOption(customerArrivalMinOption);
 simpleRestaurantCommand.AddOption(stopProbabilityOption);
 
 simpleRestaurantCommand.SetHandler(
-    (List<Table> tables, List<Waiter> waiters, Point entranceLocation, Point kitchenLocation,
-    double customerArrivalMin, double stopProbability) =>
+    (tables, waiters, entranceLocation, kitchenLocation,
+    customerArrivalMin, stopProbability) =>
 {
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
@@ -319,7 +319,7 @@ awsRdsBurstCommand.AddOption(initialCreditsOption);
 awsRdsBurstCommand.AddOption(unlimitedCreditsOption);
 awsRdsBurstCommand.AddOption(grafanaOption);
 
-awsRdsBurstCommand.SetHandler((string family, string size, double duration, double initialCredits, bool isUnlimitedCredits, bool enableGrafana) =>
+awsRdsBurstCommand.SetHandler((family, size, duration, initialCredits, isUnlimitedCredits, enableGrafana) =>
 {
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
@@ -383,12 +383,12 @@ azureDbBurstCommand.AddOption(azureDbBurstDurationOption);
 azureDbBurstCommand.AddOption(azureInitialCreditsOption);
 azureDbBurstCommand.AddOption(azureGrafanaOption);
 
-azureDbBurstCommand.SetHandler((string series, string size, double duration, double initialCredits, bool enableGrafana) =>
+azureDbBurstCommand.SetHandler((series, size, duration, initialCredits, enableGrafana) =>
 {
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
             .Enrich.FromLogContext()
-            .WriteTo.Console()
+            //.WriteTo.Console()
             .CreateLogger();
 
     // Create a logger factory that uses Serilog
@@ -476,12 +476,12 @@ azurePgsqlPoolingCommand.AddOption(poolingDurationOption);
 azurePgsqlPoolingCommand.AddOption(poolingInitialCreditsOption);
 azurePgsqlPoolingCommand.AddOption(poolingGrafanaOption);
 
-azurePgsqlPoolingCommand.SetHandler((string mode, int poolSize, string series, string size, double duration, double initialCredits, bool enableGrafana) =>
+azurePgsqlPoolingCommand.SetHandler((mode, poolSize, series, size, duration, initialCredits, enableGrafana) =>
 {
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
             .Enrich.FromLogContext()
-            .WriteTo.Console()
+            //.WriteTo.Console()
             .CreateLogger();
 
     // Create a logger factory that uses Serilog

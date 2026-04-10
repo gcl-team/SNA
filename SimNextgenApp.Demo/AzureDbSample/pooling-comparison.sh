@@ -65,7 +65,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo -e "${CYAN}╔════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║     PostgreSQL Connection Pooling Comparison                  ║${NC}"
+echo -e "${CYAN}║            PostgreSQL Connection Pooling Comparison            ║${NC}"
 echo -e "${CYAN}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${BLUE}Configuration:${NC}"
@@ -214,37 +214,27 @@ else
         fi
     done
 
-    # Also generate combined overlay graph (all colors in one)
-    if [ -f "./output/pooling_comparison/latency_combined.csv" ]; then
-        LATENCY_MAX=$(awk -F, 'BEGIN {max=0} NR>1 {for(i=2;i<=NF;i++){if($i>max)max=$i}} END {print (max==0?1:max)}' "./output/pooling_comparison/latency_combined.csv")
-        graph "./output/pooling_comparison/latency_combined.csv" \
-            --title "Connection Pooling Latency Comparison" \
-            --yrange=0:$LATENCY_MAX \
-            -o "./output/pooling_comparison/latency_comparison.png"
-        echo -e "${GREEN}✓ Generated latency_comparison.png (all modes)${NC}"
-    fi
-
     # Generate summary bar charts
     echo -e "${BLUE}Generating summary bar charts...${NC}"
 
-    # Calculate average latencies
-    DIRECT_AVG=$(awk -F, 'NR>1 {sum+=$2; count++} END {printf "%.2f", sum/count}' "./output/pooling_comparison/direct/simulation_latency.csv")
-    SESSION_AVG=$(awk -F, 'NR>1 {sum+=$2; count++} END {printf "%.2f", sum/count}' "./output/pooling_comparison/session/simulation_latency.csv")
-    TRANSACTION_AVG=$(awk -F, 'NR>1 {sum+=$2; count++} END {printf "%.2f", sum/count}' "./output/pooling_comparison/transaction/simulation_latency.csv")
+    # Calculate median latencies
+    # Use sort for portability
+    DIRECT_MEDIAN=$(awk -F, 'NR>1 {print $2}' "./output/pooling_comparison/direct/simulation_latency.csv" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+    SESSION_MEDIAN=$(awk -F, 'NR>1 {print $2}' "./output/pooling_comparison/session/simulation_latency.csv" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+    TRANSACTION_MEDIAN=$(awk -F, 'NR>1 {print $2}' "./output/pooling_comparison/transaction/simulation_latency.csv" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
 
     # Create summary CSV for bar chart
     cat > "./output/pooling_comparison/latency_summary.csv" << EOF
-Mode,Average Latency (ms)
-Direct,$DIRECT_AVG
-Session,$SESSION_AVG
-Transaction,$TRANSACTION_AVG
+Mode,Median Latency (ms)
+Direct,$DIRECT_MEDIAN
+Session,$SESSION_MEDIAN
+Transaction,$TRANSACTION_MEDIAN
 EOF
 
     # Generate bar chart (full scale from 0)
     graph "./output/pooling_comparison/latency_summary.csv" \
         --bar \
-        --bar-label \
-        --title "Average Latency Comparison" \
+        --title "Median Latency Comparison (P50)" \
         --ylabel "Latency (ms)" \
         -o "./output/pooling_comparison/latency_bar_chart.png"
     echo -e "${GREEN}✓ Generated latency_bar_chart.png (full scale)${NC}"
@@ -252,26 +242,16 @@ EOF
     # Generate zoomed bar chart (emphasizes differences)
     MIN_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.0f", min}' "./output/pooling_comparison/latency_summary.csv")
     MAX_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2>max) max=$2} END {printf "%.0f", max}' "./output/pooling_comparison/latency_summary.csv")
-    RANGE_MIN=$(awk "BEGIN {printf \"%.1f\", $MIN_LATENCY - 0.1}")
-    RANGE_MAX=$(awk "BEGIN {printf \"%.1f\", $MAX_LATENCY + 0.1}")
+    RANGE_MIN=$(awk "BEGIN {printf \"%.1f\", $MIN_LATENCY - 1.0}")
+    RANGE_MAX=$(awk "BEGIN {printf \"%.1f\", $MAX_LATENCY + 1.0}")
 
     graph "./output/pooling_comparison/latency_summary.csv" \
         --bar \
-        --bar-label \
-        --title "Average Latency Comparison (Zoomed)" \
+        --title "Median Latency Comparison (Zoomed)" \
         --ylabel "Latency (ms)" \
         --yrange=$RANGE_MIN:$RANGE_MAX \
         -o "./output/pooling_comparison/latency_bar_chart_zoomed.png"
     echo -e "${GREEN}✓ Generated latency_bar_chart_zoomed.png (emphasizes differences)${NC}"
-
-    if [ -f "./output/pooling_comparison/credits_combined.csv" ]; then
-        CREDIT_MAX=$(awk -F, 'BEGIN {max=0} NR>1 {for(i=2;i<=NF;i++){if($i>max)max=$i}} END {print (max==0?1:max)}' "./output/pooling_comparison/credits_combined.csv")
-        graph "./output/pooling_comparison/credits_combined.csv" \
-            --title "Connection Pooling CPU Credits Comparison" \
-            --yrange=0:$CREDIT_MAX \
-            -o "./output/pooling_comparison/credits_comparison.png"
-        echo -e "${GREEN}✓ Generated credits_comparison.png (all modes)${NC}"
-    fi
 fi
 
 # Calculate and display summary
@@ -280,33 +260,36 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${CYAN}Summary${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
 
-printf "%-30s %-15s %-15s %-15s\n" "Mode" "Avg Latency" "Min Latency" "Max Latency"
+printf "%-30s %-15s %-15s %-15s\n" "Mode" "Median (P50)" "Min Latency" "Max Latency"
 echo "───────────────────────────────────────────────────────────────────────────"
 
 for MODE in "${MODES[@]}"; do
     CSV_FILE="./output/pooling_comparison/${MODE}/simulation_latency.csv"
     if [ -f "$CSV_FILE" ]; then
-        # Calculate stats using awk
-        STATS=$(awk -F, 'NR>1 {
-            sum+=$2;
-            count++;
+        # Calculate stats using awk (median + min/max)
+        # Use sort for portability
+        MIN_MAX=$(awk -F, 'NR>1 {
             if(NR==2 || $2<min) min=$2;
             if(NR==2 || $2>max) max=$2
         }
         END {
-            printf "%.2f %.2f %.2f", sum/count, min, max
+            printf "%.2f %.2f", min, max
         }' "$CSV_FILE")
 
-        read AVG MIN MAX <<< "$STATS"
+        MEDIAN=$(awk -F, 'NR>1 {print $2}' "$CSV_FILE" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+
+        STATS="$MEDIAN $MIN_MAX"
+
+        read MEDIAN MIN MAX <<< "$STATS"
 
         MODE_LABEL=""
         case $MODE in
-            direct) MODE_LABEL="Direct (50ms overhead)" ;;
-            session) MODE_LABEL="Session Pooling (no overhead)" ;;
-            transaction) MODE_LABEL="Transaction (8ms overhead)" ;;
+            direct) MODE_LABEL="Direct" ;;
+            session) MODE_LABEL="Session Pooling" ;;
+            transaction) MODE_LABEL="Transaction" ;;
         esac
 
-        printf "%-30s %10.2f ms   %10.2f ms   %10.2f ms\n" "$MODE_LABEL" "$AVG" "$MIN" "$MAX"
+        printf "%-30s %10.2f ms   %10.2f ms   %10.2f ms\n" "$MODE_LABEL" "$MEDIAN" "$MIN" "$MAX"
     fi
 done
 
@@ -314,7 +297,7 @@ done
 
 OVERALL_ELAPSED=$(($SECONDS - $OVERALL_START))
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║           Comparison Complete! (Total Duration: ${OVERALL_ELAPSED}s)          ║${NC}"
+echo -e "${GREEN}║            Comparison Complete! (Total Duration: ${OVERALL_ELAPSED}s)          ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "Results saved in: ${BLUE}./output/pooling_comparison/${NC}"

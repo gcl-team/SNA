@@ -180,7 +180,6 @@ if (-not $GraphAvailable) {
         --xlabel "Pool Size" `
         --ylabel "Latency (ms)" `
         --bar `
-        --bar-label `
         -o "$OutputDir/latency_bar_chart.png"
     Write-ColorOutput "✓ Generated latency_bar_chart.png (full scale)" "Green"
 
@@ -192,7 +191,6 @@ if (-not $GraphAvailable) {
 
     graph "$OutputDir/latency_summary.csv" `
         --bar `
-        --bar-label `
         --title "Average Latency vs Pool Size (Zoomed)" `
         --xlabel "Pool Size" `
         --ylabel "Latency (ms)" `
@@ -234,9 +232,18 @@ foreach ($Stats in $SummaryData) {
 Write-Host ""
 Write-ColorOutput "Recommendations:" "Blue"
 
-# Find optimal pool size (lowest average latency)
-$OptimalStats = $SummaryData | Sort-Object AvgLatency | Select-Object -First 1
+# Find minimum latency
+$MinLatency = ($SummaryData | Measure-Object -Property AvgLatency -Minimum).Minimum
+
+# Find smallest pool size that achieves near-optimal performance (within 1% of minimum)
+$Threshold = $MinLatency * 1.01
+$OptimalStats = $SummaryData |
+    Where-Object { $_.AvgLatency -le $Threshold } |
+    Sort-Object PoolSize |
+    Select-Object -First 1
+
 Write-ColorOutput "  • Optimal pool size: $($OptimalStats.PoolSize) (avg latency: $($OptimalStats.AvgLatency)ms)" "Green"
+Write-ColorOutput "  • Note: Smallest pool size achieving near-optimal performance (≤1% of minimum)" "Cyan"
 
 # Check for diminishing returns (when improvement < 5%)
 for ($i = 1; $i -lt $SummaryData.Count; $i++) {
