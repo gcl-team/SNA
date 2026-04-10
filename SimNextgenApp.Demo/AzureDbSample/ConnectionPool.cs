@@ -13,6 +13,11 @@ internal class ConnectionPool
 
     public ConnectionPool(int poolSize)
     {
+        if (poolSize <= 0)
+        {
+            throw new ArgumentException($"Pool size must be positive (got {poolSize}). Use Direct mode if you don't want pooling.", nameof(poolSize));
+        }
+
         _poolSize = poolSize;
         _availableConnections = new HashSet<string>();
         _assignedConnections = new Dictionary<string, string>();

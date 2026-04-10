@@ -498,6 +498,12 @@ azurePgsqlPoolingCommand.SetHandler((string mode, int poolSize, string series, s
             "transaction" => PoolingMode.TransactionPooling,
             _ => throw new ArgumentException($"Invalid pooling mode '{mode}'. Valid options: direct, session, transaction")
         };
+
+        // Validate pool size for pooling modes
+        if (poolMode != PoolingMode.Direct && poolSize <= 0)
+        {
+            throw new ArgumentException($"Pool size must be positive for {poolMode} mode (got {poolSize}). Use --mode direct if you don't want pooling.");
+        }
     }
     catch (ArgumentException ex)
     {

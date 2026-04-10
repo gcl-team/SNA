@@ -84,6 +84,12 @@ internal static class AzurePgsqlPoolingScenario
             programLogger.LogInformation("Grafana Cloud OpenTelemetry export enabled!");
         }
 
+        // Validate pool size for pooling modes
+        if (poolMode != PoolingMode.Direct && poolSize <= 0)
+        {
+            throw new ArgumentException($"Pool size must be positive for {poolMode} mode (got {poolSize}). This would cause all requests to fail connection acquisition.", nameof(poolSize));
+        }
+
         // Create connection pool (if not direct mode)
         ConnectionPool? pool = poolMode != PoolingMode.Direct ? new ConnectionPool(poolSize) : null;
 
