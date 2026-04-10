@@ -197,7 +197,7 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
         $latencyFile = "$modeDir/simulation_latency.csv"
         if (Test-Path $latencyFile) {
             $latency = Import-Csv $latencyFile
-            $latencyMax = ($latency | ForEach-Object { $_."Latency (ms)" } | Measure-Object -Maximum).Maximum
+            $latencyMax = ($latency | ForEach-Object { [double]$_."Latency (ms)" } | Measure-Object -Maximum).Maximum
             if ($null -eq $latencyMax) { $latencyMax = 1 }
 
             graph $latencyFile --title "Latency - $mode" --color $color --yrange="0:$latencyMax" -o "$modeDir/latency.png"
@@ -208,7 +208,7 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
         $creditsFile = "$modeDir/simulation_credits.csv"
         if (Test-Path $creditsFile) {
             $credits = Import-Csv $creditsFile
-            $creditMax = ($credits | Measure-Object -Property "Credits" -Maximum).Maximum
+            $creditMax = ($credits | ForEach-Object { [double]$_.Credits } | Measure-Object -Maximum).Maximum
             if ($null -eq $creditMax) { $creditMax = 1 }
 
             graph $creditsFile --title "Credits - $mode" --color $color --yrange="0:$creditMax" -o "$modeDir/credits.png"
