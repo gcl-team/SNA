@@ -135,9 +135,6 @@ foreach ($PoolSize in $PoolSizes) {
         $Latencies = $Data | ForEach-Object { [double]$_.'Latency (ms)' }
 
         if ($Latencies.Count -gt 0) {
-            $SortedLatencies = $Latencies | Sort-Object
-            $Count = $SortedLatencies.Count
-
             $Stats = [PSCustomObject]@{
                 PoolSize = $PoolSize
                 AvgLatency = [Math]::Round(($Latencies | Measure-Object -Average).Average, 2)
