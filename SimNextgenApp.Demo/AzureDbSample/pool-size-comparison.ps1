@@ -40,6 +40,10 @@ param(
     [int[]]$PoolSizes = @(5, 10, 20, 50, 100)
 )
 
+# Resolve script directory and cd into it to ensure relative paths work
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $ScriptDir
+
 # Color output functions
 function Write-ColorOutput {
     param([string]$Message, [string]$Color = "White")

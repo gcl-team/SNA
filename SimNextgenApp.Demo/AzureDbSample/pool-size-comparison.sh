@@ -3,6 +3,10 @@
 # Exit on error, undefined variables, and pipe failures
 set -euo pipefail
 
+# Resolve script directory and cd into it to ensure relative paths work
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # SYNOPSIS
 #     Compare PostgreSQL connection pool performance across different pool sizes.
 # DESCRIPTION
@@ -87,16 +91,14 @@ run_pool_size() {
 
     POOL_START=$SECONDS
 
-    # Run simulation with session pooling
-    dotnet run --project ../SimNextgenApp.Demo.csproj -- demo azure-pgsql-pooling \
+    # Run simulation with session pooling - use if ! pattern to handle errors properly with set -e
+    if ! dotnet run --project ../SimNextgenApp.Demo.csproj -- demo azure-pgsql-pooling \
         --mode session \
         --pool-size "$POOL_SIZE" \
         --series "$SERIES" \
         --size "$SIZE" \
         --duration "$DURATION" \
-        --initial-credits "$INITIAL_CREDITS"
-
-    if [ $? -ne 0 ]; then
+        --initial-credits "$INITIAL_CREDITS"; then
         echo -e "${RED}Simulation failed for pool size ${POOL_SIZE}${NC}"
         return 1
     fi

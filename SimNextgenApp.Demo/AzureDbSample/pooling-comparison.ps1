@@ -32,6 +32,10 @@ param(
     [int]$InitialCredits = 60
 )
 
+# Resolve script directory and cd into it to ensure relative paths work
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $ScriptDir
+
 Write-Host "╔════════════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
 Write-Host "║     PostgreSQL Connection Pooling Comparison                  ║" -ForegroundColor Cyan
 Write-Host "╚════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan

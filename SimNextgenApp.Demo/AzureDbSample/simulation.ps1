@@ -26,6 +26,10 @@ param(
     $RemainingArgs
 )
 
+# Resolve script directory and cd into it to ensure relative paths work
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $ScriptDir
+
 Write-Host "Building project and starting SNA simulation..." -ForegroundColor Cyan
 
 $startTime = Get-Date

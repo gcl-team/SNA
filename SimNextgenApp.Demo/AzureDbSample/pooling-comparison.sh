@@ -3,6 +3,10 @@
 # Exit on error, undefined variables, and pipe failures
 set -euo pipefail
 
+# Resolve script directory and cd into it to ensure relative paths work
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # SYNOPSIS
 #     Run PostgreSQL connection pooling comparison across all three modes.
 # DESCRIPTION
@@ -88,16 +92,14 @@ run_mode() {
 
     MODE_START=$SECONDS
 
-    # Run simulation
-    dotnet run --project ../SimNextgenApp.Demo.csproj -- demo azure-pgsql-pooling \
+    # Run simulation - use if ! pattern to handle errors properly with set -e
+    if ! dotnet run --project ../SimNextgenApp.Demo.csproj -- demo azure-pgsql-pooling \
         --mode "$MODE" \
         --pool-size "$POOL_SIZE" \
         --series "$SERIES" \
         --size "$SIZE" \
         --duration "$DURATION" \
-        --initial-credits "$INITIAL_CREDITS"
-
-    if [ $? -ne 0 ]; then
+        --initial-credits "$INITIAL_CREDITS"; then
         echo -e "${RED}Simulation failed for ${MODE}${NC}"
         return 1
     fi
