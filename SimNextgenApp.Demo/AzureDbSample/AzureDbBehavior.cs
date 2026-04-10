@@ -121,8 +121,22 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
         if (load is PostgresQuery query && string.IsNullOrEmpty(query.ConnectionId))
         {
             // Connection not yet assigned - acquire from pool now
-            if (_connectionPool != null && query.PoolMode != PoolingMode.Direct)
+            if (query.PoolMode == PoolingMode.Direct)
             {
+                // Direct mode: Always create new connection (no pool)
+                query.IsNewConnection = true;
+                query.ConnectionId = Guid.NewGuid().ToString();
+            }
+            else
+            {
+                // Session or Transaction pooling mode - pool MUST be configured
+                if (_connectionPool == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Connection pool not configured for {query.PoolMode} mode. " +
+                        "Call SetConnectionPool() before running simulation with pooling enabled.");
+                }
+
                 var connId = _connectionPool.AcquireConnection(query.Id.ToString());
 
                 if (connId != null)
@@ -141,12 +155,6 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
                     query.IsNewConnection = true;
                     query.ConnectionId = $"direct_{Guid.NewGuid()}";
                 }
-            }
-            else
-            {
-                // Direct mode: Always create new connection (no pool)
-                query.IsNewConnection = true;
-                query.ConnectionId = Guid.NewGuid().ToString();
             }
         }
 
