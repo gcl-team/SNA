@@ -438,6 +438,14 @@ var poolSizeOption = new Option<int>(
     getDefaultValue: () => 20
 );
 
+poolSizeOption.AddValidator(result =>
+{
+    if (result.GetValueOrDefault<int>() <= 0)
+    {
+        result.ErrorMessage = "Pool size must be positive (e.g., --pool-size 20). A pool size of 0 or negative would cause all requests to fail.";
+    }
+});
+
 var poolingSeriesOption = new Option<string>(
     name: "--series",
     description: "The Azure instance series. Currently supported: B (Burstable).",
@@ -498,12 +506,6 @@ azurePgsqlPoolingCommand.SetHandler((string mode, int poolSize, string series, s
             "transaction" => PoolingMode.TransactionPooling,
             _ => throw new ArgumentException($"Invalid pooling mode '{mode}'. Valid options: direct, session, transaction")
         };
-
-        // Validate pool size for pooling modes
-        if (poolMode != PoolingMode.Direct && poolSize <= 0)
-        {
-            throw new ArgumentException($"Pool size must be positive for {poolMode} mode (got {poolSize}). Use --mode direct if you don't want pooling.");
-        }
     }
     catch (ArgumentException ex)
     {
