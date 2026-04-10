@@ -172,7 +172,7 @@ internal static class AzureDbBurstScenario
         dbBehavior.SetContext(engine);
         // =========================================================
 
-        programLogger.LogInformation("Starting Simulation. Watch console for CSV output...");
+        programLogger.LogInformation("Starting Simulation. CSV results will be written to ./output/ directory...");
 
         // Observe the simulation if telemetry is enabled
         SimulationObserver? simObserver = null;
