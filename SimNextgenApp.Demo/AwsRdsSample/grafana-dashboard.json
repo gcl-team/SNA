@@ -465,7 +465,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sna_rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"}",
+                        "expr": "sum by (sna_rds_instance_family, sna_rds_instance_size) (sna_rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})",
                         "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
                       }
                     },

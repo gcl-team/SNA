@@ -350,7 +350,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sna_azure_db_query_latency_milliseconds_count{service_name=\"Azure-DB-Simulation\"}",
+                        "expr": "sum by (sna_azure_db_instance_series, sna_azure_db_instance_size) (sna_azure_db_query_latency_milliseconds_count{service_name=\"Azure-DB-Simulation\"})",
                         "legendFormat": "{{sna_azure_db_instance_series}}.{{sna_azure_db_instance_size}}"
                       }
                     },
