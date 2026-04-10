@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog;
 using SimNextgenApp.Demo.AwsRdsSample;
+using SimNextgenApp.Demo.AzureDbSample;
 using SimNextgenApp.Demo.RestaurantSample;
 using SimNextgenApp.Demo.Scenarios;
 using System.CommandLine;
@@ -343,6 +344,85 @@ awsRdsBurstCommand.SetHandler((string family, string size, double duration, doub
     );
 }, familyOption, sizeOption, awsRdsBurstDurationOption, initialCreditsOption, unlimitedCreditsOption, grafanaOption);
 
+// ---- Demo: azure-db-burst ----
+var azureDbBurstCommand = new Command("azure-db-burst", "Run the Azure Database Burst demo");
+
+var seriesOption = new Option<string>(
+    name: "--series",
+    description: "The Azure instance series. Currently supported: B (Burstable).",
+    getDefaultValue: () => "B"
+);
+
+var azureSizeOption = new Option<string>(
+    name: "--size",
+    description: "The Azure instance size. B-series: 1ms, 2s, 2ms, 4ms, 8ms.",
+    getDefaultValue: () => "2ms"
+);
+
+var azureDbBurstDurationOption = new Option<double>(
+    name: "--duration",
+    description: "Total run duration in seconds.",
+    getDefaultValue: () => 400.0
+);
+
+var azureInitialCreditsOption = new Option<double>(
+    name: "--initial-credits",
+    description: "Initial CPU credits for the burstable instance.",
+    getDefaultValue: () => 60.0
+);
+
+var azureGrafanaOption = new Option<bool>(
+    name: "--grafana",
+    description: "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
+    getDefaultValue: () => false
+);
+
+azureDbBurstCommand.AddOption(seriesOption);
+azureDbBurstCommand.AddOption(azureSizeOption);
+azureDbBurstCommand.AddOption(azureDbBurstDurationOption);
+azureDbBurstCommand.AddOption(azureInitialCreditsOption);
+azureDbBurstCommand.AddOption(azureGrafanaOption);
+
+azureDbBurstCommand.SetHandler((string series, string size, double duration, double initialCredits, bool enableGrafana) =>
+{
+    Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Verbose()
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .CreateLogger();
+
+    // Create a logger factory that uses Serilog
+    loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
+
+    AzureDbInstanceSpec spec;
+    try
+    {
+        spec = AzureDbRegistry.GetSpec(series, size);
+    }
+    catch (ArgumentException ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+        Console.WriteLine();
+        Console.WriteLine("Currently supported Azure Database instances:");
+        Console.WriteLine("  B-series (Burstable): B.1ms, B.2s, B.2ms, B.4ms, B.8ms");
+        Console.WriteLine();
+        Console.WriteLine("D-series (General Purpose) and E-series (Memory Optimized) coming soon.");
+        return;
+    }
+
+    var dbBehavior = new AzureDbBehavior(spec, initialCredits);
+
+    Console.WriteLine($"====== Running Azure Database Burst Demo (Instance={series}.{size}, Duration={duration} seconds) ======");
+    Console.WriteLine($"Initial Credits: {initialCredits}");
+    AzureDbBurstScenario.RunDemo(
+        loggerFactory,
+        duration,
+        dbBehavior,
+        genSeed: 1234,
+        enableGrafana: enableGrafana
+    );
+}, seriesOption, azureSizeOption, azureDbBurstDurationOption, azureInitialCreditsOption, azureGrafanaOption);
+
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");
 demoCommand.AddCommand(simpleGenCommand);
@@ -350,6 +430,7 @@ demoCommand.AddCommand(simpleServerCommand);
 demoCommand.AddCommand(mmckCommand);
 demoCommand.AddCommand(simpleRestaurantCommand);
 demoCommand.AddCommand(awsRdsBurstCommand);
+demoCommand.AddCommand(azureDbBurstCommand);
 
 rootCommand.AddCommand(demoCommand);
 

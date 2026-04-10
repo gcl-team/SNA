@@ -3,19 +3,19 @@ using SimNextgenApp.Configurations;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Strategies;
 using SimNextgenApp.Core.Utilities;
-using SimNextgenApp.Demo.AwsRdsSample;
+using SimNextgenApp.Demo.AzureDbSample;
 using SimNextgenApp.Demo.CustomModels;
 using SimNextgenApp.Observability;
 using SimNextgenApp.Observability.Exporters;
 
 namespace SimNextgenApp.Demo.Scenarios;
 
-internal static class AwsBurstScenario
+internal static class AzureDbBurstScenario
 {
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
-        AwsRdsBehavior rdsBehavior,
+        AzureDbBehavior dbBehavior,
         int genSeed,
         bool enableGrafana = false)
     {
@@ -29,7 +29,7 @@ internal static class AwsBurstScenario
 
             if (string.IsNullOrWhiteSpace(grafanaApiKey))
             {
-                var tempLogger = loggerFactory.CreateLogger("AWS-Simulation");
+                var tempLogger = loggerFactory.CreateLogger("Azure-DB-Simulation");
                 tempLogger.LogError("GRAFANA_API_KEY environment variable not set!");
                 tempLogger.LogWarning("Continuing simulation without Grafana export...");
             }
@@ -38,7 +38,7 @@ internal static class AwsBurstScenario
                 try
                 {
                     telemetry = SimulationTelemetry.Create()
-                        .WithServiceInfo("AWS-RDS-Simulation", "1.0.0")
+                        .WithServiceInfo("Azure-DB-Simulation", "1.0.0")
                         .WithOtlpExporter(
                             OtlpBackend.GrafanaCloud,
                             apiKey: grafanaApiKey,
@@ -47,8 +47,8 @@ internal static class AwsBurstScenario
                         .WithLogging(includeConsoleExporter: false, includeOtlpExporter: true)
                         .Build();
 
-                    // Connect the RDS behavior to emit metrics
-                    rdsBehavior.SetMeter(telemetry.Meter);
+                    // Connect the database behavior to emit metrics
+                    dbBehavior.SetMeter(telemetry.Meter);
 
                     // Use the OpenTelemetry-configured logger factory!
                     if (telemetry.LoggerFactory != null)
@@ -58,7 +58,7 @@ internal static class AwsBurstScenario
                 }
                 catch (Exception ex)
                 {
-                    var tempLogger = loggerFactory.CreateLogger("AWS-Simulation");
+                    var tempLogger = loggerFactory.CreateLogger("Azure-DB-Simulation");
                     tempLogger.LogError(ex, "Failed to configure Grafana Cloud export");
                     tempLogger.LogWarning("Continuing simulation without Grafana export...");
                 }
@@ -69,10 +69,10 @@ internal static class AwsBurstScenario
         // - programLogger: May use telemetry.LoggerFactory (for OTel log correlation)
         // - cleanupLogger: Always uses original loggerFactory (survives telemetry disposal)
         // This prevents use-after-dispose bugs when logging cleanup/disposal messages
-        var programLogger = activeLoggerFactory.CreateLogger("AWS-Simulation");
-        var cleanupLogger = loggerFactory.CreateLogger("AWS-Simulation-Cleanup");
+        var programLogger = activeLoggerFactory.CreateLogger("Azure-DB-Simulation");
+        var cleanupLogger = loggerFactory.CreateLogger("Azure-DB-Simulation-Cleanup");
 
-        programLogger.LogInformation("--- Preparing AWS RDS Burst Simulation ---");
+        programLogger.LogInformation("--- Preparing Azure Database Burst Simulation ---");
 
         if (telemetry != null)
         {
@@ -83,17 +83,17 @@ internal static class AwsBurstScenario
         // High traffic: 20 req/sec (0.05s inter-arrival) to drain the credits
         Func<Random, TimeSpan> interArrivalFunc = (rnd) =>
             TimeSpan.FromSeconds(-0.05 * Math.Log(1.0 - rnd.NextDouble()));
-            
+
         var generatorConfig = new GeneratorStaticConfig<MyLoad>(
-            interArrivalFunc, 
+            interArrivalFunc,
             (rnd) => new MyLoad()
         );
 
         // 3. Configure Server (Using the Physics Class)
-        // WE PASS THE METHOD from the rdsBehavior instance
-        var serverConfig = new ServerStaticConfig<MyLoad>(rdsBehavior.GetServiceTime) 
-        { 
-            Capacity = 1 
+        // Pass the method from the dbBehavior instance
+        var serverConfig = new ServerStaticConfig<MyLoad>(dbBehavior.GetServiceTime)
+        {
+            Capacity = 1
         };
 
         var queueConfig = new QueueStaticConfig<MyLoad>();
@@ -104,7 +104,7 @@ internal static class AwsBurstScenario
             genSeed,
             queueConfig,
             serverConfig,
-            numberOfServers: rdsBehavior.Spec.VCpus, // Use actual vCPU count from behavior's spec
+            numberOfServers: dbBehavior.Spec.VCores, // Use actual vCore count from behavior's spec
             serverSeedBase: 100,
             systemCapacityK: 50,
             activeLoggerFactory
@@ -122,7 +122,7 @@ internal static class AwsBurstScenario
         var profile = new SimulationProfile(
             model,
             new DurationRunStrategy(runDurationInUnits, null),
-            "AWS RDS Burstable Simulation",
+            "Azure Database Burstable Simulation",
             timeUnit,
             activeLoggerFactory
         );
@@ -157,7 +157,7 @@ internal static class AwsBurstScenario
             profile = new SimulationProfile(
                 model,
                 new DurationRunStrategy(runDurationInUnits, null),
-                "AWS RDS Burstable Simulation",
+                "Azure Database Burstable Simulation",
                 timeUnit,
                 activeLoggerFactory
             );
@@ -169,7 +169,7 @@ internal static class AwsBurstScenario
         // 6. THE CRITICAL STEP: CONNECT PHYSICS TO ENGINE
         // =========================================================
         // We inject the engine context so the behavior can access ClockTime and TimeUnit
-        rdsBehavior.SetContext(engine);
+        dbBehavior.SetContext(engine);
         // =========================================================
 
         programLogger.LogInformation("Starting Simulation. Watch console for CSV output...");
@@ -196,7 +196,7 @@ internal static class AwsBurstScenario
                 {
                     programLogger.LogInformation("Calling Flush() with 5s timeout...");
                     bool flushSuccess = telemetry.Flush(5000);
-                    
+
                     if (flushSuccess)
                     {
                         programLogger.LogInformation("Flush completed successfully");
@@ -225,7 +225,7 @@ internal static class AwsBurstScenario
                 }
             }
 
-            rdsBehavior.FinalizeExport("output");
+            dbBehavior.FinalizeExport("output");
 
             cleanupLogger.LogInformation("Simulation Complete.");
         }

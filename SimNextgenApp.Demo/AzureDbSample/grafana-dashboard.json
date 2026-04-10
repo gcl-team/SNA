@@ -2,10 +2,10 @@
   "apiVersion": "dashboard.grafana.app/v2",
   "kind": "Dashboard",
   "metadata": {
-    "name": "aws-rds-simulation-dashboard",
+    "name": "azure-db-simulation-dashboard",
     "labels": {},
     "annotations": {
-      "description": "Dashboard for SimNextgenApp AWS RDS Burst Simulation"
+      "description": "Dashboard for SimNextgenApp Azure Database Burst Simulation"
     }
   },
   "spec": {
@@ -52,8 +52,8 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sna_rds_cpu_credits{service_name=\"AWS-RDS-Simulation\"}",
-                        "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
+                        "expr": "sna_azure_db_cpu_credits{service_name=\"Azure-DB-Simulation\"}",
+                        "legendFormat": "{{sna_azure_db_instance_series}}.{{sna_azure_db_instance_size}}"
                       }
                     },
                     "refId": "A",
@@ -152,121 +152,6 @@
           }
         }
       },
-      "panel-2": {
-        "kind": "Panel",
-        "spec": {
-          "id": 2,
-          "title": "Surplus Credit Debt",
-          "description": "",
-          "links": [],
-          "data": {
-            "kind": "QueryGroup",
-            "spec": {
-              "queries": [
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "query": {
-                      "kind": "DataQuery",
-                      "group": "",
-                      "version": "v0",
-                      "spec": {
-                        "expr": "sna_rds_surplus_credit_debt_credits{service_name=\"AWS-RDS-Simulation\"}",
-                        "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
-                      }
-                    },
-                    "refId": "A",
-                    "hidden": false
-                  }
-                }
-              ],
-              "transformations": [],
-              "queryOptions": {}
-            }
-          },
-          "vizConfig": {
-            "kind": "VizConfig",
-            "group": "timeseries",
-            "version": "13.0.0-24045599351",
-            "spec": {
-              "options": {
-                "annotations": {
-                  "clustering": -1,
-                  "multiLane": false
-                },
-                "legend": {
-                  "calcs": [],
-                  "displayMode": "list",
-                  "placement": "bottom",
-                  "showLegend": true
-                },
-                "tooltip": {
-                  "hideZeros": false,
-                  "mode": "single",
-                  "sort": "none"
-                }
-              },
-              "fieldConfig": {
-                "defaults": {
-                  "unit": "short",
-                  "min": 0,
-                  "thresholds": {
-                    "mode": "absolute",
-                    "steps": [
-                      {
-                        "value": 0,
-                        "color": "green"
-                      },
-                      {
-                        "value": 80,
-                        "color": "red"
-                      }
-                    ]
-                  },
-                  "color": {
-                    "mode": "palette-classic"
-                  },
-                  "custom": {
-                    "axisBorderShow": false,
-                    "axisCenteredZero": false,
-                    "axisColorMode": "text",
-                    "axisLabel": "",
-                    "axisPlacement": "auto",
-                    "barAlignment": 0,
-                    "barWidthFactor": 0.6,
-                    "drawStyle": "line",
-                    "fillOpacity": 0,
-                    "gradientMode": "none",
-                    "hideFrom": {
-                      "legend": false,
-                      "tooltip": false,
-                      "viz": false
-                    },
-                    "insertNulls": false,
-                    "lineInterpolation": "linear",
-                    "lineWidth": 1,
-                    "pointSize": 5,
-                    "scaleDistribution": {
-                      "type": "linear"
-                    },
-                    "showPoints": "auto",
-                    "showValues": false,
-                    "spanNulls": false,
-                    "stacking": {
-                      "group": "A",
-                      "mode": "none"
-                    },
-                    "thresholdsStyle": {
-                      "mode": "off"
-                    }
-                  }
-                },
-                "overrides": []
-              }
-            }
-          }
-        }
-      },
       "panel-3": {
         "kind": "Panel",
         "spec": {
@@ -286,7 +171,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.50, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.50, sum(sna_azure_db_query_latency_milliseconds_bucket{service_name=\"Azure-DB-Simulation\"}) by (le))",
                         "legendFormat": "P50 (median)"
                       }
                     },
@@ -302,7 +187,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.75, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.75, sum(sna_azure_db_query_latency_milliseconds_bucket{service_name=\"Azure-DB-Simulation\"}) by (le))",
                         "legendFormat": "P75"
                       }
                     },
@@ -318,7 +203,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.90, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.90, sum(sna_azure_db_query_latency_milliseconds_bucket{service_name=\"Azure-DB-Simulation\"}) by (le))",
                         "legendFormat": "P90"
                       }
                     },
@@ -334,7 +219,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.95, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.95, sum(sna_azure_db_query_latency_milliseconds_bucket{service_name=\"Azure-DB-Simulation\"}) by (le))",
                         "legendFormat": "P95"
                       }
                     },
@@ -350,7 +235,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(0.99, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))",
+                        "expr": "histogram_quantile(0.99, sum(sna_azure_db_query_latency_milliseconds_bucket{service_name=\"Azure-DB-Simulation\"}) by (le))",
                         "legendFormat": "P99"
                       }
                     },
@@ -465,8 +350,8 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sum by (sna_rds_instance_family, sna_rds_instance_size) (sna_rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})",
-                        "legendFormat": "{{sna_rds_instance_family}}.{{sna_rds_instance_size}}"
+                        "expr": "sum by (sna_azure_db_instance_series, sna_azure_db_instance_size) (sna_azure_db_query_latency_milliseconds_count{service_name=\"Azure-DB-Simulation\"})",
+                        "legendFormat": "{{sna_azure_db_instance_series}}.{{sna_azure_db_instance_size}}"
                       }
                     },
                     "refId": "A",
@@ -580,7 +465,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sum(sna_rds_query_latency_milliseconds_sum{service_name=\"AWS-RDS-Simulation\"}) / sum(sna_rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})"
+                        "expr": "sum(sna_azure_db_query_latency_milliseconds_sum{service_name=\"Azure-DB-Simulation\"}) / sum(sna_azure_db_query_latency_milliseconds_count{service_name=\"Azure-DB-Simulation\"})"
                       }
                     },
                     "refId": "A",
@@ -663,7 +548,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sna_rds_cpu_credits{service_name=\"AWS-RDS-Simulation\"}"
+                        "expr": "sna_azure_db_cpu_credits{service_name=\"Azure-DB-Simulation\"}"
                       }
                     },
                     "refId": "A",
@@ -747,7 +632,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "sum(sna_rds_query_latency_milliseconds_count{service_name=\"AWS-RDS-Simulation\"})"
+                        "expr": "sum(sna_azure_db_query_latency_milliseconds_count{service_name=\"Azure-DB-Simulation\"})"
                       }
                     },
                     "refId": "A",
@@ -826,7 +711,7 @@
                       "group": "",
                       "version": "v0",
                       "spec": {
-                        "expr": "histogram_quantile(1.0, sum(sna_rds_query_latency_milliseconds_bucket{service_name=\"AWS-RDS-Simulation\"}) by (le))"
+                        "expr": "histogram_quantile(1.0, sum(sna_azure_db_query_latency_milliseconds_bucket{service_name=\"Azure-DB-Simulation\"}) by (le))"
                       }
                     },
                     "refId": "A",
@@ -905,19 +790,6 @@
               "element": {
                 "kind": "ElementReference",
                 "name": "panel-1"
-              }
-            }
-          },
-          {
-            "kind": "GridLayoutItem",
-            "spec": {
-              "x": 12,
-              "y": 0,
-              "width": 12,
-              "height": 8,
-              "element": {
-                "kind": "ElementReference",
-                "name": "panel-2"
               }
             }
           },
@@ -1007,8 +879,8 @@
     "preload": false,
     "tags": [
       "simulation",
-      "aws",
-      "rds",
+      "azure",
+      "database",
       "burstable"
     ],
     "timeSettings": {
@@ -1031,7 +903,7 @@
       "hideTimepicker": false,
       "fiscalYearStartMonth": 0
     },
-    "title": "AWS RDS Burst Simulation",
+    "title": "Azure Database Burst Simulation",
     "variables": []
   }
 }
