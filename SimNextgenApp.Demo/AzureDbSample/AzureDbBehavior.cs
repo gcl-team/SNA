@@ -106,43 +106,31 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
             _lastUpdateTimeInSimUnits = currentTimeInSimUnits;
         }
 
-        // 2. Burn Logic (Look Ahead)
-        double estimatedBurstCost = spec.FastSecs * BurnRatePerSec;
-        bool isThrottled = IsBurstable && Credits < estimatedBurstCost;
-
-        // 3. Determine Service Time (with PostgreSQL connection overhead if applicable)
-        double baseTime;
+        // 2. Determine PostgreSQL overhead (if applicable) BEFORE throttling decision
+        double connectionOverhead = 0.0;
         if (load is PostgresQuery query)
         {
-            // Get base execution time (burst or throttled)
-            double executionTime = isThrottled ? spec.SlowSecs : spec.FastSecs;
-
             if (query.IsNewConnection)
             {
-                // Full connection setup overhead (direct or pool miss)
-                baseTime = executionTime + ConnectionOverheadSecs;
+                connectionOverhead = ConnectionOverheadSecs;  // 50ms for new connection
             }
             else if (query.PoolMode == PoolingMode.TransactionPooling)
             {
-                // Transaction pooling: connection state reset overhead
-                // (DISCARD ALL, temp table cleanup, session var reset)
-                baseTime = executionTime + TransactionResetOverheadSecs;
+                connectionOverhead = TransactionResetOverheadSecs;  // 8ms for DISCARD ALL
             }
-            else
-            {
-                // Session pooling: no overhead (connection reused as-is)
-                baseTime = executionTime;
-            }
+            // Session pooling: no overhead
         }
-        else
-        {
-            // Fallback for non-PostgresQuery loads
-            baseTime = isThrottled ? spec.SlowSecs : spec.FastSecs;
-        }
+
+        // 3. Burn Logic (Look Ahead) - include overhead in throttling decision
+        double estimatedBurstCost = (spec.FastSecs + connectionOverhead) * BurnRatePerSec;
+        bool isThrottled = IsBurstable && Credits < estimatedBurstCost;
+
+        // 4. Determine Service Time
+        double baseTime = (isThrottled ? spec.SlowSecs : spec.FastSecs) + connectionOverhead;
 
         double actualDuration = -baseTime * Math.Log(1.0 - rnd.NextDouble());
 
-        // 4. Pay the Bill
+        // 5. Pay the Bill
         // Azure: No unlimited mode - hard throttle when credits depleted
         if (IsBurstable)
         {
@@ -160,7 +148,7 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
             }
         }
 
-        // 5. Export Data (CSV)
+        // 6. Export Data (CSV)
         // Convert current simulation time to seconds for CSV export
         double nowInSeconds = TimeUnitConverter.ConvertFromSimulationUnits(
             currentTimeInSimUnits,
