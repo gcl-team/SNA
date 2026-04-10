@@ -1,9 +1,10 @@
 namespace SimNextgenApp.Demo.AzureDbSample;
 
 /// <summary>
-/// Simulates a PgBouncer-style connection pool for PostgreSQL with HARD LIMIT semantics.
-/// Connection acquisition happens when server starts processing (deferred acquisition),
-/// matching real PgBouncer behavior where requests queue for available connections.
+/// Simulates a connection pool for PostgreSQL with SPILLOVER semantics.
+/// When the pool is exhausted, callers can open direct connections to the database,
+/// temporarily exceeding the pool size (unlike true hard-limit pools that queue requests).
+/// Connection acquisition happens when server starts processing (deferred acquisition).
 /// </summary>
 internal class ConnectionPool
 {
