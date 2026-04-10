@@ -259,9 +259,10 @@ echo -e "${BLUE}Recommendations:${NC}"
 # Find minimum latency
 MIN_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.2f", min}' "./output/pool_size_comparison/latency_summary.csv")
 
-# Find smallest pool size that achieves near-optimal performance (within 1% of minimum)
+# Find smallest pool size that achieves near-optimal performance (within 5% of minimum)
+# Uses same 5% threshold as "diminishing returns" for consistency
 OPTIMAL_SIZE=$(awk -F, -v minlat="$MIN_LATENCY" 'NR>1 {
-    threshold = minlat * 1.01;
+    threshold = minlat * 1.05;
     if ($2 <= threshold) {
         if (optimal == "" || $1 < optimal) {
             optimal = $1;
@@ -275,7 +276,7 @@ OPTIMAL_SIZE=$(awk -F, -v minlat="$MIN_LATENCY" 'NR>1 {
 OPTIMAL_LATENCY=$(awk -F, -v size="$OPTIMAL_SIZE" 'NR>1 && $1==size {printf "%.2f", $2}' "./output/pool_size_comparison/latency_summary.csv")
 
 echo -e "  • ${GREEN}Optimal pool size: ${OPTIMAL_SIZE} (median latency: ${OPTIMAL_LATENCY}ms)${NC}"
-echo -e "  • ${CYAN}Note: Smallest pool size achieving near-optimal performance (≤1% of minimum)${NC}"
+echo -e "  • ${CYAN}Note: Smallest pool size achieving near-optimal performance (≤5% of minimum)${NC}"
 
 # Check for diminishing returns (when improvement < 5%)
 # Sort pool sizes numerically for meaningful comparison

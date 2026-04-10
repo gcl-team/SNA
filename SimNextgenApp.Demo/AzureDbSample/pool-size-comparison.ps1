@@ -249,15 +249,16 @@ Write-ColorOutput "Recommendations:" "Blue"
 # Find minimum latency
 $MinLatency = ($SummaryData | Measure-Object -Property MedianLatency -Minimum).Minimum
 
-# Find smallest pool size that achieves near-optimal performance (within 1% of minimum)
-$Threshold = $MinLatency * 1.01
+# Find smallest pool size that achieves near-optimal performance (within 5% of minimum)
+# Uses same 5% threshold as "diminishing returns" for consistency
+$Threshold = $MinLatency * 1.05
 $OptimalStats = $SummaryData |
     Where-Object { $_.MedianLatency -le $Threshold } |
     Sort-Object PoolSize |
     Select-Object -First 1
 
 Write-ColorOutput "  • Optimal pool size: $($OptimalStats.PoolSize) (median latency: $($OptimalStats.MedianLatency)ms)" "Green"
-Write-ColorOutput "  • Note: Smallest pool size achieving near-optimal performance (≤1% of minimum)" "Cyan"
+Write-ColorOutput "  • Note: Smallest pool size achieving near-optimal performance (≤5% of minimum)" "Cyan"
 
 # Check for diminishing returns (when improvement < 5%)
 # Sort pool sizes numerically for meaningful comparison
