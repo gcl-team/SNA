@@ -165,14 +165,21 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
             // Session pooling: no overhead
         }
 
-        // 4. Burn Logic (Look Ahead) - include overhead in throttling decision
-        double estimatedBurstCost = (spec.FastSecs + connectionOverhead) * BurnRatePerSec;
+        // 4. Burn Logic (Look Ahead) - estimate total cost for throttling decision
+        // Use mean execution time + deterministic overhead for cost estimation
+        double meanExecutionTime = spec.FastSecs;
+        double estimatedBurstCost = (meanExecutionTime + connectionOverhead) * BurnRatePerSec;
         bool isThrottled = IsBurstable && Credits < estimatedBurstCost;
 
-        // 5. Determine Service Time (execution + overhead)
-        double baseTime = (isThrottled ? spec.SlowSecs : spec.FastSecs) + connectionOverhead;
+        // 5. Determine Service Time using shifted exponential distribution
+        // Query execution time is exponential (variable)
+        double executionTimeMean = isThrottled ? spec.SlowSecs : spec.FastSecs;
+        double queryExecutionTime = -executionTimeMean * Math.Log(1.0 - rnd.NextDouble());
 
-        double actualDuration = -baseTime * Math.Log(1.0 - rnd.NextDouble());
+        // Connection overhead is deterministic (fixed) - additive, not part of exponential mean
+        // This ensures: (a) overhead is always exactly 50ms/8ms, not random
+        //               (b) total duration is never less than overhead
+        double actualDuration = queryExecutionTime + connectionOverhead;
 
         // 6. Pay the Bill
         // Azure: No unlimited mode - hard throttle when credits depleted
