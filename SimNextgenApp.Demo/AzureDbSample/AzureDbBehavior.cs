@@ -45,6 +45,10 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
     private double BurnRatePerSec => spec.VCores / 60.0;
     private bool IsBurstable => _burstableSpec != null;
 
+    // PostgreSQL connection overhead constants (for PgBouncer-style pooling)
+    private const double ConnectionOverheadSecs = 0.050;        // 50ms for new connection setup
+    private const double TransactionResetOverheadSecs = 0.008;  // 8ms for DISCARD ALL (state reset)
+
     public void SetContext(IRunContext context)
     {
         _engineContext = context;
@@ -106,8 +110,36 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
         double estimatedBurstCost = spec.FastSecs * BurnRatePerSec;
         bool isThrottled = IsBurstable && Credits < estimatedBurstCost;
 
-        // 3. Determine Service Time
-        double baseTime = isThrottled ? spec.SlowSecs : spec.FastSecs;
+        // 3. Determine Service Time (with PostgreSQL connection overhead if applicable)
+        double baseTime;
+        if (load is PostgresQuery query)
+        {
+            // Get base execution time (burst or throttled)
+            double executionTime = isThrottled ? spec.SlowSecs : spec.FastSecs;
+
+            if (query.IsNewConnection)
+            {
+                // Full connection setup overhead (direct or pool miss)
+                baseTime = executionTime + ConnectionOverheadSecs;
+            }
+            else if (query.PoolMode == PoolingMode.TransactionPooling)
+            {
+                // Transaction pooling: connection state reset overhead
+                // (DISCARD ALL, temp table cleanup, session var reset)
+                baseTime = executionTime + TransactionResetOverheadSecs;
+            }
+            else
+            {
+                // Session pooling: no overhead (connection reused as-is)
+                baseTime = executionTime;
+            }
+        }
+        else
+        {
+            // Fallback for non-PostgresQuery loads
+            baseTime = isThrottled ? spec.SlowSecs : spec.FastSecs;
+        }
+
         double actualDuration = -baseTime * Math.Log(1.0 - rnd.NextDouble());
 
         // 4. Pay the Bill

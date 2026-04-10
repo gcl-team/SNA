@@ -423,6 +423,123 @@ azureDbBurstCommand.SetHandler((string series, string size, double duration, dou
     );
 }, seriesOption, azureSizeOption, azureDbBurstDurationOption, azureInitialCreditsOption, azureGrafanaOption);
 
+// ---- Demo: azure-pgsql-pooling ----
+var azurePgsqlPoolingCommand = new Command("azure-pgsql-pooling", "Compare PostgreSQL connection pooling strategies on Azure B-series");
+
+var poolModeOption = new Option<string>(
+    name: "--mode",
+    description: "Pooling mode: direct, session, transaction.",
+    getDefaultValue: () => "direct"
+);
+
+var poolSizeOption = new Option<int>(
+    name: "--pool-size",
+    description: "Connection pool size (ignored for direct mode).",
+    getDefaultValue: () => 20
+);
+
+var poolingSeriesOption = new Option<string>(
+    name: "--series",
+    description: "The Azure instance series. Currently supported: B (Burstable).",
+    getDefaultValue: () => "B"
+);
+
+var poolingSizeOption = new Option<string>(
+    name: "--size",
+    description: "The Azure instance size. B-series: 1ms, 2s, 2ms, 4ms, 8ms.",
+    getDefaultValue: () => "2ms"
+);
+
+var poolingDurationOption = new Option<double>(
+    name: "--duration",
+    description: "Total run duration in seconds.",
+    getDefaultValue: () => 300.0
+);
+
+var poolingInitialCreditsOption = new Option<double>(
+    name: "--initial-credits",
+    description: "Initial CPU credits for the burstable instance.",
+    getDefaultValue: () => 60.0
+);
+
+var poolingGrafanaOption = new Option<bool>(
+    name: "--grafana",
+    description: "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
+    getDefaultValue: () => false
+);
+
+azurePgsqlPoolingCommand.AddOption(poolModeOption);
+azurePgsqlPoolingCommand.AddOption(poolSizeOption);
+azurePgsqlPoolingCommand.AddOption(poolingSeriesOption);
+azurePgsqlPoolingCommand.AddOption(poolingSizeOption);
+azurePgsqlPoolingCommand.AddOption(poolingDurationOption);
+azurePgsqlPoolingCommand.AddOption(poolingInitialCreditsOption);
+azurePgsqlPoolingCommand.AddOption(poolingGrafanaOption);
+
+azurePgsqlPoolingCommand.SetHandler((string mode, int poolSize, string series, string size, double duration, double initialCredits, bool enableGrafana) =>
+{
+    Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Verbose()
+            .Enrich.FromLogContext()
+            .WriteTo.Console()
+            .CreateLogger();
+
+    // Create a logger factory that uses Serilog
+    loggerFactory = new LoggerFactory().AddSerilog(Log.Logger);
+
+    // Parse pooling mode with user-friendly names
+    PoolingMode poolMode;
+    try
+    {
+        poolMode = mode.ToLowerInvariant() switch
+        {
+            "direct" => PoolingMode.Direct,
+            "session" => PoolingMode.SessionPooling,
+            "transaction" => PoolingMode.TransactionPooling,
+            _ => throw new ArgumentException($"Invalid pooling mode '{mode}'. Valid options: direct, session, transaction")
+        };
+    }
+    catch (ArgumentException ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+        return;
+    }
+
+    // Get Azure DB spec
+    AzureDbInstanceSpec spec;
+    try
+    {
+        spec = AzureDbRegistry.GetSpec(series, size);
+    }
+    catch (ArgumentException ex)
+    {
+        Console.WriteLine($"Error: {ex.Message}");
+        Console.WriteLine();
+        Console.WriteLine("Currently supported Azure Database instances:");
+        Console.WriteLine("  B-series (Burstable): B.1ms, B.2s, B.2ms, B.4ms, B.8ms");
+        return;
+    }
+
+    var dbBehavior = new AzureDbBehavior(spec, initialCredits);
+
+    Console.WriteLine($"====== Running Azure PostgreSQL Pooling Demo ======");
+    Console.WriteLine($"Instance: {series}.{size}");
+    Console.WriteLine($"Pooling Mode: {poolMode}");
+    Console.WriteLine($"Pool Size: {(poolMode == PoolingMode.Direct ? "N/A (Direct)" : poolSize.ToString())}");
+    Console.WriteLine($"Initial Credits: {initialCredits}");
+    Console.WriteLine($"Duration: {duration} seconds");
+
+    AzurePgsqlPoolingScenario.RunDemo(
+        loggerFactory,
+        duration,
+        dbBehavior,
+        poolMode,
+        poolSize,
+        genSeed: 1234,
+        enableGrafana: enableGrafana
+    );
+}, poolModeOption, poolSizeOption, poolingSeriesOption, poolingSizeOption, poolingDurationOption, poolingInitialCreditsOption, poolingGrafanaOption);
+
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");
 demoCommand.AddCommand(simpleGenCommand);
@@ -431,6 +548,7 @@ demoCommand.AddCommand(mmckCommand);
 demoCommand.AddCommand(simpleRestaurantCommand);
 demoCommand.AddCommand(awsRdsBurstCommand);
 demoCommand.AddCommand(azureDbBurstCommand);
+demoCommand.AddCommand(azurePgsqlPoolingCommand);
 
 rootCommand.AddCommand(demoCommand);
 
