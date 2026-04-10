@@ -118,25 +118,51 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
 
         // 2. DEFERRED CONNECTION ACQUISITION (if applicable)
         // Acquire connection from pool NOW (when service starts), not at load creation
-        double connectionOverhead = 0.0;
+        double poolWaitTime = 0.0;
         if (load is PostgresQuery query && string.IsNullOrEmpty(query.ConnectionId))
         {
             // Connection not yet assigned - acquire from pool now
             if (_connectionPool != null && query.PoolMode != PoolingMode.Direct)
             {
                 var connId = _connectionPool.AcquireConnection(query.Id.ToString());
-                query.IsNewConnection = connId == null; // New if pool exhausted
-                query.ConnectionId = connId ?? Guid.NewGuid().ToString();
+
+                if (connId != null)
+                {
+                    // SUCCESS: Connection acquired from pool
+                    query.IsNewConnection = false;
+                    query.ConnectionId = connId;
+                }
+                else
+                {
+                    // POOL EXHAUSTED: Request must WAIT for connection to become available
+                    // This models PgBouncer behavior where clients queue when pool is full
+
+                    // Estimate wait time based on pooling mode:
+                    // - Session pooling: Wait for session hold time (~100ms average)
+                    // - Transaction pooling: Wait for query completion (~100ms average)
+                    // Use exponential distribution for realistic variability
+                    double meanWaitSecs = 0.100; // 100ms average wait
+                    poolWaitTime = -meanWaitSecs * Math.Log(1.0 - rnd.NextDouble());
+
+                    // After waiting, acquire connection (now guaranteed to succeed in this model)
+                    // In reality, PgBouncer would wake up waiting client when connection freed
+                    query.IsNewConnection = false;
+                    query.ConnectionId = $"conn_waited_{Guid.NewGuid()}";
+
+                    // NOTE: Connection is NOT actually in pool (we're simulating the wait)
+                    // The release event will be no-op for this connection ID
+                }
             }
             else
             {
-                // Direct mode or no pool configured
+                // Direct mode: Always create new connection (no pool)
                 query.IsNewConnection = true;
                 query.ConnectionId = Guid.NewGuid().ToString();
             }
         }
 
         // 3. Determine PostgreSQL overhead based on connection type
+        double connectionOverhead = 0.0;
         if (load is PostgresQuery q)
         {
             if (q.IsNewConnection)
@@ -154,8 +180,8 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
         double estimatedBurstCost = (spec.FastSecs + connectionOverhead) * BurnRatePerSec;
         bool isThrottled = IsBurstable && Credits < estimatedBurstCost;
 
-        // 5. Determine Service Time
-        double baseTime = (isThrottled ? spec.SlowSecs : spec.FastSecs) + connectionOverhead;
+        // 5. Determine Service Time (execution + overhead + pool wait time)
+        double baseTime = (isThrottled ? spec.SlowSecs : spec.FastSecs) + connectionOverhead + poolWaitTime;
 
         double actualDuration = -baseTime * Math.Log(1.0 - rnd.NextDouble());
 
