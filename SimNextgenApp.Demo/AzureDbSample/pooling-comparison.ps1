@@ -132,39 +132,19 @@ if ((Test-Path $latencyDirect) -and (Test-Path $latencySession) -and (Test-Path 
     $sessionData = Import-Csv $latencySession
     $transactionData = Import-Csv $latencyTransaction
 
-    # Create hashtables indexed by rounded time
-    $directHash = @{}
-    $sessionHash = @{}
-    $transactionHash = @{}
-
-    foreach ($row in $directData) {
-        $time = [math]::Round([double]$row."Simulation Time (s)", 2)
-        $directHash[$time] = $row."Latency (ms)"
-    }
-
-    foreach ($row in $sessionData) {
-        $time = [math]::Round([double]$row."Simulation Time (s)", 2)
-        $sessionHash[$time] = $row."Latency (ms)"
-    }
-
-    foreach ($row in $transactionData) {
-        $time = [math]::Round([double]$row."Simulation Time (s)", 2)
-        $transactionHash[$time] = $row."Latency (ms)"
-    }
-
-    # Merge data
+    # Merge by row index (nth query) instead of timestamp to avoid data loss
+    # Event times differ across modes due to different service times, so timestamp-based
+    # merging would drop most rows. Row-index merge preserves all data points.
     $mergedLatency = @()
-    $mergedLatency += "Simulation Time (s),Direct (ms),Session (ms),Transaction (ms)"
+    $mergedLatency += "Query Index,Direct Time (s),Direct (ms),Session Time (s),Session (ms),Transaction Time (s),Transaction (ms)"
 
-    $allTimes = $directHash.Keys | Sort-Object
-    foreach ($time in $allTimes) {
-        if ($sessionHash.ContainsKey($time) -and $transactionHash.ContainsKey($time)) {
-            $mergedLatency += "$time,$($directHash[$time]),$($sessionHash[$time]),$($transactionHash[$time])"
-        }
+    $maxCount = [Math]::Min($directData.Count, [Math]::Min($sessionData.Count, $transactionData.Count))
+    for ($i = 0; $i -lt $maxCount; $i++) {
+        $mergedLatency += "$($i+1),$($directData[$i].'Simulation Time (s)'),$($directData[$i].'Latency (ms)'),$($sessionData[$i].'Simulation Time (s)'),$($sessionData[$i].'Latency (ms)'),$($transactionData[$i].'Simulation Time (s)'),$($transactionData[$i].'Latency (ms)')"
     }
 
     $mergedLatency | Out-File "./output/pooling_comparison/latency_combined.csv" -Encoding UTF8
-    Write-Host "✓ Created latency_combined.csv" -ForegroundColor Green
+    Write-Host "✓ Created latency_combined.csv (merged by query index)" -ForegroundColor Green
 }
 
 # Merge credits CSVs
@@ -180,39 +160,17 @@ if ((Test-Path $creditsDirect) -and (Test-Path $creditsSession) -and (Test-Path 
     $sessionData = Import-Csv $creditsSession
     $transactionData = Import-Csv $creditsTransaction
 
-    # Create hashtables indexed by rounded time
-    $directHash = @{}
-    $sessionHash = @{}
-    $transactionHash = @{}
-
-    foreach ($row in $directData) {
-        $time = [math]::Round([double]$row."Simulation Time (s)", 2)
-        $directHash[$time] = $row."Credits"
-    }
-
-    foreach ($row in $sessionData) {
-        $time = [math]::Round([double]$row."Simulation Time (s)", 2)
-        $sessionHash[$time] = $row."Credits"
-    }
-
-    foreach ($row in $transactionData) {
-        $time = [math]::Round([double]$row."Simulation Time (s)", 2)
-        $transactionHash[$time] = $row."Credits"
-    }
-
-    # Merge data
+    # Merge by row index (nth query) instead of timestamp to avoid data loss
     $mergedCredits = @()
-    $mergedCredits += "Simulation Time (s),Direct,Session,Transaction"
+    $mergedCredits += "Query Index,Direct Time (s),Direct,Session Time (s),Session,Transaction Time (s),Transaction"
 
-    $allTimes = $directHash.Keys | Sort-Object
-    foreach ($time in $allTimes) {
-        if ($sessionHash.ContainsKey($time) -and $transactionHash.ContainsKey($time)) {
-            $mergedCredits += "$time,$($directHash[$time]),$($sessionHash[$time]),$($transactionHash[$time])"
-        }
+    $maxCount = [Math]::Min($directData.Count, [Math]::Min($sessionData.Count, $transactionData.Count))
+    for ($i = 0; $i -lt $maxCount; $i++) {
+        $mergedCredits += "$($i+1),$($directData[$i].'Simulation Time (s)'),$($directData[$i].'Credits'),$($sessionData[$i].'Simulation Time (s)'),$($sessionData[$i].'Credits'),$($transactionData[$i].'Simulation Time (s)'),$($transactionData[$i].'Credits')"
     }
 
     $mergedCredits | Out-File "./output/pooling_comparison/credits_combined.csv" -Encoding UTF8
-    Write-Host "✓ Created credits_combined.csv" -ForegroundColor Green
+    Write-Host "✓ Created credits_combined.csv (merged by query index)" -ForegroundColor Green
 }
 
 # Generate individual graphs for PowerPoint overlay (with distinct colors!)

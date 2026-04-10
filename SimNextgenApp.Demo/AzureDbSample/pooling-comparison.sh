@@ -138,19 +138,19 @@ LATENCY_TRANSACTION="./output/pooling_comparison/transaction/simulation_latency.
 if [ -f "$LATENCY_DIRECT" ] && [ -f "$LATENCY_SESSION" ] && [ -f "$LATENCY_TRANSACTION" ]; then
     echo -e "${BLUE}Merging latency data...${NC}"
 
-    # Create merged latency CSV using a three-pass approach
+    # Merge by row index (nth query) instead of timestamp to avoid data loss
+    # Event times differ across modes due to different service times, so timestamp-based
+    # joins would drop most rows. Row-index merge preserves all data points.
     {
-        echo "Simulation Time (s),Direct (ms),Session (ms),Transaction (ms)"
+        echo "Query Index,Direct Time (s),Direct (ms),Session Time (s),Session (ms),Transaction Time (s),Transaction (ms)"
 
-        # Build associative arrays using join
-        join -t, -j1 -o 1.1,1.2,2.2 \
-            <(tail -n +2 "$LATENCY_DIRECT" | awk -F, '{printf "%.2f,%s\n", $1, $2}' | sort -t, -k1 -n) \
-            <(tail -n +2 "$LATENCY_SESSION" | awk -F, '{printf "%.2f,%s\n", $1, $2}' | sort -t, -k1 -n) \
-        | join -t, -j1 -o 1.1,1.2,1.3,2.2 - \
-            <(tail -n +2 "$LATENCY_TRANSACTION" | awk -F, '{printf "%.2f,%s\n", $1, $2}' | sort -t, -k1 -n)
+        paste -d, \
+            <(tail -n +2 "$LATENCY_DIRECT" | awk -F, '{print NR "," $1 "," $2}') \
+            <(tail -n +2 "$LATENCY_SESSION" | awk -F, '{print $1 "," $2}') \
+            <(tail -n +2 "$LATENCY_TRANSACTION" | awk -F, '{print $1 "," $2}')
     } > "./output/pooling_comparison/latency_combined.csv"
 
-    echo -e "${GREEN}✓ Created latency_combined.csv${NC}"
+    echo -e "${GREEN}✓ Created latency_combined.csv (merged by query index)${NC}"
 fi
 
 # Merge credits CSVs
@@ -161,19 +161,17 @@ CREDITS_TRANSACTION="./output/pooling_comparison/transaction/simulation_credits.
 if [ -f "$CREDITS_DIRECT" ] && [ -f "$CREDITS_SESSION" ] && [ -f "$CREDITS_TRANSACTION" ]; then
     echo -e "${BLUE}Merging credits data...${NC}"
 
-    # Create merged credits CSV using a three-pass approach
+    # Merge by row index (nth query) instead of timestamp to avoid data loss
     {
-        echo "Simulation Time (s),Direct,Session,Transaction"
+        echo "Query Index,Direct Time (s),Direct,Session Time (s),Session,Transaction Time (s),Transaction"
 
-        # Build associative arrays using join
-        join -t, -j1 -o 1.1,1.2,2.2 \
-            <(tail -n +2 "$CREDITS_DIRECT" | awk -F, '{printf "%.2f,%s\n", $1, $2}' | sort -t, -k1 -n) \
-            <(tail -n +2 "$CREDITS_SESSION" | awk -F, '{printf "%.2f,%s\n", $1, $2}' | sort -t, -k1 -n) \
-        | join -t, -j1 -o 1.1,1.2,1.3,2.2 - \
-            <(tail -n +2 "$CREDITS_TRANSACTION" | awk -F, '{printf "%.2f,%s\n", $1, $2}' | sort -t, -k1 -n)
+        paste -d, \
+            <(tail -n +2 "$CREDITS_DIRECT" | awk -F, '{print NR "," $1 "," $2}') \
+            <(tail -n +2 "$CREDITS_SESSION" | awk -F, '{print $1 "," $2}') \
+            <(tail -n +2 "$CREDITS_TRANSACTION" | awk -F, '{print $1 "," $2}')
     } > "./output/pooling_comparison/credits_combined.csv"
 
-    echo -e "${GREEN}✓ Created credits_combined.csv${NC}"
+    echo -e "${GREEN}✓ Created credits_combined.csv (merged by query index)${NC}"
 fi
 
 # Generate individual graphs for PowerPoint overlay (with distinct colors!)
