@@ -95,8 +95,8 @@ internal static class AzurePgsqlPoolingScenario
         Func<Random, MyLoad> createLoad = (rnd) =>
         {
             // DEFERRED ACQUISITION: Connection will be acquired when service starts,
-            // not at load creation. This matches real PgBouncer behavior where
-            // requests queue for connections.
+            // not at load creation. If the pool is exhausted, the simulation uses a
+            // spillover model (opens direct connection) rather than queuing/blocking.
             var query = new PostgresQuery
             {
                 PoolMode = poolMode,
