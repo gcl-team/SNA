@@ -109,7 +109,11 @@ function Run-PoolSize {
 
 # Run all pool sizes
 foreach ($PoolSize in $PoolSizes) {
-    Run-PoolSize -PoolSize $PoolSize
+    $result = Run-PoolSize -PoolSize $PoolSize
+    if (-not $result) {
+        Write-ColorOutput "Exiting due to error" "Red"
+        exit 1
+    }
 }
 
 # Generate summary statistics
