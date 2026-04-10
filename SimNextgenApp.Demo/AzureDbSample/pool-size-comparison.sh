@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Exit on error, undefined variables, and pipe failures
+set -euo pipefail
+
 # SYNOPSIS
 #     Compare PostgreSQL connection pool performance across different pool sizes.
 # DESCRIPTION
@@ -193,8 +196,8 @@ else
     # Generate zoomed bar chart (emphasizes differences)
     MIN_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.0f", min}' "./output/pool_size_comparison/latency_summary.csv")
     MAX_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2>max) max=$2} END {printf "%.0f", max}' "./output/pool_size_comparison/latency_summary.csv")
-    RANGE_MIN=$(echo "$MIN_LATENCY - 5" | bc)
-    RANGE_MAX=$(echo "$MAX_LATENCY + 5" | bc)
+    RANGE_MIN=$(awk "BEGIN {printf \"%.0f\", $MIN_LATENCY - 5}")
+    RANGE_MAX=$(awk "BEGIN {printf \"%.0f\", $MAX_LATENCY + 5}")
 
     graph "./output/pool_size_comparison/latency_summary.csv" \
         --bar \
@@ -262,12 +265,14 @@ LAST_AVG=""
 for POOL_SIZE in "${POOL_SIZES[@]}"; do
     CURRENT_AVG=$(awk -F, -v size="$POOL_SIZE" 'NR>1 && $1==size {print $2}' "./output/pool_size_comparison/latency_summary.csv")
     if [ -n "$LAST_AVG" ]; then
-        IMPROVEMENT=$(echo "scale=2; ($LAST_AVG - $CURRENT_AVG) / $LAST_AVG * 100" | bc)
-        IS_NEGATIVE=$(echo "$IMPROVEMENT < 0" | bc)
+        # Calculate improvement percentage using awk (no bc dependency)
+        IMPROVEMENT=$(awk "BEGIN {printf \"%.2f\", ($LAST_AVG - $CURRENT_AVG) / $LAST_AVG * 100}")
+        IS_NEGATIVE=$(awk "BEGIN {print ($IMPROVEMENT < 0) ? 1 : 0}")
+
         if [ "$IS_NEGATIVE" -eq 1 ]; then
             echo -e "  • ${YELLOW}Pool size ${POOL_SIZE}: Performance degraded (${IMPROVEMENT}% worse)${NC}"
         else
-            IS_SMALL=$(echo "$IMPROVEMENT < 5" | bc)
+            IS_SMALL=$(awk "BEGIN {print ($IMPROVEMENT < 5) ? 1 : 0}")
             if [ "$IS_SMALL" -eq 1 ]; then
                 echo -e "  • ${YELLOW}Pool size ${POOL_SIZE}: Diminishing returns (<5% improvement)${NC}"
             fi

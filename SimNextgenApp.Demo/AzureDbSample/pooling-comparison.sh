@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Exit on error, undefined variables, and pipe failures
+set -euo pipefail
+
 # SYNOPSIS
 #     Run PostgreSQL connection pooling comparison across all three modes.
 # DESCRIPTION
@@ -249,8 +252,8 @@ EOF
     # Generate zoomed bar chart (emphasizes differences)
     MIN_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.0f", min}' "./output/pooling_comparison/latency_summary.csv")
     MAX_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2>max) max=$2} END {printf "%.0f", max}' "./output/pooling_comparison/latency_summary.csv")
-    RANGE_MIN=$(echo "$MIN_LATENCY - 0.1" | bc)
-    RANGE_MAX=$(echo "$MAX_LATENCY + 0.1" | bc)
+    RANGE_MIN=$(awk "BEGIN {printf \"%.1f\", $MIN_LATENCY - 0.1}")
+    RANGE_MAX=$(awk "BEGIN {printf \"%.1f\", $MAX_LATENCY + 0.1}")
 
     graph "./output/pooling_comparison/latency_summary.csv" \
         --bar \
