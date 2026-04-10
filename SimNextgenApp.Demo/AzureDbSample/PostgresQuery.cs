@@ -16,8 +16,9 @@ internal class PostgresQuery : MyLoad
 
     /// <summary>
     /// The connection ID assigned to this query (for tracking pool usage).
+    /// Null when using deferred acquisition (assigned at service start).
     /// </summary>
-    public string ConnectionId { get; set; } = string.Empty;
+    public string? ConnectionId { get; set; }
 
     /// <summary>
     /// The pooling mode used for this query.

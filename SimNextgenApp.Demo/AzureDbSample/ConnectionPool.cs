@@ -1,8 +1,9 @@
 namespace SimNextgenApp.Demo.AzureDbSample;
 
 /// <summary>
-/// Simulates a PgBouncer-style connection pool for PostgreSQL.
-/// Manages connection lifecycle for pooling modes.
+/// Simulates a PgBouncer-style connection pool for PostgreSQL with HARD LIMIT semantics.
+/// Connection acquisition happens when server starts processing (deferred acquisition),
+/// matching real PgBouncer behavior where requests queue for available connections.
 /// </summary>
 internal class ConnectionPool
 {
@@ -26,12 +27,19 @@ internal class ConnectionPool
     /// <summary>
     /// Attempts to acquire a connection from the pool.
     /// Returns connection ID if successful, null if pool is exhausted.
+    ///
+    /// HARD LIMIT: When pool is exhausted (returns null), caller must open
+    /// a new connection with overhead penalty. This matches PgBouncer behavior
+    /// when max_client_conn is reached.
+    ///
+    /// Called at SERVICE START (deferred acquisition), not at load creation.
+    /// Requests naturally queue in SimQueue before reaching this point.
     /// </summary>
     public string? AcquireConnection(string queryId)
     {
         if (_availableConnections.Count == 0)
         {
-            // Pool exhausted - query must wait
+            // Pool exhausted - caller must open new connection (with overhead)
             return null;
         }
 

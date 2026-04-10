@@ -12,6 +12,7 @@ namespace SimNextgenApp.Demo.AzureDbSample;
 internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits = 10.0)
 {
     private IRunContext? _engineContext;
+    private ConnectionPool? _connectionPool;
 
     // Thread-safe storage for cross-thread access by OpenTelemetry's background metric collection
     // Using volatile read/write pattern via Volatile.Read() / Volatile.Write()
@@ -54,6 +55,15 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
         _engineContext = context;
         // Initialize last update time to current simulation time
         _lastUpdateTimeInSimUnits = context.ClockTime;
+    }
+
+    /// <summary>
+    /// Sets the connection pool for deferred connection acquisition.
+    /// Must be called before simulation starts if using pooling mode.
+    /// </summary>
+    public void SetConnectionPool(ConnectionPool? pool)
+    {
+        _connectionPool = pool;
     }
 
     /// <summary>
@@ -106,31 +116,50 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
             _lastUpdateTimeInSimUnits = currentTimeInSimUnits;
         }
 
-        // 2. Determine PostgreSQL overhead (if applicable) BEFORE throttling decision
+        // 2. DEFERRED CONNECTION ACQUISITION (if applicable)
+        // Acquire connection from pool NOW (when service starts), not at load creation
         double connectionOverhead = 0.0;
-        if (load is PostgresQuery query)
+        if (load is PostgresQuery query && string.IsNullOrEmpty(query.ConnectionId))
         {
-            if (query.IsNewConnection)
+            // Connection not yet assigned - acquire from pool now
+            if (_connectionPool != null && query.PoolMode != PoolingMode.Direct)
+            {
+                var connId = _connectionPool.AcquireConnection(query.Id.ToString());
+                query.IsNewConnection = connId == null; // New if pool exhausted
+                query.ConnectionId = connId ?? Guid.NewGuid().ToString();
+            }
+            else
+            {
+                // Direct mode or no pool configured
+                query.IsNewConnection = true;
+                query.ConnectionId = Guid.NewGuid().ToString();
+            }
+        }
+
+        // 3. Determine PostgreSQL overhead based on connection type
+        if (load is PostgresQuery q)
+        {
+            if (q.IsNewConnection)
             {
                 connectionOverhead = ConnectionOverheadSecs;  // 50ms for new connection
             }
-            else if (query.PoolMode == PoolingMode.TransactionPooling)
+            else if (q.PoolMode == PoolingMode.TransactionPooling)
             {
                 connectionOverhead = TransactionResetOverheadSecs;  // 8ms for DISCARD ALL
             }
             // Session pooling: no overhead
         }
 
-        // 3. Burn Logic (Look Ahead) - include overhead in throttling decision
+        // 4. Burn Logic (Look Ahead) - include overhead in throttling decision
         double estimatedBurstCost = (spec.FastSecs + connectionOverhead) * BurnRatePerSec;
         bool isThrottled = IsBurstable && Credits < estimatedBurstCost;
 
-        // 4. Determine Service Time
+        // 5. Determine Service Time
         double baseTime = (isThrottled ? spec.SlowSecs : spec.FastSecs) + connectionOverhead;
 
         double actualDuration = -baseTime * Math.Log(1.0 - rnd.NextDouble());
 
-        // 5. Pay the Bill
+        // 6. Pay the Bill
         // Azure: No unlimited mode - hard throttle when credits depleted
         if (IsBurstable)
         {
@@ -148,7 +177,7 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
             }
         }
 
-        // 6. Export Data (CSV)
+        // 7. Export Data (CSV)
         // Convert current simulation time to seconds for CSV export
         double nowInSeconds = TimeUnitConverter.ConvertFromSimulationUnits(
             currentTimeInSimUnits,

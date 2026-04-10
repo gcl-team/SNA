@@ -94,25 +94,15 @@ internal static class AzurePgsqlPoolingScenario
 
         Func<Random, MyLoad> createLoad = (rnd) =>
         {
+            // DEFERRED ACQUISITION: Connection will be acquired when service starts,
+            // not at load creation. This matches real PgBouncer behavior where
+            // requests queue for connections.
             var query = new PostgresQuery
             {
-                PoolMode = poolMode
+                PoolMode = poolMode,
+                ConnectionId = null, // ← Not assigned yet (deferred)
+                IsNewConnection = false // ← Will be determined at service start
             };
-
-            if (poolMode == PoolingMode.Direct)
-            {
-                // Direct mode: Always new connection
-                query.IsNewConnection = true;
-                query.ConnectionId = Guid.NewGuid().ToString();
-            }
-            else
-            {
-                // Pool mode: Try to acquire connection from pool
-                // Use the load's Id (not random Guid) so we can release it later
-                var connId = pool!.AcquireConnection(query.Id.ToString());
-                query.IsNewConnection = (connId == null); // New if pool exhausted
-                query.ConnectionId = connId ?? Guid.NewGuid().ToString();
-            }
 
             return query;
         };
@@ -198,6 +188,9 @@ internal static class AzurePgsqlPoolingScenario
 
         // Connect physics to engine
         dbBehavior.SetContext(engine);
+
+        // Set connection pool for deferred acquisition (if using pooling mode)
+        dbBehavior.SetConnectionPool(pool);
 
         // Release connections back to pool when service completes
         if (pool != null && poolMode != PoolingMode.Direct)
