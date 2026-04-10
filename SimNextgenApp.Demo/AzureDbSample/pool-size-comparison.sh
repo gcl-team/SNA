@@ -131,24 +131,24 @@ echo -e "${CYAN}═════════════════════�
 
 # Create summary CSV for latency vs pool size
 cat > "./output/pool_size_comparison/latency_vs_pool_size.csv" << 'EOF'
-Pool Size,Average Latency (ms),Min Latency (ms),Max Latency (ms)
+Pool Size,Median Latency (ms),Min Latency (ms),Max Latency (ms)
 EOF
 
 for POOL_SIZE in "${POOL_SIZES[@]}"; do
     CSV_FILE="./output/pool_size_comparison/pool_${POOL_SIZE}/simulation_latency.csv"
     if [ -f "$CSV_FILE" ]; then
-        # Calculate statistics using awk
-        STATS=$(awk -F, 'NR>1 {
-            sum+=$2;
-            count++;
+        # Calculate median and min/max using sort for portability
+        MIN_MAX=$(awk -F, 'NR>1 {
             if(NR==2 || $2<min) min=$2;
             if(NR==2 || $2>max) max=$2;
         }
         END {
-            printf "%.2f,%.2f,%.2f", sum/count, min, max;
+            printf "%.2f,%.2f", min, max;
         }' "$CSV_FILE")
 
-        echo "${POOL_SIZE},${STATS}" >> "./output/pool_size_comparison/latency_vs_pool_size.csv"
+        MEDIAN=$(awk -F, 'NR>1 {print $2}' "$CSV_FILE" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+
+        echo "${POOL_SIZE},${MEDIAN},${MIN_MAX}" >> "./output/pool_size_comparison/latency_vs_pool_size.csv"
     fi
 done
 
@@ -156,14 +156,14 @@ echo -e "${GREEN}✓ Created latency_vs_pool_size.csv${NC}"
 
 # Create simplified summary for bar charts
 cat > "./output/pool_size_comparison/latency_summary.csv" << 'EOF'
-Pool Size,Average Latency (ms)
+Pool Size,Median Latency (ms)
 EOF
 
 for POOL_SIZE in "${POOL_SIZES[@]}"; do
     CSV_FILE="./output/pool_size_comparison/pool_${POOL_SIZE}/simulation_latency.csv"
     if [ -f "$CSV_FILE" ]; then
-        AVG=$(awk -F, 'NR>1 {sum+=$2; count++} END {printf "%.2f", sum/count}' "$CSV_FILE")
-        echo "${POOL_SIZE},${AVG}" >> "./output/pool_size_comparison/latency_summary.csv"
+        MEDIAN=$(awk -F, 'NR>1 {print $2}' "$CSV_FILE" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+        echo "${POOL_SIZE},${MEDIAN}" >> "./output/pool_size_comparison/latency_summary.csv"
     fi
 done
 
@@ -177,9 +177,9 @@ if ! command -v graph &> /dev/null; then
 else
     echo -e "${BLUE}Generating comparison charts...${NC}"
 
-    # Generate line chart: Average Latency vs Pool Size
+    # Generate line chart: Median Latency vs Pool Size
     graph "./output/pool_size_comparison/latency_summary.csv" \
-        --title "Average Latency vs Pool Size (Session Pooling)" \
+        --title "Median Latency vs Pool Size (Session Pooling)" \
         --xlabel "Pool Size" \
         --ylabel "Latency (ms)" \
         -o "./output/pool_size_comparison/latency_vs_pool_size.png"
@@ -187,7 +187,7 @@ else
 
     # Generate bar chart for easier reading (full scale from 0)
     graph "./output/pool_size_comparison/latency_summary.csv" \
-        --title "Average Latency vs Pool Size (Session Pooling)" \
+        --title "Median Latency vs Pool Size (Session Pooling)" \
         --xlabel "Pool Size" \
         --ylabel "Latency (ms)" \
         --bar \
@@ -202,7 +202,7 @@ else
 
     graph "./output/pool_size_comparison/latency_summary.csv" \
         --bar \
-        --title "Average Latency vs Pool Size (Zoomed)" \
+        --title "Median Latency vs Pool Size (Zoomed)" \
         --xlabel "Pool Size" \
         --ylabel "Latency (ms)" \
         --yrange=$RANGE_MIN:$RANGE_MAX \
@@ -230,24 +230,26 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${CYAN}Summary: Latency vs Pool Size${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
 
-printf "%-12s %-15s %-15s %-15s\n" "Pool Size" "Avg Latency" "Min Latency" "Max Latency"
+printf "%-12s %-15s %-15s %-15s\n" "Pool Size" "Median (P50)" "Min Latency" "Max Latency"
 echo "────────────────────────────────────────────────────────────────────"
 
 for POOL_SIZE in "${POOL_SIZES[@]}"; do
     CSV_FILE="./output/pool_size_comparison/pool_${POOL_SIZE}/simulation_latency.csv"
     if [ -f "$CSV_FILE" ]; then
-        STATS=$(awk -F, 'NR>1 {
-            sum+=$2;
-            count++;
+        # Calculate min/max
+        MIN_MAX=$(awk -F, 'NR>1 {
             if(NR==2 || $2<min) min=$2;
             if(NR==2 || $2>max) max=$2
         }
         END {
-            printf "%.2f %.2f %.2f", sum/count, min, max
+            printf "%.2f %.2f", min, max
         }' "$CSV_FILE")
 
-        read AVG MIN MAX <<< "$STATS"
-        printf "%-12s %10.2f ms   %10.2f ms   %10.2f ms\n" "$POOL_SIZE" "$AVG" "$MIN" "$MAX"
+        # Calculate median using sort for portability
+        MEDIAN=$(awk -F, 'NR>1 {print $2}' "$CSV_FILE" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+
+        read MIN MAX <<< "$MIN_MAX"
+        printf "%-12s %10.2f ms   %10.2f ms   %10.2f ms\n" "$POOL_SIZE" "$MEDIAN" "$MIN" "$MAX"
     fi
 done
 
@@ -272,12 +274,23 @@ OPTIMAL_SIZE=$(awk -F, -v minlat="$MIN_LATENCY" 'NR>1 {
 
 OPTIMAL_LATENCY=$(awk -F, -v size="$OPTIMAL_SIZE" 'NR>1 && $1==size {printf "%.2f", $2}' "./output/pool_size_comparison/latency_summary.csv")
 
-echo -e "  • ${GREEN}Optimal pool size: ${OPTIMAL_SIZE} (avg latency: ${OPTIMAL_LATENCY}ms)${NC}"
+echo -e "  • ${GREEN}Optimal pool size: ${OPTIMAL_SIZE} (median latency: ${OPTIMAL_LATENCY}ms)${NC}"
 echo -e "  • ${CYAN}Note: Smallest pool size achieving near-optimal performance (≤1% of minimum)${NC}"
 
 # Check for diminishing returns (when improvement < 5%)
+# Sort pool sizes numerically for meaningful comparison
+IFS=$'\n' SORTED_POOL_SIZES=($(printf '%s\n' "${POOL_SIZES[@]}" | sort -n))
+unset IFS
+
 LAST_AVG=""
-for POOL_SIZE in "${POOL_SIZES[@]}"; do
+for POOL_SIZE in "${SORTED_POOL_SIZES[@]}"; do
+    # Skip the optimal pool size (already highlighted above)
+    if [ "$POOL_SIZE" -eq "$OPTIMAL_SIZE" ]; then
+        CURRENT_AVG=$(awk -F, -v size="$POOL_SIZE" 'NR>1 && $1==size {print $2}' "./output/pool_size_comparison/latency_summary.csv")
+        LAST_AVG=$CURRENT_AVG
+        continue
+    fi
+
     CURRENT_AVG=$(awk -F, -v size="$POOL_SIZE" 'NR>1 && $1==size {print $2}' "./output/pool_size_comparison/latency_summary.csv")
     if [ -n "$LAST_AVG" ]; then
         # Calculate improvement percentage using awk (no bc dependency)
@@ -299,7 +312,7 @@ done
 OVERALL_ELAPSED=$(($SECONDS - $OVERALL_START))
 echo ""
 echo -e "${GREEN}╔════════════════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║            Pool Size Comparison Complete! (Total: ${OVERALL_ELAPSED}s)        ║${NC}"
+echo -e "${GREEN}║            Pool Size Comparison Complete! (Total: ${OVERALL_ELAPSED}s)         ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "Results saved in: ${BLUE}./output/pool_size_comparison/${NC}"

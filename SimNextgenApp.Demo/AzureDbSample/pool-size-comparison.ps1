@@ -125,6 +125,20 @@ Write-ColorOutput "════════════════════�
 Write-ColorOutput "Generating Summary Statistics" "Cyan"
 Write-ColorOutput "═══════════════════════════════════════════════════════════════" "Cyan"
 
+# Helper function to calculate median
+function Get-Median {
+    param([double[]]$values)
+    $sorted = $values | Sort-Object
+    $count = $sorted.Count
+    if ($count -eq 0) { return 0 }
+    $mid = [math]::Floor($count / 2)
+    if ($count % 2 -eq 1) {
+        return $sorted[$mid]
+    } else {
+        return ($sorted[$mid - 1] + $sorted[$mid]) / 2
+    }
+}
+
 # Create summary data structures
 $SummaryData = @()
 
@@ -137,7 +151,7 @@ foreach ($PoolSize in $PoolSizes) {
         if ($Latencies.Count -gt 0) {
             $Stats = [PSCustomObject]@{
                 PoolSize = $PoolSize
-                AvgLatency = [Math]::Round(($Latencies | Measure-Object -Average).Average, 2)
+                MedianLatency = [Math]::Round((Get-Median $Latencies), 2)
                 MinLatency = [Math]::Round(($Latencies | Measure-Object -Minimum).Minimum, 2)
                 MaxLatency = [Math]::Round(($Latencies | Measure-Object -Maximum).Maximum, 2)
             }
@@ -152,7 +166,7 @@ $SummaryData | Export-Csv "$OutputDir/latency_vs_pool_size.csv" -NoTypeInformati
 Write-ColorOutput "✓ Created latency_vs_pool_size.csv" "Green"
 
 # Export simplified summary for charts
-$SummaryData | Select-Object @{Name='Pool Size';Expression={$_.PoolSize}}, @{Name='Average Latency (ms)';Expression={$_.AvgLatency}} |
+$SummaryData | Select-Object @{Name='Pool Size';Expression={$_.PoolSize}}, @{Name='Median Latency (ms)';Expression={$_.MedianLatency}} |
     Export-Csv "$OutputDir/latency_summary.csv" -NoTypeInformation
 Write-ColorOutput "✓ Created latency_summary.csv" "Green"
 
@@ -166,9 +180,9 @@ if (-not $GraphAvailable) {
 } else {
     Write-ColorOutput "Generating comparison charts..." "Blue"
 
-    # Generate line chart: Average Latency vs Pool Size
+    # Generate line chart: Median Latency vs Pool Size
     graph "$OutputDir/latency_summary.csv" `
-        --title "Average Latency vs Pool Size (Session Pooling)" `
+        --title "Median Latency vs Pool Size (Session Pooling)" `
         --xlabel "Pool Size" `
         --ylabel "Latency (ms)" `
         -o "$OutputDir/latency_vs_pool_size.png"
@@ -176,7 +190,7 @@ if (-not $GraphAvailable) {
 
     # Generate bar chart for easier reading (full scale from 0)
     graph "$OutputDir/latency_summary.csv" `
-        --title "Average Latency vs Pool Size (Session Pooling)" `
+        --title "Median Latency vs Pool Size (Session Pooling)" `
         --xlabel "Pool Size" `
         --ylabel "Latency (ms)" `
         --bar `
@@ -184,14 +198,14 @@ if (-not $GraphAvailable) {
     Write-ColorOutput "✓ Generated latency_bar_chart.png (full scale)" "Green"
 
     # Generate zoomed bar chart (emphasizes differences)
-    $MinLatency = ($SummaryData | Measure-Object -Property AvgLatency -Minimum).Minimum
-    $MaxLatency = ($SummaryData | Measure-Object -Property AvgLatency -Maximum).Maximum
+    $MinLatency = ($SummaryData | Measure-Object -Property MedianLatency -Minimum).Minimum
+    $MaxLatency = ($SummaryData | Measure-Object -Property MedianLatency -Maximum).Maximum
     $RangeMin = $MinLatency - 5
     $RangeMax = $MaxLatency + 5
 
     graph "$OutputDir/latency_summary.csv" `
         --bar `
-        --title "Average Latency vs Pool Size (Zoomed)" `
+        --title "Median Latency vs Pool Size (Zoomed)" `
         --xlabel "Pool Size" `
         --ylabel "Latency (ms)" `
         --yrange "$RangeMin`:$RangeMax" `
@@ -221,40 +235,48 @@ Write-ColorOutput "════════════════════�
 Write-ColorOutput "Summary: Latency vs Pool Size" "Cyan"
 Write-ColorOutput "═══════════════════════════════════════════════════════════════" "Cyan"
 
-Write-Host $("{0,-12} {1,-15} {2,-15} {3,-15}" -f "Pool Size", "Avg Latency", "Min Latency", "Max Latency")
+Write-Host $("{0,-12} {1,-15} {2,-15} {3,-15}" -f "Pool Size", "Median (P50)", "Min Latency", "Max Latency")
 Write-Host "────────────────────────────────────────────────────────────────────"
 
 foreach ($Stats in $SummaryData) {
     Write-Host $("{0,-12} {1,10:F2} ms   {2,10:F2} ms   {3,10:F2} ms" -f `
-        $Stats.PoolSize, $Stats.AvgLatency, $Stats.MinLatency, $Stats.MaxLatency)
+        $Stats.PoolSize, $Stats.MedianLatency, $Stats.MinLatency, $Stats.MaxLatency)
 }
 
 Write-Host ""
 Write-ColorOutput "Recommendations:" "Blue"
 
 # Find minimum latency
-$MinLatency = ($SummaryData | Measure-Object -Property AvgLatency -Minimum).Minimum
+$MinLatency = ($SummaryData | Measure-Object -Property MedianLatency -Minimum).Minimum
 
 # Find smallest pool size that achieves near-optimal performance (within 1% of minimum)
 $Threshold = $MinLatency * 1.01
 $OptimalStats = $SummaryData |
-    Where-Object { $_.AvgLatency -le $Threshold } |
+    Where-Object { $_.MedianLatency -le $Threshold } |
     Sort-Object PoolSize |
     Select-Object -First 1
 
-Write-ColorOutput "  • Optimal pool size: $($OptimalStats.PoolSize) (avg latency: $($OptimalStats.AvgLatency)ms)" "Green"
+Write-ColorOutput "  • Optimal pool size: $($OptimalStats.PoolSize) (median latency: $($OptimalStats.MedianLatency)ms)" "Green"
 Write-ColorOutput "  • Note: Smallest pool size achieving near-optimal performance (≤1% of minimum)" "Cyan"
 
 # Check for diminishing returns (when improvement < 5%)
-for ($i = 1; $i -lt $SummaryData.Count; $i++) {
-    $PrevAvg = $SummaryData[$i-1].AvgLatency
-    $CurrentAvg = $SummaryData[$i].AvgLatency
+# Sort pool sizes numerically for meaningful comparison
+$SortedData = $SummaryData | Sort-Object PoolSize
+
+for ($i = 1; $i -lt $SortedData.Count; $i++) {
+    # Skip the optimal pool size (already highlighted above)
+    if ($SortedData[$i].PoolSize -eq $OptimalStats.PoolSize) {
+        continue
+    }
+
+    $PrevAvg = $SortedData[$i-1].MedianLatency
+    $CurrentAvg = $SortedData[$i].MedianLatency
     $Improvement = ($PrevAvg - $CurrentAvg) / $PrevAvg * 100
 
     if ($Improvement -lt 0) {
-        Write-ColorOutput "  • Pool size $($SummaryData[$i].PoolSize): Performance degraded ($([Math]::Round($Improvement, 2))% worse)" "Yellow"
+        Write-ColorOutput "  • Pool size $($SortedData[$i].PoolSize): Performance degraded ($([Math]::Round($Improvement, 2))% worse)" "Yellow"
     } elseif ($Improvement -lt 5) {
-        Write-ColorOutput "  • Pool size $($SummaryData[$i].PoolSize): Diminishing returns (<5% improvement)" "Yellow"
+        Write-ColorOutput "  • Pool size $($SortedData[$i].PoolSize): Diminishing returns (<5% improvement)" "Yellow"
     }
 }
 

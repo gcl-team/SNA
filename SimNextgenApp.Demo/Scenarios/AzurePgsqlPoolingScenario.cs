@@ -88,9 +88,9 @@ internal static class AzurePgsqlPoolingScenario
         ConnectionPool? pool = poolMode != PoolingMode.Direct ? new ConnectionPool(poolSize) : null;
 
         // Configure Generator with PostgreSQL query creation logic
-        // High traffic: 20 req/sec (0.05s inter-arrival) to test connection overhead impact
+        // High traffic: 50 req/sec (0.02s inter-arrival) to test connection overhead impact
         Func<Random, TimeSpan> interArrivalFunc = (rnd) =>
-            TimeSpan.FromSeconds(-0.05 * Math.Log(1.0 - rnd.NextDouble()));
+            TimeSpan.FromSeconds(-0.02 * Math.Log(1.0 - rnd.NextDouble()));
 
         Func<Random, MyLoad> createLoad = (rnd) =>
         {
