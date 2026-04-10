@@ -15,7 +15,6 @@ internal static class AzureDbBurstScenario
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
-        AzureDbInstanceSpec spec,
         AzureDbBehavior dbBehavior,
         int genSeed,
         bool enableGrafana = false)
@@ -105,7 +104,7 @@ internal static class AzureDbBurstScenario
             genSeed,
             queueConfig,
             serverConfig,
-            numberOfServers: spec.VCores, // Use actual vCore count from spec
+            numberOfServers: dbBehavior.Spec.VCores, // Use actual vCore count from behavior's spec
             serverSeedBase: 100,
             systemCapacityK: 50,
             activeLoggerFactory

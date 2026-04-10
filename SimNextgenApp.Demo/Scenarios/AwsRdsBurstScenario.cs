@@ -15,7 +15,6 @@ internal static class AwsBurstScenario
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
-        AwsRdsInstanceSpec spec,
         AwsRdsBehavior rdsBehavior,
         int genSeed,
         bool enableGrafana = false)
@@ -105,7 +104,7 @@ internal static class AwsBurstScenario
             genSeed,
             queueConfig,
             serverConfig,
-            numberOfServers: spec.VCpus, // Use actual vCPU count from spec
+            numberOfServers: rdsBehavior.Spec.VCpus, // Use actual vCPU count from behavior's spec
             serverSeedBase: 100,
             systemCapacityK: 50,
             activeLoggerFactory

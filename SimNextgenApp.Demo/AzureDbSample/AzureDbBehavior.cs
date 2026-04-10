@@ -37,6 +37,9 @@ internal class AzureDbBehavior(AzureDbInstanceSpec spec, double initialCredits =
     private ObservableGauge<double>? _creditsGauge;
     private Histogram<double>? _latencyHistogram;
 
+    // Expose spec for external use (e.g., determining numberOfServers in scenarios)
+    public AzureDbInstanceSpec Spec => spec;
+
     private double MaxCredits => _burstableSpec?.MaxCredits ?? 0;
     private double EarnRatePerSec => (_burstableSpec?.EarnRatePerHour ?? 0) / 3600.0;
     private double BurnRatePerSec => spec.VCores / 60.0;
