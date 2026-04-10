@@ -33,9 +33,14 @@ internal class ConnectionPool
     /// Attempts to acquire a connection from the pool.
     /// Returns connection ID if successful, null if pool is exhausted.
     ///
-    /// HARD LIMIT: When pool is exhausted (returns null), caller must open
-    /// a new connection with overhead penalty. This matches PgBouncer behavior
-    /// when max_client_conn is reached.
+    /// SPILLOVER MODEL: When pool is exhausted (returns null), caller opens
+    /// a new direct connection to the database, bypassing the pool and paying
+    /// full connection overhead (50ms). This models scenarios where applications
+    /// fall back to direct connections when the pool is saturated, allowing
+    /// temporary exceedance of the pool size under load spikes.
+    ///
+    /// Note: This differs from PgBouncer's default queue-and-wait behavior.
+    /// Use this model to simulate spillover capacity in high-traffic scenarios.
     ///
     /// Called at SERVICE START (deferred acquisition), not at load creation.
     /// Requests naturally queue in SimQueue before reaching this point.
@@ -44,7 +49,7 @@ internal class ConnectionPool
     {
         if (_availableConnections.Count == 0)
         {
-            // Pool exhausted - caller must open new connection (with overhead)
+            // Pool exhausted - caller opens direct connection bypassing pool (spillover model)
             return null;
         }
 
