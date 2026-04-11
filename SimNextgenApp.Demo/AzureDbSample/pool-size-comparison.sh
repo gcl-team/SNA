@@ -256,37 +256,47 @@ done
 echo ""
 echo -e "${BLUE}Recommendations:${NC}"
 
-# Find minimum latency
-MIN_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.2f", min}' "./output/pool_size_comparison/latency_summary.csv")
+# Check if summary CSV exists and has data
+if [ ! -f "./output/pool_size_comparison/latency_summary.csv" ] || [ ! -s "./output/pool_size_comparison/latency_summary.csv" ]; then
+    echo -e "${YELLOW}Warning: latency_summary.csv is missing or empty${NC}"
+    echo -e "${YELLOW}Cannot generate recommendations. Check that simulations completed successfully.${NC}"
+else
+    # Find minimum latency
+    MIN_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.2f", min}' "./output/pool_size_comparison/latency_summary.csv")
 
-# Find smallest pool size that achieves near-optimal performance (within 5% of minimum)
-# Uses same 5% threshold as "diminishing returns" for consistency
-OPTIMAL_SIZE=$(awk -F, -v minlat="$MIN_LATENCY" 'NR>1 {
-    threshold = minlat * 1.05;
-    if ($2 <= threshold) {
-        if (optimal == "" || $1 < optimal) {
-            optimal = $1;
-            optlat = $2;
+    # Find smallest pool size that achieves near-optimal performance (within 5% of minimum)
+    # Uses same 5% threshold as "diminishing returns" for consistency
+    OPTIMAL_SIZE=$(awk -F, -v minlat="$MIN_LATENCY" 'NR>1 {
+        threshold = minlat * 1.05;
+        if ($2 <= threshold) {
+            if (optimal == "" || $1 < optimal) {
+                optimal = $1;
+                optlat = $2;
+            }
         }
-    }
-} END {
-    printf "%s", optimal
-}' "./output/pool_size_comparison/latency_summary.csv")
+    } END {
+        printf "%s", optimal
+    }' "./output/pool_size_comparison/latency_summary.csv")
 
-OPTIMAL_LATENCY=$(awk -F, -v size="$OPTIMAL_SIZE" 'NR>1 && $1==size {printf "%.2f", $2}' "./output/pool_size_comparison/latency_summary.csv")
+    # Guard against empty OPTIMAL_SIZE
+    if [ -z "$OPTIMAL_SIZE" ]; then
+        echo -e "${YELLOW}Warning: Could not determine optimal pool size${NC}"
+        echo -e "${YELLOW}Check that latency_summary.csv has valid data rows${NC}"
+    else
+        OPTIMAL_LATENCY=$(awk -F, -v size="$OPTIMAL_SIZE" 'NR>1 && $1==size {printf "%.2f", $2}' "./output/pool_size_comparison/latency_summary.csv")
 
-echo -e "  • ${GREEN}Optimal pool size: ${OPTIMAL_SIZE} (median latency: ${OPTIMAL_LATENCY}ms)${NC}"
-echo -e "  • ${CYAN}Note: Smallest pool size achieving near-optimal performance (≤5% of minimum)${NC}"
+        echo -e "  • ${GREEN}Optimal pool size: ${OPTIMAL_SIZE} (median latency: ${OPTIMAL_LATENCY}ms)${NC}"
+        echo -e "  • ${CYAN}Note: Smallest pool size achieving near-optimal performance (≤5% of minimum)${NC}"
 
-# Check for diminishing returns (when improvement < 5%)
-# Sort pool sizes numerically for meaningful comparison
-IFS=$'\n' SORTED_POOL_SIZES=($(printf '%s\n' "${POOL_SIZES[@]}" | sort -n))
-unset IFS
+        # Check for diminishing returns (when improvement < 5%)
+        # Sort pool sizes numerically for meaningful comparison
+        IFS=$'\n' SORTED_POOL_SIZES=($(printf '%s\n' "${POOL_SIZES[@]}" | sort -n))
+        unset IFS
 
-LAST_AVG=""
-for POOL_SIZE in "${SORTED_POOL_SIZES[@]}"; do
-    # Skip the optimal pool size (already highlighted above)
-    if [ "$POOL_SIZE" -eq "$OPTIMAL_SIZE" ]; then
+        LAST_AVG=""
+        for POOL_SIZE in "${SORTED_POOL_SIZES[@]}"; do
+            # Skip the optimal pool size (already highlighted above)
+            if [ "$POOL_SIZE" -eq "$OPTIMAL_SIZE" ]; then
         CURRENT_AVG=$(awk -F, -v size="$POOL_SIZE" 'NR>1 && $1==size {print $2}' "./output/pool_size_comparison/latency_summary.csv")
         LAST_AVG=$CURRENT_AVG
         continue
@@ -306,9 +316,11 @@ for POOL_SIZE in "${SORTED_POOL_SIZES[@]}"; do
                 echo -e "  • ${YELLOW}Pool size ${POOL_SIZE}: Diminishing returns (<5% improvement)${NC}"
             fi
         fi
+        fi
+        LAST_AVG=$CURRENT_AVG
+    done
     fi
-    LAST_AVG=$CURRENT_AVG
-done
+fi
 
 OVERALL_ELAPSED=$(($SECONDS - $OVERALL_START))
 echo ""

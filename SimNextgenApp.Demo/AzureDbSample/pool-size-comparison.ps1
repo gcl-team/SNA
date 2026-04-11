@@ -246,38 +246,50 @@ foreach ($Stats in $SummaryData) {
 Write-Host ""
 Write-ColorOutput "Recommendations:" "Blue"
 
-# Find minimum latency
-$MinLatency = ($SummaryData | Measure-Object -Property MedianLatency -Minimum).Minimum
+# Check if summary data exists
+if ($SummaryData.Count -eq 0) {
+    Write-ColorOutput "Warning: No summary data available" "Yellow"
+    Write-ColorOutput "Cannot generate recommendations. Check that simulations completed successfully." "Yellow"
+} else {
+    # Find minimum latency
+    $MinLatency = ($SummaryData | Measure-Object -Property MedianLatency -Minimum).Minimum
 
-# Find smallest pool size that achieves near-optimal performance (within 5% of minimum)
-# Uses same 5% threshold as "diminishing returns" for consistency
-$Threshold = $MinLatency * 1.05
-$OptimalStats = $SummaryData |
-    Where-Object { $_.MedianLatency -le $Threshold } |
-    Sort-Object PoolSize |
-    Select-Object -First 1
+    # Find smallest pool size that achieves near-optimal performance (within 5% of minimum)
+    # Uses same 5% threshold as "diminishing returns" for consistency
+    $Threshold = $MinLatency * 1.05
+    $OptimalStats = $SummaryData |
+        Where-Object { $_.MedianLatency -le $Threshold } |
+        Sort-Object PoolSize |
+        Select-Object -First 1
 
-Write-ColorOutput "  • Optimal pool size: $($OptimalStats.PoolSize) (median latency: $($OptimalStats.MedianLatency)ms)" "Green"
-Write-ColorOutput "  • Note: Smallest pool size achieving near-optimal performance (≤5% of minimum)" "Cyan"
+    # Guard against null OptimalStats
+    if ($null -eq $OptimalStats) {
+        Write-ColorOutput "Warning: Could not determine optimal pool size" "Yellow"
+        Write-ColorOutput "Check that summary data has valid latency values" "Yellow"
+    } else {
+        Write-ColorOutput "  • Optimal pool size: $($OptimalStats.PoolSize) (median latency: $($OptimalStats.MedianLatency)ms)" "Green"
+        Write-ColorOutput "  • Note: Smallest pool size achieving near-optimal performance (≤5% of minimum)" "Cyan"
 
-# Check for diminishing returns (when improvement < 5%)
-# Sort pool sizes numerically for meaningful comparison
-$SortedData = $SummaryData | Sort-Object PoolSize
+        # Check for diminishing returns (when improvement < 5%)
+        # Sort pool sizes numerically for meaningful comparison
+        $SortedData = $SummaryData | Sort-Object PoolSize
 
-for ($i = 1; $i -lt $SortedData.Count; $i++) {
-    # Skip the optimal pool size (already highlighted above)
-    if ($SortedData[$i].PoolSize -eq $OptimalStats.PoolSize) {
-        continue
-    }
+        for ($i = 1; $i -lt $SortedData.Count; $i++) {
+            # Skip the optimal pool size (already highlighted above)
+            if ($SortedData[$i].PoolSize -eq $OptimalStats.PoolSize) {
+                continue
+            }
 
-    $PrevAvg = $SortedData[$i-1].MedianLatency
-    $CurrentAvg = $SortedData[$i].MedianLatency
-    $Improvement = ($PrevAvg - $CurrentAvg) / $PrevAvg * 100
+            $PrevAvg = $SortedData[$i-1].MedianLatency
+            $CurrentAvg = $SortedData[$i].MedianLatency
+            $Improvement = ($PrevAvg - $CurrentAvg) / $PrevAvg * 100
 
-    if ($Improvement -lt 0) {
-        Write-ColorOutput "  • Pool size $($SortedData[$i].PoolSize): Performance degraded ($([Math]::Round($Improvement, 2))% worse)" "Yellow"
-    } elseif ($Improvement -lt 5) {
-        Write-ColorOutput "  • Pool size $($SortedData[$i].PoolSize): Diminishing returns (<5% improvement)" "Yellow"
+            if ($Improvement -lt 0) {
+                Write-ColorOutput "  • Pool size $($SortedData[$i].PoolSize): Performance degraded ($([Math]::Round($Improvement, 2))% worse)" "Yellow"
+            } elseif ($Improvement -lt 5) {
+                Write-ColorOutput "  • Pool size $($SortedData[$i].PoolSize): Diminishing returns (<5% improvement)" "Yellow"
+            }
+        }
     }
 }
 
