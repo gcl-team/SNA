@@ -64,11 +64,25 @@ internal static class AzureDbRegistry
         // B-series - Burstable (20% baseline for all)
         // Azure starts with ~30 credits per core (initial bank for boot-up)
         // Format: Series, Size, VCores, FastSecs, EarnRatePerHour, MaxCredits, BaselineFraction
+
+        // IMPORTANT: FastSecs is identical across all B-series sizes (0.080s) because a single-threaded
+        // query runs at the same speed regardless of vCore count - each vCore has identical performance.
+        // Size-based performance differentiation comes from CONCURRENCY CAPACITY (VCores), not query speed.
+        //
+        // Example throughput at 50 req/sec arrival rate:
+        //   B.1ms: 1 vCore  × 12.5 qps/core = 12.5 qps capacity -> 400% utilization (oversaturated)
+        //   B.2ms: 2 vCores × 12.5 qps/core = 25 qps capacity   -> 200% utilization (saturated)
+        //   B.4ms: 4 vCores × 12.5 qps/core = 50 qps capacity   -> 100% utilization (critical point)
+        //   B.8ms: 8 vCores × 12.5 qps/core = 100 qps capacity  -> 50% utilization (comfortable)
+        //
+        // This models reality: larger instances win through PARALLELISM, not faster individual queries.
+        // See: AzurePgsqlPoolingScenario.cs (numberOfServers: VCores)
+
         new BurstableInstanceSpec("B", "1ms", 1, 0.080, 12, 288,  0.20),
         new BurstableInstanceSpec("B", "2s",  2, 0.080, 24, 576,  0.20),
         new BurstableInstanceSpec("B", "2ms", 2, 0.080, 24, 576,  0.20),
         new BurstableInstanceSpec("B", "4ms", 4, 0.080, 48, 1152, 0.20),
-        new BurstableInstanceSpec("B", "8ms", 8, 0.080, 96, 2304, 0.20), 
+        new BurstableInstanceSpec("B", "8ms", 8, 0.080, 96, 2304, 0.20),
 
         // Future: D-series (General Purpose), E-series (Memory Optimized)
     };
