@@ -114,116 +114,25 @@ foreach ($modeInfo in $modes) {
     }
 }
 
-# Merge CSVs and generate comparison graphs
+# Generate comparison graphs
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "Merging Results & Generating Comparison Graphs" -ForegroundColor Cyan
+Write-Host "Generating Median Latency Comparison Charts" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
-# Merge latency CSVs
-$latencyDirect = "./output/pooling_comparison/direct/simulation_latency.csv"
-$latencySession = "./output/pooling_comparison/session/simulation_latency.csv"
-$latencyTransaction = "./output/pooling_comparison/transaction/simulation_latency.csv"
-
-if ((Test-Path $latencyDirect) -and (Test-Path $latencySession) -and (Test-Path $latencyTransaction)) {
-    Write-Host "Merging latency data..." -ForegroundColor Blue
-
-    # Load all three CSV files
-    $directData = Import-Csv $latencyDirect
-    $sessionData = Import-Csv $latencySession
-    $transactionData = Import-Csv $latencyTransaction
-
-    # Merge by row index (nth query) instead of timestamp to avoid data loss
-    # Event times differ across modes due to different service times, so timestamp-based
-    # merging would drop most rows. Row-index merge preserves all data points.
-    $mergedLatency = @()
-    $mergedLatency += "Query Index,Direct Time (s),Direct (ms),Session Time (s),Session (ms),Transaction Time (s),Transaction (ms)"
-
-    $maxCount = [Math]::Min($directData.Count, [Math]::Min($sessionData.Count, $transactionData.Count))
-    for ($i = 0; $i -lt $maxCount; $i++) {
-        $mergedLatency += "$($i+1),$($directData[$i].'Simulation Time (s)'),$($directData[$i].'Latency (ms)'),$($sessionData[$i].'Simulation Time (s)'),$($sessionData[$i].'Latency (ms)'),$($transactionData[$i].'Simulation Time (s)'),$($transactionData[$i].'Latency (ms)')"
-    }
-
-    $mergedLatency | Out-File "./output/pooling_comparison/latency_combined.csv" -Encoding UTF8
-    Write-Host "✓ Created latency_combined.csv (merged by query index)" -ForegroundColor Green
-}
-
-# Merge credits CSVs
-$creditsDirect = "./output/pooling_comparison/direct/simulation_credits.csv"
-$creditsSession = "./output/pooling_comparison/session/simulation_credits.csv"
-$creditsTransaction = "./output/pooling_comparison/transaction/simulation_credits.csv"
-
-if ((Test-Path $creditsDirect) -and (Test-Path $creditsSession) -and (Test-Path $creditsTransaction)) {
-    Write-Host "Merging credits data..." -ForegroundColor Blue
-
-    # Load all three CSV files
-    $directData = Import-Csv $creditsDirect
-    $sessionData = Import-Csv $creditsSession
-    $transactionData = Import-Csv $creditsTransaction
-
-    # Merge by row index (nth query) instead of timestamp to avoid data loss
-    $mergedCredits = @()
-    $mergedCredits += "Query Index,Direct Time (s),Direct,Session Time (s),Session,Transaction Time (s),Transaction"
-
-    $maxCount = [Math]::Min($directData.Count, [Math]::Min($sessionData.Count, $transactionData.Count))
-    for ($i = 0; $i -lt $maxCount; $i++) {
-        $mergedCredits += "$($i+1),$($directData[$i].'Simulation Time (s)'),$($directData[$i].'Credits'),$($sessionData[$i].'Simulation Time (s)'),$($sessionData[$i].'Credits'),$($transactionData[$i].'Simulation Time (s)'),$($transactionData[$i].'Credits')"
-    }
-
-    $mergedCredits | Out-File "./output/pooling_comparison/credits_combined.csv" -Encoding UTF8
-    Write-Host "✓ Created credits_combined.csv (merged by query index)" -ForegroundColor Green
-}
-
-# Generate individual graphs for PowerPoint overlay (with distinct colors!)
+# Check if graph-cli is available
 if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
     Write-Host "graph-cli not found. Install with: pip install graph-cli" -ForegroundColor Yellow
     Write-Host "Skipping graph generation" -ForegroundColor Yellow
-    Write-Host "(Merged CSV files are still available for manual plotting)" -ForegroundColor Yellow
+    Write-Host "(CSV files are still available in ./output/pooling_comparison/)" -ForegroundColor Yellow
 } else {
-    Write-Host "Generating individual charts (with distinct colors for overlay)..." -ForegroundColor Blue
+    Write-Host "Generating median latency bar charts..." -ForegroundColor Blue
 
-    # Generate individual latency and credits graphs with distinct colors
-    foreach ($modeInfo in $modes) {
-        $mode = $modeInfo.Name
-        $modeDir = "./output/pooling_comparison/$mode"
-
-        # Set color based on mode
-        $color = switch ($mode) {
-            "direct" { "red" }       # Red = worst (highest overhead)
-            "session" { "green" }    # Green = best (no overhead)
-            "transaction" { "orange" } # Orange = middle (8ms overhead)
-        }
-
-        # Generate latency graph
-        $latencyFile = "$modeDir/simulation_latency.csv"
-        if (Test-Path $latencyFile) {
-            $latency = Import-Csv $latencyFile
-            $latencyMax = ($latency | ForEach-Object { [double]$_."Latency (ms)" } | Measure-Object -Maximum).Maximum
-            if ($null -eq $latencyMax) { $latencyMax = 1 }
-
-            graph $latencyFile --title "Latency - $mode" --color $color --yrange="0:$latencyMax" -o "$modeDir/latency.png"
-            Write-Host "✓ Generated $mode latency graph ($color)" -ForegroundColor Green
-        }
-
-        # Generate credits graph
-        $creditsFile = "$modeDir/simulation_credits.csv"
-        if (Test-Path $creditsFile) {
-            $credits = Import-Csv $creditsFile
-            $creditMax = ($credits | ForEach-Object { [double]$_.Credits } | Measure-Object -Maximum).Maximum
-            if ($null -eq $creditMax) { $creditMax = 1 }
-
-            graph $creditsFile --title "Credits - $mode" --color $color --yrange="0:$creditMax" -o "$modeDir/credits.png"
-            Write-Host "✓ Generated $mode credits graph ($color)" -ForegroundColor Green
-        }
-    }
-
-    # Generate summary bar charts
-    Write-Host "Generating summary bar charts..." -ForegroundColor Blue
-
-    # Calculate median latencies (more robust than mean for latency comparisons)
+    # Load simulation data
     $directData = Import-Csv "./output/pooling_comparison/direct/simulation_latency.csv"
     $sessionData = Import-Csv "./output/pooling_comparison/session/simulation_latency.csv"
     $transactionData = Import-Csv "./output/pooling_comparison/transaction/simulation_latency.csv"
 
+    # Helper function to calculate median
     function Get-Median {
         param([double[]]$values)
         $sorted = $values | Sort-Object
@@ -237,6 +146,7 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
         }
     }
 
+    # Calculate median latencies
     $directMedian = Get-Median ($directData | ForEach-Object { [double]$_."Latency (ms)" })
     $sessionMedian = Get-Median ($sessionData | ForEach-Object { [double]$_."Latency (ms)" })
     $transactionMedian = Get-Median ($transactionData | ForEach-Object { [double]$_."Latency (ms)" })

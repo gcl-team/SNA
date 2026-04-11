@@ -121,101 +121,22 @@ run_mode() {
 }
 
 # Run all three modes
-run_mode "direct" "Direct Connections (50ms overhead)"
-run_mode "session" "Session Pooling (no overhead)"
-run_mode "transaction" "Transaction Pooling (8ms overhead)"
+run_mode "direct" "Direct Connections"
+run_mode "session" "Session Pooling"
+run_mode "transaction" "Transaction Pooling"
 
-# Merge CSVs and generate comparison graphs
+# Generate comparison graphs
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
-echo -e "${CYAN}Merging Results & Generating Comparison Graphs${NC}"
+echo -e "${CYAN}Generating Median Latency Comparison Charts${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
 
-# Merge latency CSVs
-LATENCY_DIRECT="./output/pooling_comparison/direct/simulation_latency.csv"
-LATENCY_SESSION="./output/pooling_comparison/session/simulation_latency.csv"
-LATENCY_TRANSACTION="./output/pooling_comparison/transaction/simulation_latency.csv"
-
-if [ -f "$LATENCY_DIRECT" ] && [ -f "$LATENCY_SESSION" ] && [ -f "$LATENCY_TRANSACTION" ]; then
-    echo -e "${BLUE}Merging latency data...${NC}"
-
-    # Merge by row index (nth query) instead of timestamp to avoid data loss
-    # Event times differ across modes due to different service times, so timestamp-based
-    # joins would drop most rows. Row-index merge preserves all data points.
-    {
-        echo "Query Index,Direct Time (s),Direct (ms),Session Time (s),Session (ms),Transaction Time (s),Transaction (ms)"
-
-        paste -d, \
-            <(tail -n +2 "$LATENCY_DIRECT" | awk -F, '{print NR "," $1 "," $2}') \
-            <(tail -n +2 "$LATENCY_SESSION" | awk -F, '{print $1 "," $2}') \
-            <(tail -n +2 "$LATENCY_TRANSACTION" | awk -F, '{print $1 "," $2}')
-    } > "./output/pooling_comparison/latency_combined.csv"
-
-    echo -e "${GREEN}✓ Created latency_combined.csv (merged by query index)${NC}"
-fi
-
-# Merge credits CSVs
-CREDITS_DIRECT="./output/pooling_comparison/direct/simulation_credits.csv"
-CREDITS_SESSION="./output/pooling_comparison/session/simulation_credits.csv"
-CREDITS_TRANSACTION="./output/pooling_comparison/transaction/simulation_credits.csv"
-
-if [ -f "$CREDITS_DIRECT" ] && [ -f "$CREDITS_SESSION" ] && [ -f "$CREDITS_TRANSACTION" ]; then
-    echo -e "${BLUE}Merging credits data...${NC}"
-
-    # Merge by row index (nth query) instead of timestamp to avoid data loss
-    {
-        echo "Query Index,Direct Time (s),Direct,Session Time (s),Session,Transaction Time (s),Transaction"
-
-        paste -d, \
-            <(tail -n +2 "$CREDITS_DIRECT" | awk -F, '{print NR "," $1 "," $2}') \
-            <(tail -n +2 "$CREDITS_SESSION" | awk -F, '{print $1 "," $2}') \
-            <(tail -n +2 "$CREDITS_TRANSACTION" | awk -F, '{print $1 "," $2}')
-    } > "./output/pooling_comparison/credits_combined.csv"
-
-    echo -e "${GREEN}✓ Created credits_combined.csv (merged by query index)${NC}"
-fi
-
-# Generate individual graphs for PowerPoint overlay (with distinct colors!)
+# Check if graph-cli is available
 if ! command -v graph &> /dev/null; then
     echo -e "${YELLOW}graph-cli not found. Install with: pip install graph-cli${NC}"
     echo -e "${YELLOW}Skipping graph generation${NC}"
-    echo -e "${YELLOW}(Merged CSV files are still available for manual plotting)${NC}"
+    echo -e "${YELLOW}(CSV files are still available in ./output/pooling_comparison/)${NC}"
 else
-    echo -e "${BLUE}Generating individual charts (with distinct colors for overlay)...${NC}"
-
-    # Generate individual latency graphs with distinct colors
-    for MODE in "${MODES[@]}"; do
-        MODE_DIR="./output/pooling_comparison/${MODE}"
-
-        # Set color based on mode
-        case $MODE in
-            direct) COLOR="red" ;;       # Red = worst (highest overhead)
-            session) COLOR="green" ;;    # Green = best (no overhead)
-            transaction) COLOR="orange" ;; # Orange = middle (8ms overhead)
-        esac
-
-        if [ -f "${MODE_DIR}/simulation_latency.csv" ]; then
-            LATENCY_MAX=$(awk -F, 'BEGIN {max=0} NR>1 {if($2>max) max=$2} END {print (max==0?1:max)}' "${MODE_DIR}/simulation_latency.csv")
-            graph "${MODE_DIR}/simulation_latency.csv" \
-                --title "Latency - ${MODE}" \
-                --color "$COLOR" \
-                --yrange=0:$LATENCY_MAX \
-                -o "${MODE_DIR}/latency.png"
-            echo -e "${GREEN}✓ Generated ${MODE} latency graph (${COLOR})${NC}"
-        fi
-
-        if [ -f "${MODE_DIR}/simulation_credits.csv" ]; then
-            CREDIT_MAX=$(awk -F, 'BEGIN {max=0} NR>1 {if($2>max) max=$2} END {print (max==0?1:max)}' "${MODE_DIR}/simulation_credits.csv")
-            graph "${MODE_DIR}/simulation_credits.csv" \
-                --title "Credits - ${MODE}" \
-                --color "$COLOR" \
-                --yrange=0:$CREDIT_MAX \
-                -o "${MODE_DIR}/credits.png"
-            echo -e "${GREEN}✓ Generated ${MODE} credits graph (${COLOR})${NC}"
-        fi
-    done
-
-    # Generate summary bar charts
-    echo -e "${BLUE}Generating summary bar charts...${NC}"
+    echo -e "${BLUE}Generating median latency bar charts...${NC}"
 
     # Calculate median latencies
     # Use sort for portability
