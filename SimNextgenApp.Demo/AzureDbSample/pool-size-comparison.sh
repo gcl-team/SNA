@@ -256,10 +256,13 @@ done
 echo ""
 echo -e "${BLUE}Recommendations:${NC}"
 
-# Check if summary CSV exists and has data
-if [ ! -f "./output/pool_size_comparison/latency_summary.csv" ] || [ ! -s "./output/pool_size_comparison/latency_summary.csv" ]; then
-    echo -e "${YELLOW}Warning: latency_summary.csv is missing or empty${NC}"
+# Check if summary CSV exists and has data rows (not just header)
+if [ ! -f "./output/pool_size_comparison/latency_summary.csv" ]; then
+    echo -e "${YELLOW}Warning: latency_summary.csv is missing${NC}"
     echo -e "${YELLOW}Cannot generate recommendations. Check that simulations completed successfully.${NC}"
+elif ! tail -n +2 "./output/pool_size_comparison/latency_summary.csv" | grep -q .; then
+    echo -e "${YELLOW}Warning: latency_summary.csv has no data rows (only header)${NC}"
+    echo -e "${YELLOW}Cannot generate recommendations. Check that simulations produced data.${NC}"
 else
     # Find minimum latency
     MIN_LATENCY=$(awk -F, 'NR>1 {if(NR==2 || $2<min) min=$2} END {printf "%.2f", min}' "./output/pool_size_comparison/latency_summary.csv")

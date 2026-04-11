@@ -246,9 +246,9 @@ foreach ($Stats in $SummaryData) {
 Write-Host ""
 Write-ColorOutput "Recommendations:" "Blue"
 
-# Check if summary data exists
-if ($SummaryData.Count -eq 0) {
-    Write-ColorOutput "Warning: No summary data available" "Yellow"
+# Check if summary data has actual rows (not just empty array)
+if ($null -eq $SummaryData -or $SummaryData.Count -eq 0) {
+    Write-ColorOutput "Warning: No summary data available (simulations produced no data)" "Yellow"
     Write-ColorOutput "Cannot generate recommendations. Check that simulations completed successfully." "Yellow"
 } else {
     # Find minimum latency
