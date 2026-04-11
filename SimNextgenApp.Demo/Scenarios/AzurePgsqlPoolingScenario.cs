@@ -10,12 +10,18 @@ using SimNextgenApp.Observability.Exporters;
 
 namespace SimNextgenApp.Demo.Scenarios;
 
-internal static class AzureDbBurstScenario
+/// <summary>
+/// Simulates PostgreSQL connection pooling strategies on Azure B-series instances.
+/// Compares Direct, Session, and Transaction pooling modes.
+/// </summary>
+internal static class AzurePgsqlPoolingScenario
 {
     public static void RunDemo(
         ILoggerFactory loggerFactory,
         double runDuration,
         AzureDbBehavior dbBehavior,
+        PoolingMode poolMode,
+        int poolSize,
         int genSeed,
         bool enableGrafana = false)
     {
@@ -29,7 +35,7 @@ internal static class AzureDbBurstScenario
 
             if (string.IsNullOrWhiteSpace(grafanaApiKey))
             {
-                var tempLogger = loggerFactory.CreateLogger("Azure-DB-Simulation");
+                var tempLogger = loggerFactory.CreateLogger("Azure-Pgsql-Pooling");
                 tempLogger.LogError("GRAFANA_API_KEY environment variable not set!");
                 tempLogger.LogWarning("Continuing simulation without Grafana export...");
             }
@@ -38,7 +44,7 @@ internal static class AzureDbBurstScenario
                 try
                 {
                     telemetry = SimulationTelemetry.Create()
-                        .WithServiceInfo("Azure-DB-Simulation", "1.0.0")
+                        .WithServiceInfo("Azure-Pgsql-Pooling", "1.0.0")
                         .WithOtlpExporter(
                             OtlpBackend.GrafanaCloud,
                             apiKey: grafanaApiKey,
@@ -50,7 +56,7 @@ internal static class AzureDbBurstScenario
                     // Connect the database behavior to emit metrics
                     dbBehavior.SetMeter(telemetry.Meter);
 
-                    // Use the OpenTelemetry-configured logger factory!
+                    // Use the OpenTelemetry-configured logger factory
                     if (telemetry.LoggerFactory != null)
                     {
                         activeLoggerFactory = telemetry.LoggerFactory;
@@ -58,39 +64,55 @@ internal static class AzureDbBurstScenario
                 }
                 catch (Exception ex)
                 {
-                    var tempLogger = loggerFactory.CreateLogger("Azure-DB-Simulation");
+                    var tempLogger = loggerFactory.CreateLogger("Azure-Pgsql-Pooling");
                     tempLogger.LogError(ex, "Failed to configure Grafana Cloud export");
                     tempLogger.LogWarning("Continuing simulation without Grafana export...");
                 }
             }
         }
 
-        // Create two separate loggers:
-        // - programLogger: May use telemetry.LoggerFactory (for OTel log correlation)
-        // - cleanupLogger: Always uses original loggerFactory (survives telemetry disposal)
-        // This prevents use-after-dispose bugs when logging cleanup/disposal messages
-        var programLogger = activeLoggerFactory.CreateLogger("Azure-DB-Simulation");
-        var cleanupLogger = loggerFactory.CreateLogger("Azure-DB-Simulation-Cleanup");
+        // Create two separate loggers for proper lifecycle management
+        var programLogger = activeLoggerFactory.CreateLogger("Azure-Pgsql-Pooling");
+        var cleanupLogger = loggerFactory.CreateLogger("Azure-Pgsql-Pooling-Cleanup");
 
-        programLogger.LogInformation("--- Preparing Azure Database Burst Simulation ---");
+        programLogger.LogInformation("--- Preparing Azure PostgreSQL Pooling Simulation ---");
+        programLogger.LogInformation($"Pooling Mode: {poolMode}");
+        programLogger.LogInformation($"Pool Size: {(poolMode == PoolingMode.Direct ? "N/A (Direct)" : poolSize.ToString())}");
 
         if (telemetry != null)
         {
             programLogger.LogInformation("Grafana Cloud OpenTelemetry export enabled!");
         }
 
-        // 2. Configure Generator (High Load)
-        // High traffic: 20 req/sec (0.05s inter-arrival) to drain the credits
+        // Create connection pool (if not direct mode)
+        ConnectionPool? pool = poolMode != PoolingMode.Direct ? new ConnectionPool(poolSize) : null;
+
+        // Configure Generator with PostgreSQL query creation logic
+        // High traffic: 50 req/sec (0.02s inter-arrival) to test connection overhead impact
         Func<Random, TimeSpan> interArrivalFunc = (rnd) =>
-            TimeSpan.FromSeconds(-0.05 * Math.Log(1.0 - rnd.NextDouble()));
+            TimeSpan.FromSeconds(-0.02 * Math.Log(1.0 - rnd.NextDouble()));
+
+        Func<Random, MyLoad> createLoad = (rnd) =>
+        {
+            // DEFERRED ACQUISITION: Connection will be acquired when service starts,
+            // not at load creation. If the pool is exhausted, the simulation uses a
+            // spillover model (opens direct connection) rather than queuing/blocking.
+            var query = new PostgresQuery
+            {
+                PoolMode = poolMode,
+                ConnectionId = null, // ← Not assigned yet (deferred)
+                IsNewConnection = false // ← Will be determined at service start
+            };
+
+            return query;
+        };
 
         var generatorConfig = new GeneratorStaticConfig<MyLoad>(
             interArrivalFunc,
-            (rnd) => new MyLoad()
+            createLoad
         );
 
-        // 3. Configure Server (Using the Physics Class)
-        // Pass the method from the dbBehavior instance
+        // Configure Server (using PostgreSQL-aware AzureDbBehavior)
         var serverConfig = new ServerStaticConfig<MyLoad>(dbBehavior.GetServiceTime)
         {
             Capacity = 1
@@ -98,20 +120,19 @@ internal static class AzureDbBurstScenario
 
         var queueConfig = new QueueStaticConfig<MyLoad>();
 
-        // 4. Create Model
+        // Create Model
         var model = new SimpleMmckModel(
             generatorConfig,
             genSeed,
             queueConfig,
             serverConfig,
-            numberOfServers: dbBehavior.Spec.VCores, // Use actual vCore count from behavior's spec
+            numberOfServers: dbBehavior.Spec.VCores,
             serverSeedBase: 100,
             systemCapacityK: 50,
             activeLoggerFactory
         );
 
-        // 5. Create Engine
-        // Start with Seconds (validation will auto-correct if needed)
+        // Create Engine with time unit validation
         var timeUnit = SimulationTimeUnit.Seconds;
 
         long runDurationInUnits = TimeUnitConverter.ConvertToSimulationUnits(
@@ -122,14 +143,14 @@ internal static class AzureDbBurstScenario
         var profile = new SimulationProfile(
             model,
             new DurationRunStrategy(runDurationInUnits, null),
-            "Azure Database Burstable Simulation",
+            "Azure PostgreSQL Pooling Simulation",
             timeUnit,
             activeLoggerFactory
         );
 
         var engine = new SimulationEngine(profile);
 
-        // 5.5. Validate TimeUnit Precision (OPTIONAL but recommended)
+        // Validate TimeUnit Precision
         programLogger.LogInformation("\n--- Validating TimeUnit Precision ---");
         var validation = SimulationProfileValidator.ValidateTimeUnit(
             timeUnit,
@@ -157,7 +178,7 @@ internal static class AzureDbBurstScenario
             profile = new SimulationProfile(
                 model,
                 new DurationRunStrategy(runDurationInUnits, null),
-                "Azure Database Burstable Simulation",
+                "Azure PostgreSQL Pooling Simulation",
                 timeUnit,
                 activeLoggerFactory
             );
@@ -165,12 +186,50 @@ internal static class AzureDbBurstScenario
             engine = new SimulationEngine(profile);
         }
 
-        // =========================================================
-        // 6. THE CRITICAL STEP: CONNECT PHYSICS TO ENGINE
-        // =========================================================
-        // We inject the engine context so the behavior can access ClockTime and TimeUnit
+        // Connect physics to engine
         dbBehavior.SetContext(engine);
-        // =========================================================
+
+        // Set connection pool for deferred acquisition (if using pooling mode)
+        dbBehavior.SetConnectionPool(pool);
+
+        // Release connections back to pool when service completes
+        if (pool != null && poolMode != PoolingMode.Direct)
+        {
+            // Random number generator for session hold time
+            var holdTimeRandom = new Random(genSeed + 999);
+
+            foreach (var server in model.ServiceChannels)
+            {
+                server.LoadDeparted += (load, departureTime) =>
+                {
+                    if (load is PostgresQuery query)
+                    {
+                        if (poolMode == PoolingMode.SessionPooling)
+                        {
+                            // SESSION POOLING: Hold connection for random time (simulates client session)
+                            // Client might run more queries on the same connection before releasing
+                            // Mean hold time: 100ms (typical think time between queries in a session)
+                            double holdTimeSecs = -0.1 * Math.Log(1.0 - holdTimeRandom.NextDouble());
+                            long holdTimeUnits = TimeUnitConverter.ConvertToSimulationUnits(
+                                TimeSpan.FromSeconds(holdTimeSecs),
+                                engine.TimeUnit
+                            );
+
+                            // Schedule delayed release event
+                            long releaseTime = departureTime + holdTimeUnits;
+                            var releaseEvent = new ConnectionReleaseEvent(pool, query.Id.ToString());
+                            engine.Schedule(releaseEvent, releaseTime);
+                        }
+                        else
+                        {
+                            // TRANSACTION POOLING: Release immediately
+                            // Connection returned to pool right away for next transaction
+                            pool.ReleaseConnection(query.Id.ToString());
+                        }
+                    }
+                };
+            }
+        }
 
         programLogger.LogInformation("Starting Simulation. CSV results will be written to ./output/ directory...");
 
@@ -187,7 +246,7 @@ internal static class AzureDbBurstScenario
         }
         finally
         {
-            // Flush telemetry data to ensure all metrics are sent
+            // Flush telemetry data
             if (telemetry != null)
             {
                 programLogger.LogInformation("Flushing metrics to Grafana Cloud...");
@@ -215,12 +274,10 @@ internal static class AzureDbBurstScenario
                 {
                     simObserver?.Dispose();
                     telemetry.Dispose();
-                    // Use cleanupLogger here because telemetry (and its LoggerFactory) is now disposed
                     cleanupLogger.LogInformation("Telemetry disposed successfully");
                 }
                 catch (Exception ex)
                 {
-                    // Use cleanupLogger for error logging during disposal
                     cleanupLogger.LogError(ex, "Telemetry disposal failed");
                 }
             }
@@ -228,6 +285,7 @@ internal static class AzureDbBurstScenario
             dbBehavior.FinalizeExport("output");
 
             cleanupLogger.LogInformation("Simulation Complete.");
+            cleanupLogger.LogInformation($"Check 'output/' directory for CSV results.");
         }
     }
 }
