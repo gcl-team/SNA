@@ -64,11 +64,11 @@ internal static class AzureDbRegistry
         // B-series - Burstable (20% baseline for all)
         // Azure starts with ~30 credits per core (initial bank for boot-up)
         // Format: Series, Size, VCores, FastSecs, EarnRatePerHour, MaxCredits, BaselineFraction
-        new BurstableInstanceSpec("B", "1ms", 1, 0.080, 12, 288,  0.20),  // 0.20 = 20% baseline → SlowSecs = 0.250
-        new BurstableInstanceSpec("B", "2s",  2, 0.080, 24, 576,  0.20),  // 0.20 = 20% baseline → SlowSecs = 0.225
-        new BurstableInstanceSpec("B", "2ms", 2, 0.080, 24, 576,  0.20),  // 0.20 = 20% baseline → SlowSecs = 0.225
-        new BurstableInstanceSpec("B", "4ms", 4, 0.080, 48, 1152, 0.20),  // 0.20 = 20% baseline → SlowSecs = 0.200
-        new BurstableInstanceSpec("B", "8ms", 8, 0.080, 96, 2304, 0.20),  // 0.20 = 20% baseline → SlowSecs = 0.175
+        new BurstableInstanceSpec("B", "1ms", 1, 0.080, 12, 288,  0.20),
+        new BurstableInstanceSpec("B", "2s",  2, 0.080, 24, 576,  0.20),
+        new BurstableInstanceSpec("B", "2ms", 2, 0.080, 24, 576,  0.20),
+        new BurstableInstanceSpec("B", "4ms", 4, 0.080, 48, 1152, 0.20),
+        new BurstableInstanceSpec("B", "8ms", 8, 0.080, 96, 2304, 0.20), 
 
         // Future: D-series (General Purpose), E-series (Memory Optimized)
     };
