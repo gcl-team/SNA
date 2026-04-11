@@ -130,8 +130,18 @@ echo -e "${CYAN}═════════════════════�
 echo -e "${CYAN}Generating Median Latency Comparison Charts${NC}"
 echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
 
-# Check if graph-cli is available
-if ! command -v graph &> /dev/null; then
+# Check if required CSV files exist before generating graphs
+LATENCY_DIRECT="./output/pooling_comparison/direct/simulation_latency.csv"
+LATENCY_SESSION="./output/pooling_comparison/session/simulation_latency.csv"
+LATENCY_TRANSACTION="./output/pooling_comparison/transaction/simulation_latency.csv"
+
+if [ ! -f "$LATENCY_DIRECT" ] || [ ! -f "$LATENCY_SESSION" ] || [ ! -f "$LATENCY_TRANSACTION" ]; then
+    echo -e "${YELLOW}Skipping graph generation: one or more simulation CSVs missing${NC}"
+    echo -e "${YELLOW}Expected files:${NC}"
+    echo -e "${YELLOW}  - $LATENCY_DIRECT${NC}"
+    echo -e "${YELLOW}  - $LATENCY_SESSION${NC}"
+    echo -e "${YELLOW}  - $LATENCY_TRANSACTION${NC}"
+elif ! command -v graph &> /dev/null; then
     echo -e "${YELLOW}graph-cli not found. Install with: pip install graph-cli${NC}"
     echo -e "${YELLOW}Skipping graph generation${NC}"
     echo -e "${YELLOW}(CSV files are still available in ./output/pooling_comparison/)${NC}"
@@ -140,9 +150,9 @@ else
 
     # Calculate median latencies
     # Use sort for portability
-    DIRECT_MEDIAN=$(awk -F, 'NR>1 {print $2}' "./output/pooling_comparison/direct/simulation_latency.csv" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
-    SESSION_MEDIAN=$(awk -F, 'NR>1 {print $2}' "./output/pooling_comparison/session/simulation_latency.csv" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
-    TRANSACTION_MEDIAN=$(awk -F, 'NR>1 {print $2}' "./output/pooling_comparison/transaction/simulation_latency.csv" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+    DIRECT_MEDIAN=$(awk -F, 'NR>1 {print $2}' "$LATENCY_DIRECT" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+    SESSION_MEDIAN=$(awk -F, 'NR>1 {print $2}' "$LATENCY_SESSION" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
+    TRANSACTION_MEDIAN=$(awk -F, 'NR>1 {print $2}' "$LATENCY_TRANSACTION" | sort -n | awk '{a[NR]=$1} END {n=NR; mid=int(n/2); if(n%2==1) printf "%.2f", a[mid+1]; else printf "%.2f", (a[mid]+a[mid+1])/2}')
 
     # Create summary CSV for bar chart
     cat > "./output/pooling_comparison/latency_summary.csv" << EOF

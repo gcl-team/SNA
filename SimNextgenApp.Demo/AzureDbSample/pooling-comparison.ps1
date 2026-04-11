@@ -119,8 +119,18 @@ Write-Host "══════════════════════�
 Write-Host "Generating Median Latency Comparison Charts" -ForegroundColor Cyan
 Write-Host "═══════════════════════════════════════════════════════════════" -ForegroundColor Cyan
 
-# Check if graph-cli is available
-if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
+# Check if required CSV files exist before generating graphs
+$latencyDirect = "./output/pooling_comparison/direct/simulation_latency.csv"
+$latencySession = "./output/pooling_comparison/session/simulation_latency.csv"
+$latencyTransaction = "./output/pooling_comparison/transaction/simulation_latency.csv"
+
+if ((-not (Test-Path $latencyDirect)) -or (-not (Test-Path $latencySession)) -or (-not (Test-Path $latencyTransaction))) {
+    Write-Host "Skipping graph generation: one or more simulation CSVs missing" -ForegroundColor Yellow
+    Write-Host "Expected files:" -ForegroundColor Yellow
+    Write-Host "  - $latencyDirect" -ForegroundColor Yellow
+    Write-Host "  - $latencySession" -ForegroundColor Yellow
+    Write-Host "  - $latencyTransaction" -ForegroundColor Yellow
+} elseif (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
     Write-Host "graph-cli not found. Install with: pip install graph-cli" -ForegroundColor Yellow
     Write-Host "Skipping graph generation" -ForegroundColor Yellow
     Write-Host "(CSV files are still available in ./output/pooling_comparison/)" -ForegroundColor Yellow
@@ -128,9 +138,9 @@ if (-not (Get-Command graph -ErrorAction SilentlyContinue)) {
     Write-Host "Generating median latency bar charts..." -ForegroundColor Blue
 
     # Load simulation data
-    $directData = Import-Csv "./output/pooling_comparison/direct/simulation_latency.csv"
-    $sessionData = Import-Csv "./output/pooling_comparison/session/simulation_latency.csv"
-    $transactionData = Import-Csv "./output/pooling_comparison/transaction/simulation_latency.csv"
+    $directData = Import-Csv $latencyDirect
+    $sessionData = Import-Csv $latencySession
+    $transactionData = Import-Csv $latencyTransaction
 
     # Helper function to calculate median
     function Get-Median {
