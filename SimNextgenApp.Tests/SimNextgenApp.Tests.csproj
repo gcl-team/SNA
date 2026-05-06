@@ -9,9 +9,7 @@
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-
-    <!-- This enables the xUnit MTP runner logic -->
-    <EnableXUnitRunner>true</EnableXUnitRunner>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
   </PropertyGroup>
 
   <ItemGroup>
