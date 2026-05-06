@@ -3,6 +3,7 @@
         "Nextgen",
         "Burstable"
     ],
+    "dotnet.test.runSettings": "Microsoft.Testing.Platform",
     "yaml.customTags": [
         "!Ref",
         "!GetAtt",
