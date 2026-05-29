@@ -61,8 +61,7 @@ internal static class AzureDbRegistry
 {
     private static readonly List<AzureDbInstanceSpec> Specs = new()
     {
-        // B-series - Burstable (20% baseline for all)
-        // Azure starts with ~30 credits per core (initial bank for boot-up)
+        // B-series - Burstable
         // Format: Series, Size, VCores, FastSecs, EarnRatePerHour, MaxCredits, BaselineFraction
 
         // IMPORTANT: FastSecs is identical across all B-series sizes (0.080s) because a single-threaded

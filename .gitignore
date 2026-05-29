@@ -481,3 +481,13 @@ $RECYCLE.BIN/
 nuget.config
 *.pem
 output/
+
+# LaTeX / Beamer build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.nav
+*.out
+*.snm
+*.synctex.gz
+*.toc
