@@ -61,9 +61,11 @@ internal static class AzureDbRegistry
 {
     private static readonly List<AzureDbInstanceSpec> Specs = new()
     {
-        // B-series - Burstable (20% baseline for all)
-        // Azure starts with ~30 credits per core (initial bank for boot-up)
+        // B-series - Burstable
         // Format: Series, Size, VCores, FastSecs, EarnRatePerHour, MaxCredits, BaselineFraction
+        // Values are taken from Azure's published B-series specs for each size.
+        // Keep EarnRatePerHour, MaxCredits, and BaselineFraction in sync with the source table,
+        // since MaxCredits is no longer a simple derivation from EarnRatePerHour.
 
         // IMPORTANT: FastSecs is identical across all B-series sizes (0.080s) because a single-threaded
         // query runs at the same speed regardless of vCore count - each vCore has identical performance.
@@ -80,9 +82,9 @@ internal static class AzureDbRegistry
 
         new BurstableInstanceSpec("B", "1ms", 1, 0.080, 12, 288,  0.20),
         new BurstableInstanceSpec("B", "2s",  2, 0.080, 24, 576,  0.20),
-        new BurstableInstanceSpec("B", "2ms", 2, 0.080, 24, 576,  0.20),
-        new BurstableInstanceSpec("B", "4ms", 4, 0.080, 48, 1152, 0.20),
-        new BurstableInstanceSpec("B", "8ms", 8, 0.080, 96, 2304, 0.20),
+        new BurstableInstanceSpec("B", "2ms", 2, 0.080, 36, 864,  0.30),
+        new BurstableInstanceSpec("B", "4ms", 4, 0.080, 48, 1296, 0.225),
+        new BurstableInstanceSpec("B", "8ms", 8, 0.080, 96, 1994, 0.17),
 
         // Future: D-series (General Purpose), E-series (Memory Optimized)
     };
