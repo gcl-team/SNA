@@ -80,9 +80,9 @@ internal static class AzureDbRegistry
 
         new BurstableInstanceSpec("B", "1ms", 1, 0.080, 12, 288,  0.20),
         new BurstableInstanceSpec("B", "2s",  2, 0.080, 24, 576,  0.20),
-        new BurstableInstanceSpec("B", "2ms", 2, 0.080, 24, 576,  0.20),
-        new BurstableInstanceSpec("B", "4ms", 4, 0.080, 48, 1152, 0.20),
-        new BurstableInstanceSpec("B", "8ms", 8, 0.080, 96, 2304, 0.20),
+        new BurstableInstanceSpec("B", "2ms", 2, 0.080, 24, 864,  0.30),
+        new BurstableInstanceSpec("B", "4ms", 4, 0.080, 48, 1296, 0.225),
+        new BurstableInstanceSpec("B", "8ms", 8, 0.080, 96, 1994, 0.17),
 
         // Future: D-series (General Purpose), E-series (Memory Optimized)
     };
