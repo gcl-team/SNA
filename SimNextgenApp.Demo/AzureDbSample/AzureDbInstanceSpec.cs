@@ -63,6 +63,9 @@ internal static class AzureDbRegistry
     {
         // B-series - Burstable
         // Format: Series, Size, VCores, FastSecs, EarnRatePerHour, MaxCredits, BaselineFraction
+        // Values are taken from Azure's published B-series specs for each size.
+        // Keep EarnRatePerHour, MaxCredits, and BaselineFraction in sync with the source table,
+        // since MaxCredits is no longer a simple derivation from EarnRatePerHour.
 
         // IMPORTANT: FastSecs is identical across all B-series sizes (0.080s) because a single-threaded
         // query runs at the same speed regardless of vCore count - each vCore has identical performance.
