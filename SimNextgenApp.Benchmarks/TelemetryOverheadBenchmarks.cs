@@ -13,13 +13,21 @@ namespace SimNextgenApp.Benchmarks;
 /// Each benchmark runs the same model for <see cref="EventCount"/> events; results are reported per event.
 /// </summary>
 /// <remarks>
+/// <para>
 /// BenchmarkDotNet runs each benchmark in its own process, so the telemetry built for one case
 /// (and the listeners it registers on the shared ActivitySource and Meter) never leaks into another.
+/// </para>
+/// <para>
+/// <see cref="SimulationEngine.Run"/> always calls <see cref="SimulationTelemetry.Flush"/> after
+/// initialization and at the end of the run, on the simulation thread. That is a fixed per-run cost
+/// (about 1.5 ms with exporters), so <see cref="EventCount"/> is large enough to amortize it and keep
+/// the per-event numbers close to steady state.
+/// </para>
 /// </remarks>
 [MemoryDiagnoser]
 public class TelemetryOverheadBenchmarks
 {
-    private const int EventCount = 10_000;
+    private const int EventCount = 100_000;
 
     private SimulationTelemetry? _telemetry;
     private bool _attachObservers = true;
