@@ -119,6 +119,20 @@ public class SimulationEngine : IScheduler, IRunContext
     /// <exception cref="SimulationException">Thrown if an error occurs during simulation execution.</exception>
     public SimulationResult Run()
     {
+        // Restore the caller's warmup state, in case this run is nested inside another run on the same thread
+        bool outerWarmupPhase = WarmupPhase.IsActive;
+        try
+        {
+            return RunCore();
+        }
+        finally
+        {
+            WarmupPhase.IsActive = outerWarmupPhase;
+        }
+    }
+
+    private SimulationResult RunCore()
+    {
         if (_hasSimulationRun)
         {
             _logger.LogWarning("This SimulationEngine instance has already executed a simulation run and cannot be reused. Please create a new instance for each simulation.");
@@ -133,6 +147,9 @@ public class SimulationEngine : IScheduler, IRunContext
         _clockTime = 0;
         _executedEventCount = 0;
         _warmupCompleteNotified = false;
+
+        // Loads handled while the model initializes are part of the warmup period, if there is one
+        WarmupPhase.IsActive = strategy.WarmupEndTime.HasValue && ClockTime < strategy.WarmupEndTime.Value;
 
         try
         {
@@ -196,6 +213,10 @@ public class SimulationEngine : IScheduler, IRunContext
 
                         _clockTime = priority.Time;
 
+                        // Set before WarmedUp is called, so the model's warmup handlers already see the run as warmed up
+                        bool isWarmupPhase = strategy.WarmupEndTime.HasValue && ClockTime < strategy.WarmupEndTime.Value;
+                        WarmupPhase.IsActive = isWarmupPhase;
+
                         // 2. Check for Warm-up Completion (only if applicable and not yet notified)
                         if (!_warmupCompleteNotified && strategy.WarmupEndTime.HasValue && ClockTime >= strategy.WarmupEndTime.Value)
                         {
@@ -214,8 +235,6 @@ public class SimulationEngine : IScheduler, IRunContext
 
                         // 3. Execute Event
                         var startTime = DateTime.UtcNow;
-
-                        bool isWarmupPhase = strategy.WarmupEndTime.HasValue && ClockTime < strategy.WarmupEndTime.Value;
 
                         using var eventScope = _activitySource.CreateEventSpan(
                             currentEvent.GetType().Name,

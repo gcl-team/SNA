@@ -1,4 +1,5 @@
 using Moq;
+using SimNextgenApp.Core;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Observability;
@@ -179,37 +180,25 @@ public class ServerObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(5);
         mockServer.SetupGet(s => s.NumberInService).Returns(2);
 
-        // Create an Activity to simulate warmup phase
-        using var tracing = new IsolatedActivitySource();
-        using var activity = tracing.Source.StartActivity("TestActivity");
+        using var observer = ServerObserver.CreateSimple(mockServer.Object);
+        using var recorder = new WarmupLabelRecorder(observer.Meter!);
 
-        Assert.NotNull(activity); // Ensure activity was actually created
-        activity.SetTag("sna.simulation.warmup", true);
+        // Fire LoadDeparted while the engine reports the warmup phase
+        using (new WarmupPhaseScope(true))
+        {
+            mockServer.Raise(s => s.LoadDeparted += null, new DummyLoad(), 200L);
+        }
 
-        var load = new DummyLoad();
-        mockServer.Setup(s => s.GetServiceStartTime(load)).Returns(100L);
-
-        var observer = ServerObserver.CreateSimple(mockServer.Object);
-        observer.SetTimeUnit(SimulationTimeUnit.Milliseconds); // Required for sojourn time recording
-
-        // Act - Fire LoadDeparted event within the Activity context (warmup=true)
-        mockServer.Raise(s => s.LoadDeparted += null, load, 200L);
-
-        // The observer should have captured warmup=true state
-        // This state should persist even after the Activity ends
-
-        activity.Stop();
-
-        // Now simulate the ObservableGauge callback running on a background thread
-        // (where Activity.Current would be null, but cached state should be used)
-        var utilization = observer.Utilization; // This accesses the property that the gauge uses
+        // Act
+        // The metric reader calls gauges on a background thread, outside any run,
+        // so the gauge must use the state cached from the last event
+        Assert.False(WarmupPhase.IsActive);
+        recorder.RecordObservableInstruments();
 
         // Assert
-        Assert.Equal(0.4, utilization, 0.001); // 2/5 = 0.4
+        Assert.Equal(0.4, observer.Utilization, 0.001); // 2/5 = 0.4
         Assert.Equal(1, observer.LoadsCompleted);
-
-        // Cleanup
-        observer.Dispose();
+        Assert.Equal<bool?>([true], recorder.LabelsFor("sna.server.utilization"));
     }
 
     [Fact(DisplayName = "SetTimeUnit should configure time unit for sojourn time conversion.")]

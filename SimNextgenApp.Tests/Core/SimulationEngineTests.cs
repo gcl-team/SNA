@@ -349,7 +349,7 @@ public class SimulationEngineTests
         telemetry.Dispose();
     }
 
-    [Fact(DisplayName = "Run should skip event tags and trace details for a sampled-out event span.")]
+    [Fact(DisplayName = "Run should skip all tags and trace details for a sampled-out event span.")]
     public void Run_SampledOutEventSpan_SkipsTagsAndTraceDetails()
     {
         // Arrange
@@ -365,9 +365,7 @@ public class SimulationEngineTests
         var eventSpan = Assert.Single(isolated.StartedActivities, a => a.OperationName == nameof(TestEventWithDetails));
         Assert.False(eventSpan.IsAllDataRequested);
 
-        // Only the warmup tag remains, because observers read it to label their metrics
-        var tag = Assert.Single(eventSpan.TagObjects);
-        Assert.Equal("sna.simulation.warmup", tag.Key);
+        Assert.Empty(eventSpan.TagObjects);
         Assert.Equal(0, testEvent.TraceDetailsCallCount);
     }
 
@@ -389,6 +387,90 @@ public class SimulationEngineTests
         Assert.Equal("CUST123", eventSpan.GetTagItem("sna.event.detail.customerid"));
         Assert.Equal("ORD456", eventSpan.GetTagItem("sna.event.detail.orderid"));
         Assert.Equal(1, testEvent.TraceDetailsCallCount);
+    }
+
+    [Fact(DisplayName = "Run should report the warmup phase to the current thread until warmup ends.")]
+    public void Run_WithWarmup_SetsWarmupPhaseUntilWarmupEnds()
+    {
+        // Arrange
+        var seen = new List<(string When, bool IsWarmup)>();
+        var model = new Mock<ISimulationModel>();
+        var warmupAware = model.As<IWarmupAware>();
+        model.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+             .Callback<IRunContext>(ctx =>
+             {
+                 seen.Add(("Initialize", WarmupPhase.IsActive));
+                 ctx.Scheduler.Schedule(new CallbackEvent(() => seen.Add(("Event@3", WarmupPhase.IsActive))), 3);
+                 ctx.Scheduler.Schedule(new CallbackEvent(() => seen.Add(("Event@10", WarmupPhase.IsActive))), 10);
+                 ctx.Scheduler.Schedule(new CallbackEvent(() => seen.Add(("Event@12", WarmupPhase.IsActive))), 12);
+             });
+        warmupAware.Setup(m => m.WarmedUp(It.IsAny<long>()))
+                   .Callback(() => seen.Add(("WarmedUp", WarmupPhase.IsActive)));
+
+        _mockStrategy.SetupGet(s => s.WarmupEndTime).Returns(10);
+        _mockStrategy.Setup(s => s.ShouldContinue(It.IsAny<IRunContext>())).Returns(true);
+
+        var engine = CreateEngine(new SimulationProfile(
+            model.Object, _mockStrategy.Object, "TestProfile", SimulationTimeUnit.Seconds, NullLoggerFactory.Instance));
+
+        // Act
+        engine.Run();
+
+        // Assert
+        Assert.Equal(
+            [("Initialize", true), ("Event@3", true), ("WarmedUp", false), ("Event@10", false), ("Event@12", false)],
+            seen);
+    }
+
+    [Fact(DisplayName = "Run should never report the warmup phase when no warmup is configured.")]
+    public void Run_WithoutWarmup_NeverSetsWarmupPhase()
+    {
+        // Arrange
+        var seen = new List<bool>();
+        _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+                  .Callback<IRunContext>(ctx =>
+                  {
+                      seen.Add(WarmupPhase.IsActive);
+                      ctx.Scheduler.Schedule(new CallbackEvent(() => seen.Add(WarmupPhase.IsActive)), 3);
+                  });
+        _mockStrategy.SetupGet(s => s.WarmupEndTime).Returns((long?)null);
+        _mockStrategy.Setup(s => s.ShouldContinue(It.IsAny<IRunContext>())).Returns(true);
+
+        var engine = CreateEngine(CreateProfile());
+
+        // Act
+        engine.Run();
+
+        // Assert
+        Assert.Equal([false, false], seen);
+    }
+
+    [Theory(DisplayName = "Run should restore the caller's warmup phase when it finishes or fails.")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Run_RestoresOuterWarmupPhase(bool eventThrows)
+    {
+        // Arrange
+        // The engine runs outside warmup, while the caller (e.g. an outer run) is inside warmup
+        _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(
+                      new CallbackEvent(() => { if (eventThrows) throw new InvalidOperationException(); }), 3));
+        _mockStrategy.SetupGet(s => s.WarmupEndTime).Returns((long?)null);
+        _mockStrategy.Setup(s => s.ShouldContinue(It.IsAny<IRunContext>())).Returns(true);
+
+        var engine = CreateEngine(CreateProfile());
+        using var outer = new WarmupPhaseScope(true);
+
+        // Act
+        try { engine.Run(); } catch (SimulationException) when (eventThrows) { }
+
+        // Assert
+        Assert.True(WarmupPhase.IsActive);
+    }
+
+    private sealed class CallbackEvent(Action callback) : AbstractEvent
+    {
+        public override void Execute(IRunContext engine) => callback();
     }
 
     private SimulationEngine CreateEngineRunningOneEvent(AbstractEvent evt, ActivitySource activitySource)
