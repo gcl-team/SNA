@@ -19,7 +19,7 @@ public static class SimulationTracer
         if (!_source.HasListeners()) return;
 
         using var activity = _source.StartActivity(eventName);
-        if (activity == null) return;
+        if (activity is not { IsAllDataRequested: true }) return;
 
         activity.SetTag("sna.simulation.time", simulationTime);
         if (tags != null)

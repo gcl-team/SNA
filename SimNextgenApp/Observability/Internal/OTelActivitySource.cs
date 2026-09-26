@@ -12,6 +12,12 @@ namespace SimNextgenApp.Observability.Internal;
 internal sealed class OTelActivitySource
 {
     private static readonly ActivitySource _sharedSource = new(SimulationTelemetry.ActivitySourceName);
+
+    // Pre-boxed so tagging the warmup state on every event span does not allocate a box
+    private static readonly object _boxedTrue = true;
+    private static readonly object _boxedFalse = false;
+
+    private readonly ActivitySource _source;
     private readonly VolumeEstimator? _volumeEstimator;
     private readonly CardinalityGuard? _cardinalityGuard;
     private readonly bool _enableTraceContext;
@@ -22,11 +28,14 @@ internal sealed class OTelActivitySource
     /// <param name="volumeEstimator">Optional volume estimator for tracking span creation.</param>
     /// <param name="cardinalityGuard">Optional cardinality guard for monitoring attribute cardinality.</param>
     /// <param name="enableTraceContext">Whether to enable trace context propagation.</param>
+    /// <param name="source">The source to create spans from. Defaults to the shared SNA source; tests pass their own.</param>
     public OTelActivitySource(
         VolumeEstimator? volumeEstimator = null,
         CardinalityGuard? cardinalityGuard = null,
-        bool enableTraceContext = false)
+        bool enableTraceContext = false,
+        ActivitySource? source = null)
     {
+        _source = source ?? _sharedSource;
         _volumeEstimator = volumeEstimator;
         _cardinalityGuard = cardinalityGuard;
         _enableTraceContext = enableTraceContext;
@@ -35,21 +44,21 @@ internal sealed class OTelActivitySource
     /// <summary>
     /// Ensures tracing allocations are skipped if there's no listener observing them.
     /// </summary>
-    public bool IsEnabled => _sharedSource.HasListeners();
+    public bool IsEnabled => _source.HasListeners();
 
     public Activity? CreateSimulationSpan(SimulationProfile profile)
     {
         if (!IsEnabled) return null;
 
-        var activity = _sharedSource.StartActivity($"SimulationRun-{profile.Name}", ActivityKind.Internal);
-        if (activity != null)
+        var activity = _source.StartActivity($"SimulationRun-{profile.Name}", ActivityKind.Internal);
+        if (activity is { IsAllDataRequested: true })
         {
             activity.SetTag("sna.simulation.id", profile.RunId);
             activity.SetTag("sna.simulation.name", profile.Name);
-
-            // Track span creation for volume estimation
-            _volumeEstimator?.RecordSpan();
         }
+
+        // Track span creation for volume estimation
+        if (activity is { Recorded: true }) _volumeEstimator?.RecordSpan();
         return activity;
     }
 
@@ -62,12 +71,13 @@ internal sealed class OTelActivitySource
     {
         if (!IsEnabled) return null;
 
-        var activity = _sharedSource.StartActivity("Warmup", ActivityKind.Internal);
-        if (activity != null)
+        var activity = _source.StartActivity("Warmup", ActivityKind.Internal);
+        if (activity is { IsAllDataRequested: true })
         {
             activity.SetTag("sna.simulation.warmup_end_time", warmupEndTime);
-            _volumeEstimator?.RecordSpan();
         }
+
+        if (activity is { Recorded: true }) _volumeEstimator?.RecordSpan();
         return activity;
     }
 
@@ -76,8 +86,15 @@ internal sealed class OTelActivitySource
     /// When trace context is disabled, the scope ensures the simulation/warmup span context is restored
     /// after the event span is disposed, preventing context leakage.
     /// </summary>
+    /// <remarks>
+    /// A sampler that drops a span still returns an <see cref="Activity"/> (with
+    /// <see cref="Activity.IsAllDataRequested"/> false) so that context keeps flowing. Such spans get only
+    /// the warmup tag, because observers read it from <see cref="Activity.Current"/> to label their
+    /// metrics. All other tags are skipped, and the span is not counted towards volume or cardinality,
+    /// because it will never be exported.
+    /// </remarks>
     /// <returns>An EventSpanScope that must be disposed to restore context properly.</returns>
-    public EventSpanScope CreateEventSpan(string eventName, long clockTime, string eventId, bool isWarmupPhase)
+    public EventSpanScope CreateEventSpan(string eventName, long clockTime, long eventId, bool isWarmupPhase)
     {
         if (!IsEnabled) return new EventSpanScope(null, null);
 
@@ -89,7 +106,7 @@ internal sealed class OTelActivitySource
         if (_enableTraceContext)
         {
             // Create child span parented to Activity.Current (the simulation span)
-            activity = _sharedSource.StartActivity(eventName, ActivityKind.Internal);
+            activity = _source.StartActivity(eventName, ActivityKind.Internal);
         }
         else
         {
@@ -99,7 +116,7 @@ internal sealed class OTelActivitySource
             // EventSpanScope will automatically restore savedContext when disposed
             savedContext = Activity.Current;
             Activity.Current = null;
-            activity = _sharedSource.StartActivity(eventName, ActivityKind.Internal);
+            activity = _source.StartActivity(eventName, ActivityKind.Internal);
 
             // If creation failed, restore previous context immediately
             if (activity == null)
@@ -111,15 +128,22 @@ internal sealed class OTelActivitySource
 
         if (activity != null)
         {
-            activity.SetTag("sna.event.id", eventId);
-            activity.SetTag("sna.simulation.time", clockTime);
-            activity.SetTag("sna.simulation.warmup", isWarmupPhase);
+            activity.SetTag("sna.simulation.warmup", isWarmupPhase ? _boxedTrue : _boxedFalse);
 
-            // Track attribute cardinality
-            _cardinalityGuard?.RecordAttributeValue("sna.event.type", eventName);
+            if (activity.IsAllDataRequested)
+            {
+                activity.SetTag("sna.event.id", eventId.ToString());
+                activity.SetTag("sna.simulation.time", clockTime);
+            }
 
-            // Track span creation for volume estimation
-            _volumeEstimator?.RecordSpan();
+            if (activity.Recorded)
+            {
+                // Track attribute cardinality
+                _cardinalityGuard?.RecordAttributeValue("sna.event.type", eventName);
+
+                // Track span creation for volume estimation
+                _volumeEstimator?.RecordSpan();
+            }
         }
         return new EventSpanScope(activity, savedContext);
     }

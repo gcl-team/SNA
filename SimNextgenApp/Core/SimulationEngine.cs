@@ -208,17 +208,21 @@ public class SimulationEngine : IScheduler, IRunContext
                         using var eventScope = _activitySource.CreateEventSpan(
                             currentEvent.GetType().Name,
                             ClockTime,
-                            currentEvent.EventId.ToString(),
+                            currentEvent.EventId,
                             isWarmupPhase);
 
-                        // Tag the span with the event's type, sequence number and any event-specific details
-                        eventScope.Span?.SetTag("sna.event.type", currentEvent.GetType().Name);
-                        eventScope.Span?.SetTag("sna.event.number", _executedEventCount);
-                        if (currentEvent.GetTraceDetails() is { } details)
+                        // Tag the span with the event's type, sequence number and any event-specific details.
+                        // Skipped for spans the sampler dropped, since those tags would never be exported.
+                        if (eventScope.Span is { IsAllDataRequested: true } eventSpan)
                         {
-                            foreach (var kvp in details)
+                            eventSpan.SetTag("sna.event.type", currentEvent.GetType().Name);
+                            eventSpan.SetTag("sna.event.number", _executedEventCount);
+                            if (currentEvent.GetTraceDetails() is { } details)
                             {
-                                eventScope.Span?.SetTag($"sna.event.detail.{kvp.Key.ToLowerInvariant()}", kvp.Value);
+                                foreach (var kvp in details)
+                                {
+                                    eventSpan.SetTag($"sna.event.detail.{kvp.Key.ToLowerInvariant()}", kvp.Value);
+                                }
                             }
                         }
 
