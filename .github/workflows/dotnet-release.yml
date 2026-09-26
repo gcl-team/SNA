@@ -13,10 +13,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
     
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v6
       with:
         dotnet-version: 10.0.x
         
@@ -36,7 +36,7 @@ jobs:
       run: dotnet pack SimNextgenApp/SimNextgenApp.csproj --configuration Release -o ./nupkgs /p:Version=${{ env.PACKAGE_VERSION }} /p:FileVersion=${{ env.PACKAGE_VERSION }}
       
     - name: Upload SimNextGenApp NuGet Package
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: nuget-package
         path: ./nupkgs
@@ -47,10 +47,10 @@ jobs:
     steps:
     
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
 
     - name: Download NuGet Package
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v8
       with:
         name: nuget-package
         path: ./nupkgs
@@ -59,13 +59,13 @@ jobs:
       run: dotnet nuget push "./nupkgs/*.nupkg" --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" --api-key ${{ secrets.GITHUB_TOKEN }}
 
     - name: Log in to Docker Hub
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Build and Push Docker Image of Demo Project
-      uses: docker/build-push-action@v5
+      uses: docker/build-push-action@v7
       with:
         context: .
         push: true
