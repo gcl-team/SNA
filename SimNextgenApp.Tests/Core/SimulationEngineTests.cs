@@ -7,6 +7,7 @@ using SimNextgenApp.Events;
 using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
 using SimNextgenApp.Observability;
+using SimNextgenApp.Tests.Observability;
 using System.Diagnostics;
 
 namespace SimNextgenApp.Tests.Core;
@@ -346,6 +347,58 @@ public class SimulationEngineTests
 
         // Cleanup
         telemetry.Dispose();
+    }
+
+    [Fact(DisplayName = "Run should skip event tags and trace details for a sampled-out event span.")]
+    public void Run_SampledOutEventSpan_SkipsTagsAndTraceDetails()
+    {
+        // Arrange
+        // PropagationData is what the OpenTelemetry SDK returns for a span its sampler drops
+        using var isolated = new IsolatedActivitySource(ActivitySamplingResult.PropagationData);
+        var testEvent = new TestEventWithDetails();
+        var engine = CreateEngineRunningOneEvent(testEvent, isolated.Source);
+
+        // Act
+        engine.Run();
+
+        // Assert
+        var eventSpan = Assert.Single(isolated.StartedActivities, a => a.OperationName == nameof(TestEventWithDetails));
+        Assert.False(eventSpan.IsAllDataRequested);
+
+        // Only the warmup tag remains, because observers read it to label their metrics
+        var tag = Assert.Single(eventSpan.TagObjects);
+        Assert.Equal("sna.simulation.warmup", tag.Key);
+        Assert.Equal(0, testEvent.TraceDetailsCallCount);
+    }
+
+    [Fact(DisplayName = "Run should tag a recorded event span with its type, number and trace details.")]
+    public void Run_RecordedEventSpan_AddsTagsAndTraceDetails()
+    {
+        // Arrange
+        using var isolated = new IsolatedActivitySource(ActivitySamplingResult.AllDataAndRecorded);
+        var testEvent = new TestEventWithDetails();
+        var engine = CreateEngineRunningOneEvent(testEvent, isolated.Source);
+
+        // Act
+        engine.Run();
+
+        // Assert
+        var eventSpan = Assert.Single(isolated.StartedActivities, a => a.OperationName == nameof(TestEventWithDetails));
+        Assert.Equal(nameof(TestEventWithDetails), eventSpan.GetTagItem("sna.event.type"));
+        Assert.Equal(1L, eventSpan.GetTagItem("sna.event.number"));
+        Assert.Equal("CUST123", eventSpan.GetTagItem("sna.event.detail.customerid"));
+        Assert.Equal("ORD456", eventSpan.GetTagItem("sna.event.detail.orderid"));
+        Assert.Equal(1, testEvent.TraceDetailsCallCount);
+    }
+
+    private SimulationEngine CreateEngineRunningOneEvent(AbstractEvent evt, ActivitySource activitySource)
+    {
+        _mockModel.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
+                  .Callback<IRunContext>(ctx => ctx.Scheduler.Schedule(evt, 1));
+        _mockStrategy.Setup(s => s.ShouldContinue(It.Is<IRunContext>(ctx => ctx.ExecutedEventCount < 1)))
+                     .Returns(true);
+
+        return new SimulationEngine(CreateProfile(), activitySource);
     }
 
 }

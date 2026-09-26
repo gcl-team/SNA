@@ -6,6 +6,7 @@ using SimNextgenApp.Exceptions;
 using SimNextgenApp.Modeling;
 using SimNextgenApp.Observability.Exporters;
 using SimNextgenApp.Observability.Internal;
+using System.Diagnostics;
 
 namespace SimNextgenApp.Core;
 
@@ -84,6 +85,16 @@ public class SimulationEngine : IScheduler, IRunContext
     /// </param>
     /// <exception cref="ArgumentNullException">Thrown if profile is null.</exception>
     public SimulationEngine(SimulationProfile profile)
+        : this(profile, activitySource: null)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="SimulationEngine"/> class that creates its spans
+    /// from the given source instead of the shared SNA source. Tests use this to control sampling
+    /// without other tests' listeners on the shared source changing the decision.
+    /// </summary>
+    internal SimulationEngine(SimulationProfile profile, ActivitySource? activitySource)
     {
         _profile = profile ?? throw new ArgumentNullException(nameof(profile));
 
@@ -91,7 +102,8 @@ public class SimulationEngine : IScheduler, IRunContext
         _activitySource = new OTelActivitySource(
             _profile.Telemetry?.VolumeEstimator,
             _profile.Telemetry?.CardinalityGuard,
-            enableTraceContext: _profile.Telemetry?.EnableTraceContext ?? false);
+            enableTraceContext: _profile.Telemetry?.EnableTraceContext ?? false,
+            source: activitySource);
 
         Model = _profile.Model;
 
@@ -208,17 +220,21 @@ public class SimulationEngine : IScheduler, IRunContext
                         using var eventScope = _activitySource.CreateEventSpan(
                             currentEvent.GetType().Name,
                             ClockTime,
-                            currentEvent.EventId.ToString(),
+                            currentEvent.EventId,
                             isWarmupPhase);
 
-                        // Tag the span with the event's type, sequence number and any event-specific details
-                        eventScope.Span?.SetTag("sna.event.type", currentEvent.GetType().Name);
-                        eventScope.Span?.SetTag("sna.event.number", _executedEventCount);
-                        if (currentEvent.GetTraceDetails() is { } details)
+                        // Tag the span with the event's type, sequence number and any event-specific details.
+                        // Skipped for spans the sampler dropped, since those tags would never be exported.
+                        if (eventScope.Span is { IsAllDataRequested: true } eventSpan)
                         {
-                            foreach (var kvp in details)
+                            eventSpan.SetTag("sna.event.type", currentEvent.GetType().Name);
+                            eventSpan.SetTag("sna.event.number", _executedEventCount);
+                            if (currentEvent.GetTraceDetails() is { } details)
                             {
-                                eventScope.Span?.SetTag($"sna.event.detail.{kvp.Key.ToLowerInvariant()}", kvp.Value);
+                                foreach (var kvp in details)
+                                {
+                                    eventSpan.SetTag($"sna.event.detail.{kvp.Key.ToLowerInvariant()}", kvp.Value);
+                                }
                             }
                         }
 
