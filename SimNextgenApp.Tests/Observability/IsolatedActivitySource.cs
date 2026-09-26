@@ -13,8 +13,14 @@ namespace SimNextgenApp.Tests.Observability;
 public sealed class IsolatedActivitySource : IDisposable
 {
     private readonly ActivityListener _listener;
+    private readonly List<Activity> _startedActivities = [];
 
     public ActivitySource Source { get; }
+
+    /// <summary>
+    /// Every activity started from <see cref="Source"/>, in start order.
+    /// </summary>
+    public IReadOnlyList<Activity> StartedActivities => _startedActivities;
 
     /// <param name="samplingResult">The sampling decision the listener returns for every activity.</param>
     public IsolatedActivitySource(ActivitySamplingResult samplingResult = ActivitySamplingResult.AllDataAndRecorded)
@@ -23,7 +29,8 @@ public sealed class IsolatedActivitySource : IDisposable
         _listener = new ActivityListener
         {
             ShouldListenTo = source => ReferenceEquals(source, Source),
-            Sample = (ref _) => samplingResult
+            Sample = (ref _) => samplingResult,
+            ActivityStarted = _startedActivities.Add
         };
         ActivitySource.AddActivityListener(_listener);
     }

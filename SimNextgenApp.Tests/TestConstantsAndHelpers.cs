@@ -81,10 +81,13 @@ public class NamedEvent(string label, List<string> executionList) : AbstractEven
 
 public class TestEventWithDetails : AbstractEvent
 {
+    public int TraceDetailsCallCount { get; private set; }
+
     public override void Execute(IRunContext engine) { }
 
     public override Dictionary<string, object>? GetTraceDetails()
     {
+        TraceDetailsCallCount++;
         return new Dictionary<string, object>
         {
             ["CustomerId"] = "CUST123",
