@@ -72,7 +72,7 @@ public class TelemetryOverheadBenchmarks
 
     private long RunSimulation()
     {
-        var model = new BenchmarkModel();
+        var model = new BenchmarkModel(_telemetry);
         try
         {
             var profile = new SimulationProfile(

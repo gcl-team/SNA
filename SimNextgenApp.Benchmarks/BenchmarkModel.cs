@@ -24,7 +24,11 @@ internal sealed class BenchmarkModel : AbstractSimulationModel
     private readonly QueueObserver<BenchmarkLoad> _queueObserver;
     private IRunContext _runContext = null!;
 
-    public BenchmarkModel(int numberOfServers = 2, int seed = 42) : base("BenchmarkModel")
+    /// <param name="telemetry">
+    /// When provided, observers are created through it so they share its volume estimator,
+    /// matching how an application wires observers; otherwise standalone observers are used.
+    /// </param>
+    public BenchmarkModel(SimulationTelemetry? telemetry, int numberOfServers = 2, int seed = 42) : base("BenchmarkModel")
     {
         var loggerFactory = NullLoggerFactory.Instance;
 
@@ -39,14 +43,14 @@ internal sealed class BenchmarkModel : AbstractSimulationModel
 
         _generator = new Generator<BenchmarkLoad>(generatorConfig, seed, "Arrivals", loggerFactory);
         _queue = new SimQueue<BenchmarkLoad>(new QueueStaticConfig<BenchmarkLoad>(), "Queue", loggerFactory);
-        _queueObserver = QueueObserver.CreateSimple(_queue);
+        _queueObserver = telemetry?.ObserveQueue(_queue) ?? QueueObserver.CreateSimple(_queue);
 
         for (int i = 0; i < numberOfServers; i++)
         {
             var server = new Server<BenchmarkLoad>(serverConfig, seed + i + 1, $"Server{i + 1}");
             server.LoadDeparted += (_, _) => _queue.TriggerDequeueAttempt(_runContext);
             _servers.Add(server);
-            _serverObservers.Add(ServerObserver.CreateSimple(server));
+            _serverObservers.Add(telemetry?.ObserveServer(server) ?? ServerObserver.CreateSimple(server));
         }
 
         _generator.LoadGenerated += (load, _) =>
