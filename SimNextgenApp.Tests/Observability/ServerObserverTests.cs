@@ -2,7 +2,6 @@ using Moq;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Observability;
-using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
 namespace SimNextgenApp.Tests.Observability;
@@ -180,17 +179,9 @@ public class ServerObserverTests
         mockServer.SetupGet(s => s.Capacity).Returns(5);
         mockServer.SetupGet(s => s.NumberInService).Returns(2);
 
-        // Register listener to ensure activity is created
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "TestSource",
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
-
         // Create an Activity to simulate warmup phase
-        var activitySource = new ActivitySource("TestSource");
-        using var activity = activitySource.StartActivity("TestActivity");
+        using var tracing = new IsolatedActivitySource();
+        using var activity = tracing.Source.StartActivity("TestActivity");
 
         Assert.NotNull(activity); // Ensure activity was actually created
         activity.SetTag("sna.simulation.warmup", true);
@@ -219,7 +210,6 @@ public class ServerObserverTests
 
         // Cleanup
         observer.Dispose();
-        activitySource.Dispose();
     }
 
     [Fact(DisplayName = "SetTimeUnit should configure time unit for sojourn time conversion.")]

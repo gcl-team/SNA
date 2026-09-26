@@ -184,8 +184,8 @@ public class QueueObserver<TLoad> : IDisposable
             // Convert to seconds using TimeUnitConverter
             double waitSeconds = TimeUnitConverter.ConvertFromSimulationUnits(waitTimeUnits, _timeUnit.Value).TotalSeconds;
 
-            // Emit raw wait time to histogram - backend will calculate averages/percentiles/max
-            // This follows the "Emitter not Calculator" principle (plan.md watch-out #4)
+            // Emit raw wait time to histogram - backend will calculate averages/percentiles/max.
+            // Observers are emitters, not calculators: they record raw measurements and leave aggregation to the backend.
             if (_waitTimeHistogram != null)
             {
                 _waitTimeHistogram.Record(waitSeconds,

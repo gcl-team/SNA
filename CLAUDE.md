@@ -33,6 +33,7 @@ Sample scripts in `SimNextgenApp.Demo/AwsRdsSample/` and `SimNextgenApp.Demo/Azu
 - **Branches**: `<issue#>_Title-In-Kebab-Case`, e.g. `85_Fix-Docker-Build-and-Add-Dependabot`, branched from the latest `main`.
 - **Commits**: `type(scope): description`, e.g. `fix(SimulationTelemetry): ...`. Types in use: `fix`, `feat`, `refactor`, `chore`.
 - **PRs**: target `main` and include `Closes #<issue>`. PR CI (`.github/workflows/dotnet.yml`) runs restore, build and test only.
+- **No ticket numbers in code**: comments explain the reason themselves instead of pointing to `#123` or a document outside the repo. Issue links belong in branch names, commit messages and PRs. The one exception is a `TODO` or workaround that links to an *open* issue tracking its removal.
 
 ## Releases
 

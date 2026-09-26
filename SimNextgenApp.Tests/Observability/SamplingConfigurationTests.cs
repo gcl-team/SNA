@@ -161,22 +161,14 @@ public class SamplingConfigurationTests
     {
         // Arrange
         var config = SamplingConfiguration.ParentBased(0.0); // Fallback rate is 0
-        var activitySource = new ActivitySource("TestSource");
-
-        // Create a listener to enable activity creation
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = _ => true,
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
+        using var tracing = new IsolatedActivitySource();
 
         // Create a parent activity that is recorded
-        using var parent = activitySource.StartActivity("ParentActivity", ActivityKind.Internal);
+        using var parent = tracing.Source.StartActivity("ParentActivity", ActivityKind.Internal);
         Assert.NotNull(parent);
 
         // Create a child activity
-        using var child = activitySource.StartActivity("ChildActivity", ActivityKind.Internal);
+        using var child = tracing.Source.StartActivity("ChildActivity", ActivityKind.Internal);
         Assert.NotNull(child);
 
         // Act & Assert - Should follow parent's decision (recorded)
@@ -220,17 +212,10 @@ public class SamplingConfigurationTests
     {
         // Arrange
         var config = SamplingConfiguration.ParentBased(0.0); // Fallback rate is 0
-        var activitySource = new ActivitySource("TestSource");
-
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = _ => true,
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
+        using var tracing = new IsolatedActivitySource();
 
         // Create a parent activity (this will be Activity.Current)
-        using var parent = activitySource.StartActivity("ParentActivity", ActivityKind.Internal);
+        using var parent = tracing.Source.StartActivity("ParentActivity", ActivityKind.Internal);
         Assert.NotNull(parent);
         Assert.True(parent.Recorded);
 
@@ -247,17 +232,10 @@ public class SamplingConfigurationTests
     {
         // Arrange
         var config = SamplingConfiguration.ParentBased(1.0); // Fallback rate is 100%
-        var activitySource = new ActivitySource("TestSource");
-
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = _ => true,
-            Sample = (ref _) => ActivitySamplingResult.PropagationData // Not recorded
-        };
-        ActivitySource.AddActivityListener(listener);
+        using var tracing = new IsolatedActivitySource(ActivitySamplingResult.PropagationData);
 
         // Create a parent activity that is NOT recorded
-        using var parent = activitySource.StartActivity("ParentActivity", ActivityKind.Internal);
+        using var parent = tracing.Source.StartActivity("ParentActivity", ActivityKind.Internal);
         Assert.NotNull(parent);
         Assert.False(parent.Recorded);
 
