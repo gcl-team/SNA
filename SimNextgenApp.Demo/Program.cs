@@ -30,13 +30,13 @@ var rootCommand = new RootCommand
 if (args.Length == 0)
 {
     Console.WriteLine("No command provided. Showing help:\n");
-    rootCommand.Invoke("-h"); // Show help
+    rootCommand.Parse("-h").Invoke(); // Show help
     return 1;
 }
 
 // ---- Demo: simple-generator ----
 var simpleGenCommand = new Command("simple-generator", "Run the SimpleGenerator demo");
-simpleGenCommand.SetHandler(() =>
+simpleGenCommand.SetAction(_ =>
 {
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
@@ -53,68 +53,74 @@ simpleGenCommand.SetHandler(() =>
 });
 
 // ---- Demo: simple-server ----
-var meanArrivalSecondsOption = new Option<double>(
-    name: "--arrival-secs",
-    description: "Mean arrival time in seconds.",
-    getDefaultValue: () => 5.0
-);
+var meanArrivalSecondsOption = new Option<double>("--arrival-secs")
+{
+    Description = "Mean arrival time in seconds.",
+    DefaultValueFactory = _ => 5.0
+};
 
 var simpleServerCommand = new Command("simple-server", "Run the SimpleServerAndGenerator demo");
-simpleServerCommand.AddOption(meanArrivalSecondsOption);
+simpleServerCommand.Options.Add(meanArrivalSecondsOption);
 
-simpleServerCommand.SetHandler((double meanArrivalSeconds) =>
+simpleServerCommand.SetAction(parseResult =>
 {
+    var meanArrivalSeconds = parseResult.GetValue(meanArrivalSecondsOption);
+
     Console.WriteLine($"====== Running SimpleServerAndGenerator (Mean Arrival (Unit: second)={meanArrivalSeconds}) ======");
     SimpleServerAndGenerator.RunDemo(loggerFactory, meanArrivalSeconds);
-}, meanArrivalSecondsOption);
+});
 
 // ---- Demo: M/M/c/K ----
 var mmckCommand = new Command("mmck", "Run the SimpleMmck demo");
 
 // Define options
-var serversOption = new Option<int>("--servers", () => 2, "Number of servers");
-var capacityOption = new Option<int>("--capacity", () => 5, "System capacity (K)");
-var arrivalSecsOption = new Option<double>("--arrival-secs", () => 3.0, "Mean seconds between arrivals");
-var serviceSecsOption = new Option<double>("--service-secs", () => 5.0, "Mean service time per server (seconds)");
-var durationOption = new Option<double>("--duration", () => 500.0, "Total simulation time");
-var warmupOption = new Option<double>("--warmup", () => 100.0, "Warmup time before collecting stats");
-var genSeedOption = new Option<int>("--gen-seed", () => 2024, "Random seed for generator");
-var serverSeedBaseOption = new Option<int>("--server-seed-base", () => 100, "Seed base for all servers");
+var serversOption = new Option<int>("--servers") { Description = "Number of servers", DefaultValueFactory = _ => 2 };
+var capacityOption = new Option<int>("--capacity") { Description = "System capacity (K)", DefaultValueFactory = _ => 5 };
+var arrivalSecsOption = new Option<double>("--arrival-secs") { Description = "Mean seconds between arrivals", DefaultValueFactory = _ => 3.0 };
+var serviceSecsOption = new Option<double>("--service-secs") { Description = "Mean service time per server (seconds)", DefaultValueFactory = _ => 5.0 };
+var durationOption = new Option<double>("--duration") { Description = "Total simulation time", DefaultValueFactory = _ => 500.0 };
+var warmupOption = new Option<double>("--warmup") { Description = "Warmup time before collecting stats", DefaultValueFactory = _ => 100.0 };
+var genSeedOption = new Option<int>("--gen-seed") { Description = "Random seed for generator", DefaultValueFactory = _ => 2024 };
+var serverSeedBaseOption = new Option<int>("--server-seed-base") { Description = "Seed base for all servers", DefaultValueFactory = _ => 100 };
 
 // Add options one-by-one
-mmckCommand.AddOption(serversOption);
-mmckCommand.AddOption(capacityOption);
-mmckCommand.AddOption(arrivalSecsOption);
-mmckCommand.AddOption(serviceSecsOption);
-mmckCommand.AddOption(durationOption);
-mmckCommand.AddOption(warmupOption);
-mmckCommand.AddOption(genSeedOption);
-mmckCommand.AddOption(serverSeedBaseOption);
+mmckCommand.Options.Add(serversOption);
+mmckCommand.Options.Add(capacityOption);
+mmckCommand.Options.Add(arrivalSecsOption);
+mmckCommand.Options.Add(serviceSecsOption);
+mmckCommand.Options.Add(durationOption);
+mmckCommand.Options.Add(warmupOption);
+mmckCommand.Options.Add(genSeedOption);
+mmckCommand.Options.Add(serverSeedBaseOption);
 
 // Set handler
-mmckCommand.SetHandler(
-    (servers, capacity, arrivalSecs, serviceSecs,
-     duration, warmup, genSeed, serverSeedBase) =>
-    {
-        Console.WriteLine($"====== Running MMCK Demo (c={servers}, K={capacity}) ======");
-        SimpleMmck.RunDemo(
-            loggerFactory,
-            servers, capacity, arrivalSecs, serviceSecs,
-            duration, warmup, genSeed, serverSeedBase
-        );
-    },
-    serversOption, capacityOption, arrivalSecsOption, serviceSecsOption,
-    durationOption, warmupOption, genSeedOption, serverSeedBaseOption
-);
+mmckCommand.SetAction(parseResult =>
+{
+    var servers = parseResult.GetValue(serversOption);
+    var capacity = parseResult.GetValue(capacityOption);
+    var arrivalSecs = parseResult.GetValue(arrivalSecsOption);
+    var serviceSecs = parseResult.GetValue(serviceSecsOption);
+    var duration = parseResult.GetValue(durationOption);
+    var warmup = parseResult.GetValue(warmupOption);
+    var genSeed = parseResult.GetValue(genSeedOption);
+    var serverSeedBase = parseResult.GetValue(serverSeedBaseOption);
+
+    Console.WriteLine($"====== Running MMCK Demo (c={servers}, K={capacity}) ======");
+    SimpleMmck.RunDemo(
+        loggerFactory,
+        servers, capacity, arrivalSecs, serviceSecs,
+        duration, warmup, genSeed, serverSeedBase
+    );
+});
 
 // ---- Demo: simple-restaurant ----
 var simpleRestaurantCommand = new Command("simple-restaurant", "Run the SimpleRestaurant demo");
 
 // Define options
-var tablesOption = new Option<List<Table>>(
-    name: "--table",
-    description: "Capacity and location of table (format: capacity,x,y)",
-    parseArgument: result =>
+var tablesOption = new Option<List<Table>>("--table")
+{
+    Description = "Capacity and location of table (format: capacity,x,y)",
+    CustomParser = result =>
     {
         var tables = new List<Table>();
 
@@ -125,20 +131,19 @@ var tablesOption = new Option<List<Table>>(
             var parts = token.Value.Split(',');
             if (parts.Length != 3)
             {
-                result.ErrorMessage =
-                    $"Invalid format '{token.Value}'. Expected 'capacity,x,y'.";
+                result.AddError($"Invalid format '{token.Value}'. Expected 'capacity,x,y'.");
                 continue;
             }
 
             if (!int.TryParse(parts[0], out var capacity))
             {
-                result.ErrorMessage = $"Invalid capacity in '{token.Value}'.";
+                result.AddError($"Invalid capacity in '{token.Value}'.");
                 continue;
             }
 
             if (!int.TryParse(parts[1], out var x) || !int.TryParse(parts[2], out var y))
             {
-                result.ErrorMessage = $"Invalid coordinates in '{token.Value}'.";
+                result.AddError($"Invalid coordinates in '{token.Value}'.");
                 continue;
             }
 
@@ -146,14 +151,14 @@ var tablesOption = new Option<List<Table>>(
         }
 
         return tables;
-    })
-{
-    Arity = ArgumentArity.OneOrMore
+    },
+    Arity = ArgumentArity.OneOrMore,
+    Required = true
 };
-var waitersOption = new Option<List<Waiter>>(
-    name: "--waiter",
-    description: "Starting location of waiter (format: x,y)",
-    parseArgument: result =>
+var waitersOption = new Option<List<Waiter>>("--waiter")
+{
+    Description = "Starting location of waiter (format: x,y)",
+    CustomParser = result =>
     {
         var waiters = new List<Waiter>();
 
@@ -164,14 +169,13 @@ var waitersOption = new Option<List<Waiter>>(
             var parts = token.Value.Split(',');
             if (parts.Length != 2)
             {
-                result.ErrorMessage =
-                    $"Invalid format '{token.Value}'. Expected 'x,y'.";
+                result.AddError($"Invalid format '{token.Value}'. Expected 'x,y'.");
                 continue;
             }
 
             if (!int.TryParse(parts[0], out var x) || !int.TryParse(parts[1], out var y))
             {
-                result.ErrorMessage = $"Invalid coordinates in '{token.Value}'.";
+                result.AddError($"Invalid coordinates in '{token.Value}'.");
                 continue;
             }
 
@@ -179,14 +183,14 @@ var waitersOption = new Option<List<Waiter>>(
         }
 
         return waiters;
-    })
-{
-    Arity = ArgumentArity.OneOrMore
+    },
+    Arity = ArgumentArity.OneOrMore,
+    Required = true
 };
-var entranceOption = new Option<Point>(
-    name: "--entrance",
-    description: "Entrance location of the restaurant (format: x,y)",
-    parseArgument: result =>
+var entranceOption = new Option<Point>("--entrance")
+{
+    Description = "Entrance location of the restaurant (format: x,y)",
+    CustomParser = result =>
     {
         var token = result.Tokens.Single();
 
@@ -195,20 +199,19 @@ var entranceOption = new Option<Point>(
             !int.TryParse(parts[0], out var x) ||
             !int.TryParse(parts[1], out var y))
         {
-            result.ErrorMessage =
-                $"Invalid entrance location '{token.Value}'. Expected format 'x,y'.";
+            result.AddError($"Invalid entrance location '{token.Value}'. Expected format 'x,y'.");
             return new Point();
         }
 
         return new Point(x, y);
-    })
-{
-    Arity = ArgumentArity.ExactlyOne
+    },
+    Arity = ArgumentArity.ExactlyOne,
+    Required = true
 };
-var kitchenOption = new Option<Point>(
-    name: "--kitchen",
-    description: "Entrance location of the kitchen (format: x,y)",
-    parseArgument: result =>
+var kitchenOption = new Option<Point>("--kitchen")
+{
+    Description = "Entrance location of the kitchen (format: x,y)",
+    CustomParser = result =>
     {
         var token = result.Tokens.Single();
 
@@ -217,43 +220,44 @@ var kitchenOption = new Option<Point>(
             !int.TryParse(parts[0], out var x) ||
             !int.TryParse(parts[1], out var y))
         {
-            result.ErrorMessage =
-                $"Invalid entrance location '{token.Value}'. Expected format 'x,y'.";
+            result.AddError($"Invalid entrance location '{token.Value}'. Expected format 'x,y'.");
             return new Point();
         }
 
         return new Point(x, y);
-    })
-{
-    Arity = ArgumentArity.ExactlyOne
+    },
+    Arity = ArgumentArity.ExactlyOne,
+    Required = true
 };
-var customerArrivalMinOption = new Option<double>("--arrival-mins", () => 5, "Mean minutes between customer arrivals");
-var stopProbabilityOption = new Option<double>(
-    "--stop-probability",
-    () => 0.5,
-    "Probability that a customer group stops growing at each additional person (0.0–1.0)");
+var customerArrivalMinOption = new Option<double>("--arrival-mins") { Description = "Mean minutes between customer arrivals", DefaultValueFactory = _ => 5 };
+var stopProbabilityOption = new Option<double>("--stop-probability") { Description = "Probability that a customer group stops growing at each additional person (0.0–1.0)", DefaultValueFactory = _ => 0.5 };
 
-stopProbabilityOption.AddValidator(result =>
+stopProbabilityOption.Validators.Add(result =>
 {
     var value = result.GetValueOrDefault<double>();
     if (value <= 0.0 || value >= 1.0)
     {
-        result.ErrorMessage = "Stop probability must be between 0 and 1 (exclusive).";
+        result.AddError("Stop probability must be between 0 and 1 (exclusive).");
     }
 });
 
 
-simpleRestaurantCommand.AddOption(tablesOption);
-simpleRestaurantCommand.AddOption(waitersOption);
-simpleRestaurantCommand.AddOption(entranceOption);
-simpleRestaurantCommand.AddOption(kitchenOption);
-simpleRestaurantCommand.AddOption(customerArrivalMinOption);
-simpleRestaurantCommand.AddOption(stopProbabilityOption);
+simpleRestaurantCommand.Options.Add(tablesOption);
+simpleRestaurantCommand.Options.Add(waitersOption);
+simpleRestaurantCommand.Options.Add(entranceOption);
+simpleRestaurantCommand.Options.Add(kitchenOption);
+simpleRestaurantCommand.Options.Add(customerArrivalMinOption);
+simpleRestaurantCommand.Options.Add(stopProbabilityOption);
 
-simpleRestaurantCommand.SetHandler(
-    (tables, waiters, entranceLocation, kitchenLocation,
-    customerArrivalMin, stopProbability) =>
+simpleRestaurantCommand.SetAction(parseResult =>
 {
+    var tables = parseResult.GetRequiredValue(tablesOption);
+    var waiters = parseResult.GetRequiredValue(waitersOption);
+    var entranceLocation = parseResult.GetRequiredValue(entranceOption);
+    var kitchenLocation = parseResult.GetRequiredValue(kitchenOption);
+    var customerArrivalMin = parseResult.GetValue(customerArrivalMinOption);
+    var stopProbability = parseResult.GetValue(stopProbabilityOption);
+
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
             .Enrich.FromLogContext()
@@ -270,57 +274,63 @@ simpleRestaurantCommand.SetHandler(
     Console.WriteLine("====== Running SimpleRestaurant ======");
     SimpleRestaurant.RunDemo(loggerFactory,
         tables, waiters, entranceLocation, kitchenLocation, customerInterArrivalTime, customerFactory);
-}, tablesOption, waitersOption, entranceOption, kitchenOption,
-    customerArrivalMinOption, stopProbabilityOption);
+});
 
 // ---- Demo: aws-rds-burst ----
 var awsRdsBurstCommand = new Command("aws-rds-burst", "Run the AWS RDS Burst demo");
 
-var familyOption = new Option<string>(
-    name: "--family",
-    description: "The RDS instance family (t3, t4g, m5).",
-    getDefaultValue: () => "t3"
-);
-
-var sizeOption = new Option<string>(
-    name: "--size",
-    description: "The RDS instance size (micro, small, medium, large, xlarge).",
-    getDefaultValue: () => "medium"
-);
-
-var awsRdsBurstDurationOption = new Option<double>(
-    name: "--duration",
-    description: "Total run duration in seconds.",
-    getDefaultValue: () => 400.0
-);
-
-var initialCreditsOption = new Option<double>(
-    name: "--initial-credits",
-    description: "Initial CPU credits for the burstable instance.",
-    getDefaultValue: () => 10.0
-);
-
-var unlimitedCreditsOption = new Option<bool>(
-    name: "--unlimited-credits",
-    description: "Whether the burstable instance has unlimited CPU credits.",
-    getDefaultValue: () => false
-);
-
-var grafanaOption = new Option<bool>(
-    name: "--grafana",
-    description: "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
-    getDefaultValue: () => false
-);
-
-awsRdsBurstCommand.AddOption(familyOption);
-awsRdsBurstCommand.AddOption(sizeOption);
-awsRdsBurstCommand.AddOption(awsRdsBurstDurationOption);
-awsRdsBurstCommand.AddOption(initialCreditsOption);
-awsRdsBurstCommand.AddOption(unlimitedCreditsOption);
-awsRdsBurstCommand.AddOption(grafanaOption);
-
-awsRdsBurstCommand.SetHandler((family, size, duration, initialCredits, isUnlimitedCredits, enableGrafana) =>
+var familyOption = new Option<string>("--family")
 {
+    Description = "The RDS instance family (t3, t4g, m5).",
+    DefaultValueFactory = _ => "t3"
+};
+
+var sizeOption = new Option<string>("--size")
+{
+    Description = "The RDS instance size (micro, small, medium, large, xlarge).",
+    DefaultValueFactory = _ => "medium"
+};
+
+var awsRdsBurstDurationOption = new Option<double>("--duration")
+{
+    Description = "Total run duration in seconds.",
+    DefaultValueFactory = _ => 400.0
+};
+
+var initialCreditsOption = new Option<double>("--initial-credits")
+{
+    Description = "Initial CPU credits for the burstable instance.",
+    DefaultValueFactory = _ => 10.0
+};
+
+var unlimitedCreditsOption = new Option<bool>("--unlimited-credits")
+{
+    Description = "Whether the burstable instance has unlimited CPU credits.",
+    DefaultValueFactory = _ => false
+};
+
+var grafanaOption = new Option<bool>("--grafana")
+{
+    Description = "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
+    DefaultValueFactory = _ => false
+};
+
+awsRdsBurstCommand.Options.Add(familyOption);
+awsRdsBurstCommand.Options.Add(sizeOption);
+awsRdsBurstCommand.Options.Add(awsRdsBurstDurationOption);
+awsRdsBurstCommand.Options.Add(initialCreditsOption);
+awsRdsBurstCommand.Options.Add(unlimitedCreditsOption);
+awsRdsBurstCommand.Options.Add(grafanaOption);
+
+awsRdsBurstCommand.SetAction(parseResult =>
+{
+    var family = parseResult.GetRequiredValue(familyOption);
+    var size = parseResult.GetRequiredValue(sizeOption);
+    var duration = parseResult.GetValue(awsRdsBurstDurationOption);
+    var initialCredits = parseResult.GetValue(initialCreditsOption);
+    var isUnlimitedCredits = parseResult.GetValue(unlimitedCreditsOption);
+    var enableGrafana = parseResult.GetValue(grafanaOption);
+
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
             .Enrich.FromLogContext()
@@ -342,49 +352,55 @@ awsRdsBurstCommand.SetHandler((family, size, duration, initialCredits, isUnlimit
         genSeed: 1234,
         enableGrafana: enableGrafana
     );
-}, familyOption, sizeOption, awsRdsBurstDurationOption, initialCreditsOption, unlimitedCreditsOption, grafanaOption);
+});
 
 // ---- Demo: azure-db-burst ----
 var azureDbBurstCommand = new Command("azure-db-burst", "Run the Azure Database Burst demo");
 
-var seriesOption = new Option<string>(
-    name: "--series",
-    description: "The Azure instance series. Currently supported: B (Burstable).",
-    getDefaultValue: () => "B"
-);
-
-var azureSizeOption = new Option<string>(
-    name: "--size",
-    description: "The Azure instance size. B-series: 1ms, 2s, 2ms, 4ms, 8ms.",
-    getDefaultValue: () => "2ms"
-);
-
-var azureDbBurstDurationOption = new Option<double>(
-    name: "--duration",
-    description: "Total run duration in seconds.",
-    getDefaultValue: () => 400.0
-);
-
-var azureInitialCreditsOption = new Option<double>(
-    name: "--initial-credits",
-    description: "Initial CPU credits for the burstable instance.",
-    getDefaultValue: () => 60.0
-);
-
-var azureGrafanaOption = new Option<bool>(
-    name: "--grafana",
-    description: "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
-    getDefaultValue: () => false
-);
-
-azureDbBurstCommand.AddOption(seriesOption);
-azureDbBurstCommand.AddOption(azureSizeOption);
-azureDbBurstCommand.AddOption(azureDbBurstDurationOption);
-azureDbBurstCommand.AddOption(azureInitialCreditsOption);
-azureDbBurstCommand.AddOption(azureGrafanaOption);
-
-azureDbBurstCommand.SetHandler((series, size, duration, initialCredits, enableGrafana) =>
+var seriesOption = new Option<string>("--series")
 {
+    Description = "The Azure instance series. Currently supported: B (Burstable).",
+    DefaultValueFactory = _ => "B"
+};
+
+var azureSizeOption = new Option<string>("--size")
+{
+    Description = "The Azure instance size. B-series: 1ms, 2s, 2ms, 4ms, 8ms.",
+    DefaultValueFactory = _ => "2ms"
+};
+
+var azureDbBurstDurationOption = new Option<double>("--duration")
+{
+    Description = "Total run duration in seconds.",
+    DefaultValueFactory = _ => 400.0
+};
+
+var azureInitialCreditsOption = new Option<double>("--initial-credits")
+{
+    Description = "Initial CPU credits for the burstable instance.",
+    DefaultValueFactory = _ => 60.0
+};
+
+var azureGrafanaOption = new Option<bool>("--grafana")
+{
+    Description = "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
+    DefaultValueFactory = _ => false
+};
+
+azureDbBurstCommand.Options.Add(seriesOption);
+azureDbBurstCommand.Options.Add(azureSizeOption);
+azureDbBurstCommand.Options.Add(azureDbBurstDurationOption);
+azureDbBurstCommand.Options.Add(azureInitialCreditsOption);
+azureDbBurstCommand.Options.Add(azureGrafanaOption);
+
+azureDbBurstCommand.SetAction(parseResult =>
+{
+    var series = parseResult.GetRequiredValue(seriesOption);
+    var size = parseResult.GetRequiredValue(azureSizeOption);
+    var duration = parseResult.GetValue(azureDbBurstDurationOption);
+    var initialCredits = parseResult.GetValue(azureInitialCreditsOption);
+    var enableGrafana = parseResult.GetValue(azureGrafanaOption);
+
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
             .Enrich.FromLogContext()
@@ -421,63 +437,71 @@ azureDbBurstCommand.SetHandler((series, size, duration, initialCredits, enableGr
         genSeed: 1234,
         enableGrafana: enableGrafana
     );
-}, seriesOption, azureSizeOption, azureDbBurstDurationOption, azureInitialCreditsOption, azureGrafanaOption);
+});
 
 // ---- Demo: azure-pgsql-pooling ----
 var azurePgsqlPoolingCommand = new Command("azure-pgsql-pooling", "Compare PostgreSQL connection pooling strategies on Azure B-series");
 
-var poolModeOption = new Option<string>(
-    name: "--mode",
-    description: "Pooling mode: direct, session, transaction.",
-    getDefaultValue: () => "direct"
-);
-
-var poolSizeOption = new Option<int>(
-    name: "--pool-size",
-    description: "Connection pool size (ignored for direct mode).",
-    getDefaultValue: () => 20
-);
-
-var poolingSeriesOption = new Option<string>(
-    name: "--series",
-    description: "The Azure instance series. Currently supported: B (Burstable).",
-    getDefaultValue: () => "B"
-);
-
-var poolingSizeOption = new Option<string>(
-    name: "--size",
-    description: "The Azure instance size. B-series: 1ms, 2s, 2ms, 4ms, 8ms.",
-    getDefaultValue: () => "2ms"
-);
-
-var poolingDurationOption = new Option<double>(
-    name: "--duration",
-    description: "Total run duration in seconds.",
-    getDefaultValue: () => 300.0
-);
-
-var poolingInitialCreditsOption = new Option<double>(
-    name: "--initial-credits",
-    description: "Initial CPU credits for the burstable instance.",
-    getDefaultValue: () => 60.0
-);
-
-var poolingGrafanaOption = new Option<bool>(
-    name: "--grafana",
-    description: "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
-    getDefaultValue: () => false
-);
-
-azurePgsqlPoolingCommand.AddOption(poolModeOption);
-azurePgsqlPoolingCommand.AddOption(poolSizeOption);
-azurePgsqlPoolingCommand.AddOption(poolingSeriesOption);
-azurePgsqlPoolingCommand.AddOption(poolingSizeOption);
-azurePgsqlPoolingCommand.AddOption(poolingDurationOption);
-azurePgsqlPoolingCommand.AddOption(poolingInitialCreditsOption);
-azurePgsqlPoolingCommand.AddOption(poolingGrafanaOption);
-
-azurePgsqlPoolingCommand.SetHandler((mode, poolSize, series, size, duration, initialCredits, enableGrafana) =>
+var poolModeOption = new Option<string>("--mode")
 {
+    Description = "Pooling mode: direct, session, transaction.",
+    DefaultValueFactory = _ => "direct"
+};
+
+var poolSizeOption = new Option<int>("--pool-size")
+{
+    Description = "Connection pool size (ignored for direct mode).",
+    DefaultValueFactory = _ => 20
+};
+
+var poolingSeriesOption = new Option<string>("--series")
+{
+    Description = "The Azure instance series. Currently supported: B (Burstable).",
+    DefaultValueFactory = _ => "B"
+};
+
+var poolingSizeOption = new Option<string>("--size")
+{
+    Description = "The Azure instance size. B-series: 1ms, 2s, 2ms, 4ms, 8ms.",
+    DefaultValueFactory = _ => "2ms"
+};
+
+var poolingDurationOption = new Option<double>("--duration")
+{
+    Description = "Total run duration in seconds.",
+    DefaultValueFactory = _ => 300.0
+};
+
+var poolingInitialCreditsOption = new Option<double>("--initial-credits")
+{
+    Description = "Initial CPU credits for the burstable instance.",
+    DefaultValueFactory = _ => 60.0
+};
+
+var poolingGrafanaOption = new Option<bool>("--grafana")
+{
+    Description = "Enable OpenTelemetry export to Grafana Cloud (requires API key configuration).",
+    DefaultValueFactory = _ => false
+};
+
+azurePgsqlPoolingCommand.Options.Add(poolModeOption);
+azurePgsqlPoolingCommand.Options.Add(poolSizeOption);
+azurePgsqlPoolingCommand.Options.Add(poolingSeriesOption);
+azurePgsqlPoolingCommand.Options.Add(poolingSizeOption);
+azurePgsqlPoolingCommand.Options.Add(poolingDurationOption);
+azurePgsqlPoolingCommand.Options.Add(poolingInitialCreditsOption);
+azurePgsqlPoolingCommand.Options.Add(poolingGrafanaOption);
+
+azurePgsqlPoolingCommand.SetAction(parseResult =>
+{
+    var mode = parseResult.GetRequiredValue(poolModeOption);
+    var poolSize = parseResult.GetValue(poolSizeOption);
+    var series = parseResult.GetRequiredValue(poolingSeriesOption);
+    var size = parseResult.GetRequiredValue(poolingSizeOption);
+    var duration = parseResult.GetValue(poolingDurationOption);
+    var initialCredits = parseResult.GetValue(poolingInitialCreditsOption);
+    var enableGrafana = parseResult.GetValue(poolingGrafanaOption);
+
     Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Verbose()
             .Enrich.FromLogContext()
@@ -547,18 +571,18 @@ azurePgsqlPoolingCommand.SetHandler((mode, poolSize, series, size, duration, ini
         genSeed: 1234,
         enableGrafana: enableGrafana
     );
-}, poolModeOption, poolSizeOption, poolingSeriesOption, poolingSizeOption, poolingDurationOption, poolingInitialCreditsOption, poolingGrafanaOption);
+});
 
 // ---- Group commands ----
 var demoCommand = new Command("demo", "Run a simulation demo");
-demoCommand.AddCommand(simpleGenCommand);
-demoCommand.AddCommand(simpleServerCommand);
-demoCommand.AddCommand(mmckCommand);
-demoCommand.AddCommand(simpleRestaurantCommand);
-demoCommand.AddCommand(awsRdsBurstCommand);
-demoCommand.AddCommand(azureDbBurstCommand);
-demoCommand.AddCommand(azurePgsqlPoolingCommand);
+demoCommand.Subcommands.Add(simpleGenCommand);
+demoCommand.Subcommands.Add(simpleServerCommand);
+demoCommand.Subcommands.Add(mmckCommand);
+demoCommand.Subcommands.Add(simpleRestaurantCommand);
+demoCommand.Subcommands.Add(awsRdsBurstCommand);
+demoCommand.Subcommands.Add(azureDbBurstCommand);
+demoCommand.Subcommands.Add(azurePgsqlPoolingCommand);
 
-rootCommand.AddCommand(demoCommand);
+rootCommand.Subcommands.Add(demoCommand);
 
-return await rootCommand.InvokeAsync(args);
+return await rootCommand.Parse(args).InvokeAsync();
