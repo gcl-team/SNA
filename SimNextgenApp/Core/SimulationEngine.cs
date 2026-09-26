@@ -211,7 +211,7 @@ public class SimulationEngine : IScheduler, IRunContext
                             currentEvent.EventId.ToString(),
                             isWarmupPhase);
 
-                        // Add rich context as requested in plan.md
+                        // Tag the span with the event's type, sequence number and any event-specific details
                         eventScope.Span?.SetTag("sna.event.type", currentEvent.GetType().Name);
                         eventScope.Span?.SetTag("sna.event.number", _executedEventCount);
                         if (currentEvent.GetTraceDetails() is { } details)

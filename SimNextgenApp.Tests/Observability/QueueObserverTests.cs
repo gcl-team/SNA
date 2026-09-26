@@ -169,7 +169,6 @@ public class QueueObserverTests
 
         // Assert - Verify dequeue happened
         // NOTE: We can't directly test histogram values - that's the backend's job
-        // This follows the "Emitter not Calculator" principle (plan.md watch-out #4)
         Assert.Equal(1, observer.LoadsDequeued);
     }
 
