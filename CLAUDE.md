@@ -11,6 +11,7 @@ SNA is an open-source Discrete Event Simulation (DES) library for .NET, using th
 | `SimNextgenApp/` | The library. The only project packed and published to NuGet. |
 | `SimNextgenApp.Tests/` | xUnit v3 tests on Microsoft.Testing.Platform (MTP), with Moq and `FakeTimeProvider`. |
 | `SimNextgenApp.Demo/` | Console demos built on `System.CommandLine` 2.0 (`demo <subcommand>`), plus AWS RDS / Azure DB sample scripts. |
+| `SimNextgenApp.Benchmarks/` | BenchmarkDotNet suite for engine and telemetry overhead. Built by PR CI but never run there. |
 
 Target framework is `net10.0` with nullable reference types enabled. `global.json` pins SDK `10.0.100` with `rollForward: latestFeature`.
 
@@ -21,6 +22,7 @@ dotnet build                  # whole solution
 dotnet test                   # MTP runner, configured in global.json
 dotnet run --project SimNextgenApp.Demo -- demo --help
 dotnet run --project SimNextgenApp.Demo -- demo mmck --servers 3 --capacity 10
+dotnet run -c Release --project SimNextgenApp.Benchmarks -- --filter '*'   # results in BenchmarkDotNet.Artifacts/ (gitignored)
 ```
 
 Sample scripts in `SimNextgenApp.Demo/AwsRdsSample/` and `SimNextgenApp.Demo/AzureDbSample/` come in `.sh` / `.ps1` pairs. They `cd` into their own directory first so they work from anywhere, and they plot results with `graph-cli` when it is installed. Keep the pairs in sync, and keep new scripts consistent with that pattern.

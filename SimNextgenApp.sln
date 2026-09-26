@@ -16,6 +16,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		README.md = README.md
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SimNextgenApp.Benchmarks", "SimNextgenApp.Benchmarks\SimNextgenApp.Benchmarks.csproj", "{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -62,6 +64,18 @@ Global
 		{BAD14CDE-A2B5-4C1F-8A63-865429FA509D}.Release|x64.Build.0 = Release|Any CPU
 		{BAD14CDE-A2B5-4C1F-8A63-865429FA509D}.Release|x86.ActiveCfg = Release|Any CPU
 		{BAD14CDE-A2B5-4C1F-8A63-865429FA509D}.Release|x86.Build.0 = Release|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Debug|x64.Build.0 = Debug|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Debug|x86.Build.0 = Debug|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Release|x64.ActiveCfg = Release|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Release|x64.Build.0 = Release|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Release|x86.ActiveCfg = Release|Any CPU
+		{D16A4202-22E7-4516-BC9B-FEA55DB74B6A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
