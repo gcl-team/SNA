@@ -1,6 +1,6 @@
 # Use official .NET SDK image to build the app
 # Reference: https://mcr.microsoft.com/artifact/mar/dotnet/sdk/tags
-FROM mcr.microsoft.com/dotnet/sdk:10.0.100-preview.4 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
 WORKDIR /src
 
@@ -15,7 +15,7 @@ RUN dotnet publish SimNextgenApp.Demo/SimNextgenApp.Demo.csproj -c Release -o /a
 
 # Use the official .NET runtime image for the final container
 # Reference: https://mcr.microsoft.com/artifact/mar/dotnet/runtime/tags
-FROM mcr.microsoft.com/dotnet/runtime:10.0.0-preview.4
+FROM mcr.microsoft.com/dotnet/runtime:10.0
 
 WORKDIR /app
 
