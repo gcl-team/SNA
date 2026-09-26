@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# Resolve script directory and cd into it to ensure relative paths work
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
 # SYNOPSIS
 #     Run the SNA simulation and optionally plot results.
 # DESCRIPTION

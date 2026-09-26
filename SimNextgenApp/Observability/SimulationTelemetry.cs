@@ -427,7 +427,10 @@ public class SimulationTelemetryBuilder
         if (_usePrometheusExporter)
         {
             meterBuilder.AddPrometheusHttpListener(options =>
-                options.UriPrefixes = new string[] { $"http://{_prometheusHostname}:{_prometheusPort}/" });
+            {
+                options.Host = _prometheusHostname;
+                options.Port = _prometheusPort;
+            });
         }
 
         if (_useOtlpExporter)
