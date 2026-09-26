@@ -22,9 +22,17 @@ public class TelemetryOverheadBenchmarks
     private const int EventCount = 10_000;
 
     private SimulationTelemetry? _telemetry;
+    private bool _attachObservers = true;
 
-    [GlobalSetup(Target = nameof(NoTelemetry))]
-    public void SetupNoTelemetry() => _telemetry = null;
+    [GlobalSetup(Target = nameof(EngineOnly))]
+    public void SetupEngineOnly()
+    {
+        _telemetry = null;
+        _attachObservers = false;
+    }
+
+    [GlobalSetup(Target = nameof(ObserversNoTelemetry))]
+    public void SetupObserversNoTelemetry() => _telemetry = null;
 
     [GlobalSetup(Target = nameof(TelemetryNoExporter))]
     public void SetupTelemetryNoExporter() =>
@@ -52,8 +60,11 @@ public class TelemetryOverheadBenchmarks
     [GlobalCleanup]
     public void Cleanup() => _telemetry?.Dispose();
 
-    [Benchmark(Baseline = true, OperationsPerInvoke = EventCount, Description = "No telemetry")]
-    public long NoTelemetry() => RunSimulation();
+    [Benchmark(Baseline = true, OperationsPerInvoke = EventCount, Description = "Engine only")]
+    public long EngineOnly() => RunSimulation();
+
+    [Benchmark(OperationsPerInvoke = EventCount, Description = "Observers, no telemetry")]
+    public long ObserversNoTelemetry() => RunSimulation();
 
     [Benchmark(OperationsPerInvoke = EventCount, Description = "Telemetry, no exporter")]
     public long TelemetryNoExporter() => RunSimulation();
@@ -72,7 +83,7 @@ public class TelemetryOverheadBenchmarks
 
     private long RunSimulation()
     {
-        var model = new BenchmarkModel(_telemetry);
+        var model = new BenchmarkModel(_telemetry, _attachObservers);
         try
         {
             var profile = new SimulationProfile(

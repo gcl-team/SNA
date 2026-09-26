@@ -21,14 +21,19 @@ internal sealed class BenchmarkModel : AbstractSimulationModel
     private readonly SimQueue<BenchmarkLoad> _queue;
     private readonly List<Server<BenchmarkLoad>> _servers = [];
     private readonly List<ServerObserver<BenchmarkLoad>> _serverObservers = [];
-    private readonly QueueObserver<BenchmarkLoad> _queueObserver;
+    private readonly QueueObserver<BenchmarkLoad>? _queueObserver;
     private IRunContext _runContext = null!;
 
     /// <param name="telemetry">
     /// When provided, observers are created through it so they share its volume estimator,
     /// matching how an application wires observers; otherwise standalone observers are used.
     /// </param>
-    public BenchmarkModel(SimulationTelemetry? telemetry, int numberOfServers = 2, int seed = 42) : base("BenchmarkModel")
+    /// <param name="attachObservers">
+    /// Whether to attach queue and server observers. Observers also collect result statistics,
+    /// so they can be present even when telemetry is off.
+    /// </param>
+    public BenchmarkModel(SimulationTelemetry? telemetry, bool attachObservers, int numberOfServers = 2, int seed = 42)
+        : base("BenchmarkModel")
     {
         var loggerFactory = NullLoggerFactory.Instance;
 
@@ -43,14 +48,16 @@ internal sealed class BenchmarkModel : AbstractSimulationModel
 
         _generator = new Generator<BenchmarkLoad>(generatorConfig, seed, "Arrivals", loggerFactory);
         _queue = new SimQueue<BenchmarkLoad>(new QueueStaticConfig<BenchmarkLoad>(), "Queue", loggerFactory);
-        _queueObserver = telemetry?.ObserveQueue(_queue) ?? QueueObserver.CreateSimple(_queue);
+        if (attachObservers)
+            _queueObserver = telemetry?.ObserveQueue(_queue) ?? QueueObserver.CreateSimple(_queue);
 
         for (int i = 0; i < numberOfServers; i++)
         {
             var server = new Server<BenchmarkLoad>(serverConfig, seed + i + 1, $"Server{i + 1}");
             server.LoadDeparted += (_, _) => _queue.TriggerDequeueAttempt(_runContext);
             _servers.Add(server);
-            _serverObservers.Add(telemetry?.ObserveServer(server) ?? ServerObserver.CreateSimple(server));
+            if (attachObservers)
+                _serverObservers.Add(telemetry?.ObserveServer(server) ?? ServerObserver.CreateSimple(server));
         }
 
         _generator.LoadGenerated += (load, _) =>
@@ -69,7 +76,7 @@ internal sealed class BenchmarkModel : AbstractSimulationModel
     public override void Initialize(IRunContext runContext)
     {
         _runContext = runContext;
-        _queueObserver.SetTimeUnit(runContext.TimeUnit);
+        _queueObserver?.SetTimeUnit(runContext.TimeUnit);
         foreach (var observer in _serverObservers)
             observer.SetTimeUnit(runContext.TimeUnit);
 
@@ -90,7 +97,7 @@ internal sealed class BenchmarkModel : AbstractSimulationModel
     /// </summary>
     public void DisposeObservers()
     {
-        _queueObserver.Dispose();
+        _queueObserver?.Dispose();
         foreach (var observer in _serverObservers)
             observer.Dispose();
     }
