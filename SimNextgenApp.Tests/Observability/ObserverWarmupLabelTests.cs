@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SimNextgenApp.Core;
@@ -15,7 +16,6 @@ namespace SimNextgenApp.Tests.Observability;
 
 /// <summary>
 /// Observers label their metrics with the engine's warmup state, which does not depend on tracing.
-/// None of these tests start a span.
 /// </summary>
 public class ObserverWarmupLabelTests
 {
@@ -103,16 +103,31 @@ public class ObserverWarmupLabelTests
         Assert.Equal<bool?>([isWarmup], recorder.LabelsFor("sna.resource.acquisitions"));
     }
 
-    [Fact(DisplayName = "Observers should label metrics by warmup phase in a run without tracing.")]
-    public void Run_WithoutTracing_LabelsObserverMetricsByWarmupPhase()
+    [Theory(DisplayName = "Observers should label metrics by warmup phase whether tracing is off, on or sampled out.")]
+    [InlineData(null)]                                        // No listener, so no spans
+    [InlineData(ActivitySamplingResult.AllDataAndRecorded)]   // Recorded event spans
+    [InlineData(ActivitySamplingResult.PropagationData)]      // Sampled-out event spans
+    public void Run_LabelsObserverMetricsByWarmupPhase_InAnyTracingMode(ActivitySamplingResult? sampling)
     {
         // Arrange
+        // Without a listener the source creates no spans. It is not the shared source, which
+        // other tests running in parallel may be listening to.
+        using var isolated = sampling is { } result ? new IsolatedActivitySource(result) : null;
+        using var unobservedSource = new ActivitySource($"{nameof(ObserverWarmupLabelTests)}.{Guid.NewGuid():N}");
+        var activitySource = isolated?.Source ?? unobservedSource;
+
         var server = new Mock<IServer<DummyLoad>>();
         server.SetupGet(s => s.Name).Returns("TestServer");
         using var observer = ServerObserver.CreateSimple(server.Object);
         using var recorder = new WarmupLabelRecorder(observer.Meter!);
 
-        void Depart(IRunContext context) => server.Raise(s => s.LoadDeparted += null, new DummyLoad(), context.ClockTime);
+        // The span the observer runs inside, and its warmup tag, for each departure
+        var spans = new List<(bool HasSpan, object? WarmupTag)>();
+        void Depart(IRunContext context)
+        {
+            spans.Add((Activity.Current != null, Activity.Current?.GetTagItem("sna.simulation.warmup")));
+            server.Raise(s => s.LoadDeparted += null, new DummyLoad(), context.ClockTime);
+        }
 
         var model = new Mock<ISimulationModel>();
         model.Setup(m => m.Initialize(It.IsAny<IRunContext>()))
@@ -127,13 +142,29 @@ public class ObserverWarmupLabelTests
         strategy.Setup(s => s.ShouldContinue(It.IsAny<IRunContext>())).Returns(true);
 
         var profile = new SimulationProfile(
-            model.Object, strategy.Object, "NoTracing", SimulationTimeUnit.Seconds, NullLoggerFactory.Instance, telemetry: null);
+            model.Object, strategy.Object, "TracingModes", SimulationTimeUnit.Seconds, NullLoggerFactory.Instance, telemetry: null);
 
         // Act
-        new SimulationEngine(profile).Run();
+        new SimulationEngine(profile, activitySource).Run();
 
         // Assert
         Assert.Equal<bool?>([true, false, false], recorder.LabelsFor("sna.server.loads_completed"));
+
+        switch (sampling)
+        {
+            case null:
+                Assert.All(spans, span => Assert.False(span.HasSpan));
+                break;
+            case ActivitySamplingResult.AllDataAndRecorded:
+                // The recorded span's warmup tag matches the metric label for the same event
+                Assert.All(spans, span => Assert.True(span.HasSpan));
+                Assert.Equal<object?>([true, false, false], spans.Select(span => span.WarmupTag));
+                break;
+            default:
+                Assert.All(spans, span => Assert.True(span.HasSpan));
+                Assert.All(spans, span => Assert.Null(span.WarmupTag));
+                break;
+        }
     }
 
     private sealed class CallbackEvent(Action<IRunContext> callback) : AbstractEvent
