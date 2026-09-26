@@ -23,14 +23,25 @@ namespace SimNextgenApp.Benchmarks;
 /// (about 1.5 ms with exporters), so <see cref="EventCount"/> is large enough to amortize it and keep
 /// the per-event numbers close to steady state.
 /// </para>
+/// <para>
+/// Building the model, its observers (and their meters and instruments) and the engine happens in
+/// <see cref="IterationSetup"/>, outside the measured region, so it does not count towards Mean or
+/// Allocated. An engine runs only once, so each iteration is a single invocation. Work inside
+/// <see cref="SimulationEngine.Run"/> itself, such as model initialization, is still measured.
+/// Because MemoryDiagnoser takes its GC counts from one extra iteration, <see cref="EventCount"/>
+/// is also what gives those counts their resolution.
+/// </para>
 /// </remarks>
 [MemoryDiagnoser]
+[InvocationCount(1)]
 public class TelemetryOverheadBenchmarks
 {
-    private const int EventCount = 100_000;
+    private const int EventCount = 1_000_000;
 
     private SimulationTelemetry? _telemetry;
     private bool _attachObservers = true;
+    private BenchmarkModel? _model;
+    private SimulationEngine? _engine;
 
     [GlobalSetup(Target = nameof(EngineOnly))]
     public void SetupEngineOnly()
@@ -68,6 +79,26 @@ public class TelemetryOverheadBenchmarks
     [GlobalCleanup]
     public void Cleanup() => _telemetry?.Dispose();
 
+    [IterationSetup]
+    public void BuildSimulation()
+    {
+        _model = new BenchmarkModel(_telemetry, _attachObservers);
+        var profile = new SimulationProfile(
+            _model,
+            new EventCountRunStrategy(EventCount),
+            name: "Benchmark",
+            telemetry: _telemetry);
+        _engine = new SimulationEngine(profile);
+    }
+
+    [IterationCleanup]
+    public void DisposeSimulation()
+    {
+        _model?.DisposeObservers();
+        _model = null;
+        _engine = null;
+    }
+
     [Benchmark(Baseline = true, OperationsPerInvoke = EventCount, Description = "Engine only")]
     public long EngineOnly() => RunSimulation();
 
@@ -91,23 +122,8 @@ public class TelemetryOverheadBenchmarks
 
     private long RunSimulation()
     {
-        var model = new BenchmarkModel(_telemetry, _attachObservers);
-        try
-        {
-            var profile = new SimulationProfile(
-                model,
-                new EventCountRunStrategy(EventCount),
-                name: "Benchmark",
-                telemetry: _telemetry);
-
-            var engine = new SimulationEngine(profile);
-            engine.Run();
-            return engine.ExecutedEventCount;
-        }
-        finally
-        {
-            model.DisposeObservers();
-        }
+        _engine!.Run();
+        return _engine.ExecutedEventCount;
     }
 
     /// <summary>
