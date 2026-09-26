@@ -20,10 +20,10 @@ public class OTelActivitySourceTests
         new Mock<IRunStrategy>().Object,
         "TestProfile");
 
-    [Theory(DisplayName = "CreateEventSpan should keep only the warmup tag on a sampled-out span.")]
+    [Theory(DisplayName = "CreateEventSpan should not tag a sampled-out span.")]
     [InlineData(false)]
     [InlineData(true)]
-    public void CreateEventSpan_SampledOut_KeepsOnlyWarmupTag(bool enableTraceContext)
+    public void CreateEventSpan_SampledOut_IsNotTagged(bool enableTraceContext)
     {
         // Arrange
         using var isolated = new IsolatedActivitySource(SampledOut);
@@ -36,8 +36,7 @@ public class OTelActivitySourceTests
         Assert.NotNull(scope.Span);
         Assert.False(scope.Span.IsAllDataRequested);
         Assert.Same(scope.Span, Activity.Current);
-        Assert.Equal(true, scope.Span.GetTagItem("sna.simulation.warmup"));
-        Assert.Single(scope.Span.TagObjects);
+        Assert.Empty(scope.Span.TagObjects);
     }
 
     [Fact(DisplayName = "CreateEventSpan should not count a sampled-out span towards volume or cardinality.")]
@@ -116,7 +115,7 @@ public class OTelActivitySourceTests
         Assert.NotNull(scope.Span);
         Assert.False(scope.Span.IsAllDataRequested);
         Assert.True(scope.Span.Recorded);
-        Assert.Equal("sna.simulation.warmup", Assert.Single(scope.Span.TagObjects).Key);
+        Assert.Empty(scope.Span.TagObjects);
         Assert.Equal(0, volumeEstimator.TotalSpans);
         Assert.Equal(0, cardinalityGuard.TotalUniqueValues);
     }

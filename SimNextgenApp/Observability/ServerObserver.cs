@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using SimNextgenApp.Core;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
 using SimNextgenApp.Observability.VolumeEstimation;
@@ -97,17 +97,11 @@ public class ServerObserver<TLoad> : IDisposable
     }
 
     /// <summary>
-    /// Reads the warmup phase state from the current Activity span context.
-    /// Returns false if no Activity is active or if the warmup tag is not set.
+    /// Whether the simulation running on this thread is still in its warmup period.
+    /// Read from the engine rather than the current span, so it is correct even when tracing is off
+    /// or the event's span was sampled out.
     /// </summary>
-    private bool GetWarmupPhase()
-    {
-        var activity = Activity.Current;
-        if (activity == null) return false;
-
-        var warmupTag = activity.GetTagItem("sna.simulation.warmup");
-        return warmupTag as bool? ?? false;
-    }
+    private static bool GetWarmupPhase() => WarmupPhase.IsActive;
 
     private void Subscribe()
     {
@@ -123,7 +117,7 @@ public class ServerObserver<TLoad> : IDisposable
         // Use Interlocked for thread-safe write with memory barrier guarantees
         Interlocked.Exchange(ref _isWarmupPhaseInt, isWarmup ? 1 : 0);
 
-        // Record metrics with warmup context from the current Activity span
+        // Record metrics with the current warmup state
 
         if (_loadsCompletedCounter != null)
         {

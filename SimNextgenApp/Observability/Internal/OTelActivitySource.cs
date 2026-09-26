@@ -12,11 +12,6 @@ namespace SimNextgenApp.Observability.Internal;
 internal sealed class OTelActivitySource
 {
     private static readonly ActivitySource _sharedSource = new(SimulationTelemetry.ActivitySourceName);
-
-    // Pre-boxed so tagging the warmup state on every event span does not allocate a box
-    private static readonly object _boxedTrue = true;
-    private static readonly object _boxedFalse = false;
-
     private readonly ActivitySource _source;
     private readonly VolumeEstimator? _volumeEstimator;
     private readonly CardinalityGuard? _cardinalityGuard;
@@ -97,10 +92,8 @@ internal sealed class OTelActivitySource
     /// </summary>
     /// <remarks>
     /// A sampler that drops a span still returns an <see cref="Activity"/> (with
-    /// <see cref="Activity.IsAllDataRequested"/> false) so that context keeps flowing. Such spans get only
-    /// the warmup tag, because observers read it from <see cref="Activity.Current"/> to label their
-    /// metrics. All other tags are skipped, and the span is not counted towards volume or cardinality,
-    /// because it will never be exported.
+    /// <see cref="Activity.IsAllDataRequested"/> false) so that context keeps flowing. Such spans get no
+    /// tags and are not counted towards volume or cardinality, because they will never be exported.
     /// </remarks>
     /// <returns>An EventSpanScope that must be disposed to restore context properly.</returns>
     public EventSpanScope CreateEventSpan(string eventName, long clockTime, long eventId, bool isWarmupPhase)
@@ -137,12 +130,11 @@ internal sealed class OTelActivitySource
 
         if (activity != null)
         {
-            activity.SetTag("sna.simulation.warmup", isWarmupPhase ? _boxedTrue : _boxedFalse);
-
             if (activity.IsAllDataRequested)
             {
                 activity.SetTag("sna.event.id", eventId.ToString());
                 activity.SetTag("sna.simulation.time", clockTime);
+                activity.SetTag("sna.simulation.warmup", isWarmupPhase);
             }
 
             if (IsExported(activity))
