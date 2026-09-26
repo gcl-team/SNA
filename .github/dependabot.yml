@@ -9,8 +9,6 @@ updates:
       interval: "weekly"
       day: "monday"
     groups:
-      # Minor and patch updates are bundled into one PR; major updates get their own PR
-      # since they may need code changes (e.g. System.CommandLine 2.0, xUnit v4).
       nuget-minor-and-patch:
         update-types:
           - "minor"
