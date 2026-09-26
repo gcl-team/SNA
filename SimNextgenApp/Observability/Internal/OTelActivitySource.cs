@@ -42,6 +42,15 @@ internal sealed class OTelActivitySource
     }
 
     /// <summary>
+    /// Whether a span will reach the exporters, so it should count towards volume and cardinality.
+    /// Both flags are needed: OpenTelemetry only passes spans with <see cref="Activity.IsAllDataRequested"/>
+    /// to its processors, and the export processors only export <see cref="Activity.Recorded"/> ones.
+    /// Either flag alone is not enough, because a listener or user code can set the Recorded flag
+    /// on a span the sampler dropped.
+    /// </summary>
+    private static bool IsExported(Activity activity) => activity.IsAllDataRequested && activity.Recorded;
+
+    /// <summary>
     /// Ensures tracing allocations are skipped if there's no listener observing them.
     /// </summary>
     public bool IsEnabled => _source.HasListeners();
@@ -58,7 +67,7 @@ internal sealed class OTelActivitySource
         }
 
         // Track span creation for volume estimation
-        if (activity is { Recorded: true }) _volumeEstimator?.RecordSpan();
+        if (activity != null && IsExported(activity)) _volumeEstimator?.RecordSpan();
         return activity;
     }
 
@@ -77,7 +86,7 @@ internal sealed class OTelActivitySource
             activity.SetTag("sna.simulation.warmup_end_time", warmupEndTime);
         }
 
-        if (activity is { Recorded: true }) _volumeEstimator?.RecordSpan();
+        if (activity != null && IsExported(activity)) _volumeEstimator?.RecordSpan();
         return activity;
     }
 
@@ -136,7 +145,7 @@ internal sealed class OTelActivitySource
                 activity.SetTag("sna.simulation.time", clockTime);
             }
 
-            if (activity.Recorded)
+            if (IsExported(activity))
             {
                 // Track attribute cardinality
                 _cardinalityGuard?.RecordAttributeValue("sna.event.type", eventName);

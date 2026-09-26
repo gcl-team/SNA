@@ -97,6 +97,30 @@ public class OTelActivitySourceTests
         Assert.Equal(0, cardinalityGuard.TotalUniqueValues);
     }
 
+    [Fact(DisplayName = "CreateEventSpan should neither tag nor count a sampled-out span that has the Recorded flag set.")]
+    public void CreateEventSpan_SampledOutButFlaggedRecorded_IsNotTaggedOrCounted()
+    {
+        // Arrange
+        // OpenTelemetry never passes such a span to its processors, so it is never exported
+        using var isolated = new IsolatedActivitySource(
+            SampledOut,
+            onStarted: activity => activity.ActivityTraceFlags |= ActivityTraceFlags.Recorded);
+        using var volumeEstimator = new VolumeEstimator(VolumeThresholds.Default());
+        using var cardinalityGuard = new CardinalityGuard();
+        var activitySource = new OTelActivitySource(volumeEstimator, cardinalityGuard, source: isolated.Source);
+
+        // Act
+        using var scope = activitySource.CreateEventSpan("TestEvent", clockTime: 5, eventId: 42, isWarmupPhase: false);
+
+        // Assert
+        Assert.NotNull(scope.Span);
+        Assert.False(scope.Span.IsAllDataRequested);
+        Assert.True(scope.Span.Recorded);
+        Assert.Equal("sna.simulation.warmup", Assert.Single(scope.Span.TagObjects).Key);
+        Assert.Equal(0, volumeEstimator.TotalSpans);
+        Assert.Equal(0, cardinalityGuard.TotalUniqueValues);
+    }
+
     [Fact(DisplayName = "CreateSimulationSpan should neither tag nor count a sampled-out span.")]
     public void CreateSimulationSpan_SampledOut_IsNotTaggedOrCounted()
     {
