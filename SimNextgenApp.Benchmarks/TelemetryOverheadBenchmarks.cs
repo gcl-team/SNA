@@ -9,7 +9,7 @@ using SimNextgenApp.Observability;
 namespace SimNextgenApp.Benchmarks;
 
 /// <summary>
-/// Measures the per-event cost of telemetry on the simulation thread (see issue #78).
+/// Measures the per-event cost of telemetry on the simulation thread.
 /// Each benchmark runs the same model for <see cref="EventCount"/> events; results are reported per event.
 /// </summary>
 /// <remarks>
