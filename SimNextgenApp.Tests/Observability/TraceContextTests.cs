@@ -71,16 +71,8 @@ public class TraceContextTests
     [Fact]
     public void InjectContext_WithActiveActivity_InjectsHeaders()
     {
-        // Register listener to ensure activity is created
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "test-source",
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
-
-        var activitySource = new ActivitySource("test-source");
-        using var activity = activitySource.StartActivity("test-activity");
+        using var tracing = new IsolatedActivitySource();
+        using var activity = tracing.Source.StartActivity("test-activity");
 
         Assert.NotNull(activity);
 
@@ -112,16 +104,8 @@ public class TraceContextTests
     [Fact]
     public void InjectAndExtract_RoundTrip_PreservesContext()
     {
-        // Register listener to ensure activity is created
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "test-source",
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
-
-        var activitySource = new ActivitySource("test-source");
-        using var activity = activitySource.StartActivity("test-activity");
+        using var tracing = new IsolatedActivitySource();
+        using var activity = tracing.Source.StartActivity("test-activity");
 
         Assert.NotNull(activity);
 
@@ -139,23 +123,15 @@ public class TraceContextTests
     [Fact]
     public void CreateLinkedSpan_WithValidParentContext_CreatesLinkedSpan()
     {
-        // Register listener to ensure activity is created
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "test-source",
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
-
-        var activitySource = new ActivitySource("test-source");
-        using var parentActivity = activitySource.StartActivity("parent-activity");
+        using var tracing = new IsolatedActivitySource();
+        using var parentActivity = tracing.Source.StartActivity("parent-activity");
 
         Assert.NotNull(parentActivity);
 
         var parentContext = parentActivity.Context;
 
         using var linkedSpan = TraceContext.CreateLinkedSpan(
-            activitySource,
+            tracing.Source,
             "linked-span",
             parentContext);
 
@@ -181,14 +157,14 @@ public class TraceContextTests
     [InlineData("   ")]
     public void CreateLinkedSpan_WithNullOrEmptyName_ThrowsArgumentException(string? name)
     {
-        var activitySource = new ActivitySource("test-source");
+        using var tracing = new IsolatedActivitySource();
         var parentContext = new ActivityContext(
             ActivityTraceId.CreateRandom(),
             ActivitySpanId.CreateRandom(),
             ActivityTraceFlags.None);
 
         Assert.Throws<ArgumentException>(() =>
-            TraceContext.CreateLinkedSpan(activitySource, name!, parentContext));
+            TraceContext.CreateLinkedSpan(tracing.Source, name!, parentContext));
     }
 
     [Fact]
@@ -204,16 +180,8 @@ public class TraceContextTests
     [Fact]
     public void GetCurrentTraceId_WithActiveActivity_ReturnsTraceId()
     {
-        // Register listener to ensure activity is created
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "test-source",
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
-
-        var activitySource = new ActivitySource("test-source");
-        using var activity = activitySource.StartActivity("test-activity");
+        using var tracing = new IsolatedActivitySource();
+        using var activity = tracing.Source.StartActivity("test-activity");
 
         Assert.NotNull(activity);
 
@@ -235,16 +203,8 @@ public class TraceContextTests
     [Fact]
     public void GetCurrentSpanId_WithActiveActivity_ReturnsSpanId()
     {
-        // Register listener to ensure activity is created
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "test-source",
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
-
-        var activitySource = new ActivitySource("test-source");
-        using var activity = activitySource.StartActivity("test-activity");
+        using var tracing = new IsolatedActivitySource();
+        using var activity = tracing.Source.StartActivity("test-activity");
 
         Assert.NotNull(activity);
 
@@ -266,16 +226,8 @@ public class TraceContextTests
     [Fact]
     public void IsTracingActive_WithActiveActivity_ReturnsTrue()
     {
-        // Register listener to ensure activity is created
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => source.Name == "test-source",
-            Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded
-        };
-        ActivitySource.AddActivityListener(listener);
-
-        var activitySource = new ActivitySource("test-source");
-        using var activity = activitySource.StartActivity("test-activity");
+        using var tracing = new IsolatedActivitySource();
+        using var activity = tracing.Source.StartActivity("test-activity");
 
         Assert.NotNull(activity);
 
