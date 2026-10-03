@@ -45,7 +45,7 @@ Secondly, reference the `SimNextgenApp` project. There are two common ways to ad
 
 **Method A: Using Visual Studio**
 
-1. Open your own solution (.sln) in Visual Studio.
+1. Open your own solution (`.sln` or `.slnx`) in Visual Studio.
 2. In the Solution Explorer, right-click on your Solution and choose Add -> Existing Project....
 3. Navigate to the cloned `SimNextgenApp` folder and select `SimNextgenApp.csproj`.
 4. Now, right-click on your project Dependencies (or References) node and choose Add Project Reference....
