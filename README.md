@@ -209,7 +209,7 @@ We welcome your contributions! Bug reports and feature suggestions are encourage
 Open issues or submit pull requests via [Project Issues](https://github.com/gcl-team/SNA/issues).
 
 ## 🙏 Acknowledgements
-SNA was inspired by [O2DES.NET](https://github.com/li-haobin/O2DESNet), an open-source object-oriented discrete event simulation framework for .NET (MIT License). SNA is a separate implementation with its own design, focused on observability.
+SNA was inspired by [O2DES.NET](https://github.com/li-haobin/O2DESNet), an open-source object-oriented discrete event simulation framework for .NET (MIT License). SNA is a separate implementation with its own design, focused on software engineering principles and .NET best practices.
 
 ## 📜 License
 This library is distributed under the MIT License. See [LICENSE](https://github.com/gcl-team/SNA/blob/main/LICENSE) for more information.
