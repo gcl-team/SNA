@@ -151,7 +151,9 @@ public sealed class CardinalityGuard : IDisposable
     }
 
     /// <summary>
-    /// Clears the tracked attribute values. Further calls to this guard have no effect.
+    /// Clears the tracked attribute values. After disposal, <see cref="RecordAttributeValue"/>,
+    /// <see cref="Reset"/> and <see cref="GetStatistics"/> throw <see cref="ObjectDisposedException"/>.
+    /// Calling <see cref="Dispose"/> again has no effect.
     /// </summary>
     public void Dispose()
     {

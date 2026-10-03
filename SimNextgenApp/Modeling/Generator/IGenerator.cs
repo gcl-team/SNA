@@ -1,7 +1,7 @@
 ﻿namespace SimNextgenApp.Modeling.Generator;
 
 /// <summary>
-/// Defines the public, read-only view of a generator: a source component that creates loads
+/// Defines the public view of a generator: a source component that creates loads
 /// of type <typeparamref name="TLoad"/> at intervals drawn from an inter-arrival time distribution.
 /// </summary>
 /// <typeparam name="TLoad">The type of load (entity) produced by the generator.</typeparam>
