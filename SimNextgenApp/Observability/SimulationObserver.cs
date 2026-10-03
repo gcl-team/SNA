@@ -157,6 +157,9 @@ public class SimulationObserver : IDisposable
         return new SimulationObserver(engine, meter, ownsMeter: true, warmupEndTime: warmupEndTime);
     }
 
+    /// <summary>
+    /// Stops the real-time stopwatch and disposes the meter if this observer created it.
+    /// </summary>
     public void Dispose()
     {
         _realTimeStopwatch.Stop();

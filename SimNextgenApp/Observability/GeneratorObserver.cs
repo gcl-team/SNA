@@ -154,6 +154,9 @@ public class GeneratorObserver<TLoad> : IDisposable where TLoad : notnull
         return new GeneratorObserver<TLoad>(generator, meter, ownsMeter: true);
     }
 
+    /// <summary>
+    /// Unsubscribes from the generator's events and disposes the meter if this observer created it.
+    /// </summary>
     public void Dispose()
     {
         _generator.LoadGenerated -= OnLoadGenerated;
@@ -167,9 +170,15 @@ public class GeneratorObserver<TLoad> : IDisposable where TLoad : notnull
     }
 }
 
+/// <summary>
+/// Factory methods for <see cref="GeneratorObserver{TLoad}"/>.
+/// </summary>
 public static class GeneratorObserver
 {
-    // Helper to avoid specifying TLoad for type inference where possible, or factory methods
+    /// <summary>
+    /// Creates a simple observer for the given generator, inferring <typeparamref name="TLoad"/> from the argument.
+    /// </summary>
+    /// <inheritdoc cref="GeneratorObserver{TLoad}.CreateSimple"/>
     public static GeneratorObserver<TLoad> CreateSimple<TLoad>(IGenerator<TLoad> generator) where TLoad : notnull
     {
         return GeneratorObserver<TLoad>.CreateSimple(generator);

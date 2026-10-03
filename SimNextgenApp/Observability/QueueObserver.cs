@@ -228,6 +228,10 @@ public class QueueObserver<TLoad> : IDisposable
         return new QueueObserver<TLoad>(queue, meter, ownsMeter: true);
     }
 
+    /// <summary>
+    /// Unsubscribes from the queue's events, clears the tracked enqueue times and disposes the meter
+    /// if this observer created it.
+    /// </summary>
     public void Dispose()
     {
         _queue.LoadEnqueued -= OnLoadEnqueued;
@@ -248,9 +252,15 @@ public class QueueObserver<TLoad> : IDisposable
     }
 }
 
+/// <summary>
+/// Factory methods for <see cref="QueueObserver{TLoad}"/>.
+/// </summary>
 public static class QueueObserver
 {
-    // Helper to avoid specifying TLoad for type inference where possible
+    /// <summary>
+    /// Creates a simple observer for the given queue, inferring <typeparamref name="TLoad"/> from the argument.
+    /// </summary>
+    /// <inheritdoc cref="QueueObserver{TLoad}.CreateSimple"/>
     public static QueueObserver<TLoad> CreateSimple<TLoad>(ISimQueue<TLoad> queue)
         where TLoad : notnull
     {

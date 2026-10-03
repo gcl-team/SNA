@@ -2,6 +2,11 @@
 
 namespace SimNextgenApp.Modeling.Queue;
 
+/// <summary>
+/// Defines the public view of a FIFO queue that holds loads of type <typeparamref name="TLoad"/>
+/// up to a fixed capacity.
+/// </summary>
+/// <typeparam name="TLoad">The type of load (entity) held by the queue.</typeparam>
 public interface ISimQueue<TLoad> : IWarmupAware
 {
     /// <summary>

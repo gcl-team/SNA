@@ -264,11 +264,18 @@ public class VolumeEstimator : IDisposable
         }
     }
 
+    /// <summary>
+    /// Raises the <see cref="VolumeWarning"/> event. Override to react to volume warnings in a derived class.
+    /// </summary>
+    /// <param name="e">The details of the warning.</param>
     protected virtual void OnVolumeWarning(VolumeWarningEventArgs e)
     {
         VolumeWarning?.Invoke(this, e);
     }
 
+    /// <summary>
+    /// Releases this estimator. It holds no unmanaged resources, so this has no other effect.
+    /// </summary>
     public void Dispose()
     {
         GC.SuppressFinalize(this);

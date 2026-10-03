@@ -230,6 +230,9 @@ public class ResourceObserver<TResource> : IDisposable where TResource : notnull
         return new ResourceObserver<TResource>(resourcePool, meter, ownsMeter: true);
     }
 
+    /// <summary>
+    /// Unsubscribes from the resource pool's events and disposes the meter if this observer created it.
+    /// </summary>
     public void Dispose()
     {
         _resourcePool.ResourceAcquired -= OnResourceAcquired;
@@ -245,9 +248,15 @@ public class ResourceObserver<TResource> : IDisposable where TResource : notnull
     }
 }
 
+/// <summary>
+/// Factory methods for <see cref="ResourceObserver{TResource}"/>.
+/// </summary>
 public static class ResourceObserver
 {
-    // Helper to avoid specifying TResource for type inference where possible, or factory methods
+    /// <summary>
+    /// Creates a simple observer for the given resource pool, inferring <typeparamref name="TResource"/> from the argument.
+    /// </summary>
+    /// <inheritdoc cref="ResourceObserver{TResource}.CreateSimple"/>
     public static ResourceObserver<TResource> CreateSimple<TResource>(IResourcePool<TResource> resourcePool) where TResource : notnull
     {
         return ResourceObserver<TResource>.CreateSimple(resourcePool);
