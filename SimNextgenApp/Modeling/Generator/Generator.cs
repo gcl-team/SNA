@@ -47,7 +47,8 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// <param name="instanceName">A descriptive name for this generator instance (e.g., "CustomerArrivals").
     /// This name is used in logging and tracing output to uniquely identify this component.</param>
     /// <param name="loggerFactory">The factory used to create this generator's logger.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> or <paramref name="loggerFactory"/> is <c>null</c>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="instanceName"/> is <c>null</c>, empty or whitespace.</exception>
     public Generator(GeneratorStaticConfig<TLoad> config, int seed, string instanceName, ILoggerFactory loggerFactory)
         : base(instanceName)
     {

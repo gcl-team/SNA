@@ -59,6 +59,7 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     /// <param name="loggerFactory">The factory used to create loggers for this queue instance.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> or <paramref name="loggerFactory"/> is <c>null</c>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">Thrown if the <see cref="QueueStaticConfig{TLoad}.Capacity"/> of <paramref name="config"/> is not positive and not <see cref="int.MaxValue"/>.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="instanceName"/> is <c>null</c>, empty or whitespace.</exception>
     public SimQueue(QueueStaticConfig<TLoad> config, string instanceName, ILoggerFactory loggerFactory)
         : base(instanceName)
     {

@@ -59,6 +59,7 @@ public class Server<TLoad> : AbstractSimulationModel, IServer<TLoad>, IOperatabl
     /// <param name="seed">The seed for the random number stream used by this server.</param>
     /// <param name="instanceName">A unique name for this server instance (e.g., "CheckoutCounter1").</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> is null.</exception>
+    /// <exception cref="ArgumentException">Thrown if <paramref name="instanceName"/> is <c>null</c>, empty or whitespace.</exception>
     public Server(ServerStaticConfig<TLoad> config, int seed, string instanceName) : base(instanceName)
     {
         _config = config ?? throw new ArgumentNullException(nameof(config));
