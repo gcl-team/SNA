@@ -10,7 +10,16 @@ namespace SimNextgenApp.Benchmarks;
 /// </summary>
 internal sealed class DiscardingActivityExporter : BaseExporter<Activity>
 {
-    public override ExportResult Export(in Batch<Activity> batch) => ExportResult.Success;
+    private long _exportedCount;
+
+    /// <summary>Total spans handed to this exporter, used to spot spans dropped by a full queue.</summary>
+    public long ExportedCount => Interlocked.Read(ref _exportedCount);
+
+    public override ExportResult Export(in Batch<Activity> batch)
+    {
+        Interlocked.Add(ref _exportedCount, batch.Count);
+        return ExportResult.Success;
+    }
 }
 
 /// <summary>
