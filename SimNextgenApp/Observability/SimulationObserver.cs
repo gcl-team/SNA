@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using SimNextgenApp.Core;
+using SimNextgenApp.Observability.Internal;
 using SimNextgenApp.Observability.VolumeEstimation;
 
 namespace SimNextgenApp.Observability;
@@ -109,14 +110,14 @@ public class SimulationObserver : IDisposable
                 "sna.simulation.events_total",
                 () => new Measurement<long>(
                     TotalEventsExecuted,
-                    new KeyValuePair<string, object?>("sna.simulation.warmup", IsWarmupPhase)),
+                    MetricTags.Warmup(IsWarmupPhase)),
                 description: "Total simulation events processed");
 
             _clockTimeGauge = _meter.CreateObservableGauge<long>(
                 "sna.simulation.clock_time",
                 () => new Measurement<long>(
                     SimulationClockTime,
-                    new KeyValuePair<string, object?>("sna.simulation.warmup", IsWarmupPhase)),
+                    MetricTags.Warmup(IsWarmupPhase)),
                 description: "Current simulation clock time"
             );
 
@@ -124,7 +125,7 @@ public class SimulationObserver : IDisposable
                 "sna.simulation.real_time_elapsed",
                 () => new Measurement<double>(
                     ElapsedRealTime,
-                    new KeyValuePair<string, object?>("sna.simulation.warmup", IsWarmupPhase)),
+                    MetricTags.Warmup(IsWarmupPhase)),
                 unit: "s",
                 description: "Wall-clock time elapsed since simulation start"
             );
@@ -133,7 +134,7 @@ public class SimulationObserver : IDisposable
                 "sna.simulation.events_per_second",
                 () => new Measurement<double>(
                     EventsPerSecond,
-                    new KeyValuePair<string, object?>("sna.simulation.warmup", IsWarmupPhase)),
+                    MetricTags.Warmup(IsWarmupPhase)),
                 description: "Simulation performance metric: events processed per second of real time"
             );
         }

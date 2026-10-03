@@ -98,7 +98,7 @@ internal sealed class OTelActivitySource
     /// <returns>An EventSpanScope that must be disposed to restore context properly.</returns>
     public EventSpanScope CreateEventSpan(string eventName, long clockTime, long eventId, bool isWarmupPhase)
     {
-        if (!IsEnabled) return new EventSpanScope(null, null);
+        if (!IsEnabled) return default;
 
         Activity? activity;
         Activity? savedContext = null;

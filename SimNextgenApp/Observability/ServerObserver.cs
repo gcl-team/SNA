@@ -2,6 +2,7 @@ using System.Diagnostics.Metrics;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Server;
+using SimNextgenApp.Observability.Internal;
 using SimNextgenApp.Observability.VolumeEstimation;
 
 namespace SimNextgenApp.Observability;
@@ -87,7 +88,7 @@ public class ServerObserver<TLoad> : IDisposable
                     return new Measurement<double>(
                         this.Utilization,
                         new KeyValuePair<string, object?>("sna.server.name", _server.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                        MetricTags.Warmup(isWarmup));
                 },
                 description: "Instantaneous utilization of the server"
             );
@@ -123,7 +124,7 @@ public class ServerObserver<TLoad> : IDisposable
         {
             _loadsCompletedCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.server.name", _server.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                MetricTags.Warmup(isWarmup));
 
             // Track metric data point for volume estimation
             _volumeEstimator?.RecordMetricDataPoint();
@@ -150,7 +151,7 @@ public class ServerObserver<TLoad> : IDisposable
 
                 _sojournTimeHistogram.Record(sojournSeconds,
                     new KeyValuePair<string, object?>("sna.server.name", _server.Name),
-                    new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                    MetricTags.Warmup(isWarmup));
 
                 // Track metric data point for volume estimation
                 _volumeEstimator?.RecordMetricDataPoint();

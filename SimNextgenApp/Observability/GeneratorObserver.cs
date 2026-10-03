@@ -2,6 +2,7 @@ using System.Diagnostics.Metrics;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Generator;
+using SimNextgenApp.Observability.Internal;
 using SimNextgenApp.Observability.VolumeEstimation;
 
 namespace SimNextgenApp.Observability;
@@ -115,7 +116,7 @@ public class GeneratorObserver<TLoad> : IDisposable where TLoad : notnull
 
                 _interArrivalTimeHistogram.Record(interArrivalSeconds,
                     new KeyValuePair<string, object?>("sna.generator.name", _generator.Name),
-                    new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                    MetricTags.Warmup(isWarmup));
 
                 // Track metric data point for volume estimation
                 _volumeEstimator?.RecordMetricDataPoint();
@@ -131,7 +132,7 @@ public class GeneratorObserver<TLoad> : IDisposable where TLoad : notnull
         {
             _loadsGeneratedCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.generator.name", _generator.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                MetricTags.Warmup(isWarmup));
 
             // Track metric data point for volume estimation
             _volumeEstimator?.RecordMetricDataPoint();
