@@ -1,6 +1,7 @@
 using System.Diagnostics.Metrics;
 using SimNextgenApp.Core;
 using SimNextgenApp.Modeling.Resource;
+using SimNextgenApp.Observability.Internal;
 using SimNextgenApp.Observability.VolumeEstimation;
 
 namespace SimNextgenApp.Observability;
@@ -101,7 +102,7 @@ public class ResourceObserver<TResource> : IDisposable where TResource : notnull
                     return new Measurement<int>(
                         this.Available,
                         new KeyValuePair<string, object?>("sna.resource.name", _resourcePool.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                        MetricTags.Warmup(isWarmup));
                 },
                 description: "Number of available resources in the pool"
             );
@@ -116,7 +117,7 @@ public class ResourceObserver<TResource> : IDisposable where TResource : notnull
                     return new Measurement<int>(
                         this.InUse,
                         new KeyValuePair<string, object?>("sna.resource.name", _resourcePool.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                        MetricTags.Warmup(isWarmup));
                 },
                 description: "Number of resources currently in use"
             );
@@ -131,7 +132,7 @@ public class ResourceObserver<TResource> : IDisposable where TResource : notnull
                     return new Measurement<double>(
                         this.Utilization,
                         new KeyValuePair<string, object?>("sna.resource.name", _resourcePool.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                        MetricTags.Warmup(isWarmup));
                 },
                 description: "Instantaneous utilization of the resource pool"
             );
@@ -167,7 +168,7 @@ public class ResourceObserver<TResource> : IDisposable where TResource : notnull
         {
             _acquisitionsCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.resource.name", _resourcePool.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                MetricTags.Warmup(isWarmup));
 
             // Track metric data point for volume estimation
             _volumeEstimator?.RecordMetricDataPoint();
@@ -187,7 +188,7 @@ public class ResourceObserver<TResource> : IDisposable where TResource : notnull
         {
             _releasesCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.resource.name", _resourcePool.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                MetricTags.Warmup(isWarmup));
 
             // Track metric data point for volume estimation
             _volumeEstimator?.RecordMetricDataPoint();
@@ -207,7 +208,7 @@ public class ResourceObserver<TResource> : IDisposable where TResource : notnull
         {
             _failedRequestsCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.resource.name", _resourcePool.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                MetricTags.Warmup(isWarmup));
 
             // Track metric data point for volume estimation
             _volumeEstimator?.RecordMetricDataPoint();

@@ -3,6 +3,7 @@ using System.Diagnostics.Metrics;
 using SimNextgenApp.Core;
 using SimNextgenApp.Core.Utilities;
 using SimNextgenApp.Modeling.Queue;
+using SimNextgenApp.Observability.Internal;
 using SimNextgenApp.Observability.VolumeEstimation;
 
 namespace SimNextgenApp.Observability;
@@ -100,7 +101,7 @@ public class QueueObserver<TLoad> : IDisposable
                     return new Measurement<int>(
                         _queue.Occupancy,
                         new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-                        new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                        MetricTags.Warmup(isWarmup));
                 },
                 description: "Current number of items waiting in the queue"
             );
@@ -138,7 +139,7 @@ public class QueueObserver<TLoad> : IDisposable
         {
             _loadsEnqueuedCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                MetricTags.Warmup(isWarmup));
 
             // Track metric data point for volume estimation
             _volumeEstimator?.RecordMetricDataPoint();
@@ -157,7 +158,7 @@ public class QueueObserver<TLoad> : IDisposable
         {
             _loadsDequeuedCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                MetricTags.Warmup(isWarmup));
 
             // Track metric data point for volume estimation
             _volumeEstimator?.RecordMetricDataPoint();
@@ -185,7 +186,7 @@ public class QueueObserver<TLoad> : IDisposable
             {
                 _waitTimeHistogram.Record(waitSeconds,
                     new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-                    new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                    MetricTags.Warmup(isWarmup));
 
                 // Track metric data point for volume estimation
                 _volumeEstimator?.RecordMetricDataPoint();
@@ -205,7 +206,7 @@ public class QueueObserver<TLoad> : IDisposable
         {
             _loadsBalkedCounter.Add(1,
                 new KeyValuePair<string, object?>("sna.queue.name", _queue.Name),
-                new KeyValuePair<string, object?>("sna.simulation.warmup", isWarmup));
+                MetricTags.Warmup(isWarmup));
 
             // Track metric data point for volume estimation
             _volumeEstimator?.RecordMetricDataPoint();

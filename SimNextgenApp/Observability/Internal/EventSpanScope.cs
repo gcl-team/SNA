@@ -6,7 +6,11 @@ namespace SimNextgenApp.Observability.Internal;
 /// Disposable wrapper for event spans that automatically restores Activity.Current context.
 /// Ensures proper context management when trace context is disabled.
 /// </summary>
-internal sealed class EventSpanScope : IDisposable
+/// <remarks>
+/// A struct, so the engine allocates nothing per event when tracing is disabled.
+/// The default value holds no span and its <see cref="Dispose"/> does nothing.
+/// </remarks>
+internal readonly struct EventSpanScope : IDisposable
 {
     private readonly Activity? _span;
     private readonly Activity? _savedContext;
