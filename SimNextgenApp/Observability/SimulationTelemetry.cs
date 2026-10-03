@@ -184,6 +184,11 @@ public sealed class SimulationTelemetry : IDisposable
 /// </summary>
 public class SimulationTelemetryBuilder
 {
+    /// <summary>
+    /// The default maximum number of data points per SNA metric stream. See <see cref="WithMetricCardinalityLimit"/>.
+    /// </summary>
+    public const int DefaultMetricCardinalityLimit = 500;
+
     private bool _useConsoleExporter;
     private bool _usePrometheusExporter;
     private int _prometheusPort = 9090;
@@ -195,6 +200,7 @@ public class SimulationTelemetryBuilder
     private Action<TracerProviderBuilder>? _configureTracer;
     private Action<MeterProviderBuilder>? _configureMeter;
     private int? _cardinalityThreshold;
+    private int? _metricCardinalityLimit = DefaultMetricCardinalityLimit;
     private bool _enableTraceContext;
     private OtlpBackend? _otlpBackend;
     private string? _otlpApiKey;
@@ -320,6 +326,43 @@ public class SimulationTelemetryBuilder
     }
 
     /// <summary>
+    /// Sets the maximum number of data points (unique attribute combinations) kept for each SNA metric stream.
+    /// </summary>
+    /// <param name="limit">
+    /// The limit to apply to every instrument on the <see cref="SimulationTelemetry.MeterName"/> meter
+    /// (default: <see cref="DefaultMetricCardinalityLimit"/>), or <c>null</c> to leave SNA instruments
+    /// at the OpenTelemetry SDK default (2000).
+    /// </param>
+    /// <remarks>
+    /// <para>
+    /// The SDK allocates storage for every data point a stream may hold when the stream is created, and
+    /// observers dispose their meters at the end of a run, so this storage is allocated again on every run.
+    /// At the SDK default, each stream takes roughly 180 KB, which lands on the Large Object Heap and
+    /// triggers Gen 2 collections; with many short runs, such as a parameter sweep, that becomes most of
+    /// the telemetry cost. The default here keeps each stream well under the Large Object Heap threshold.
+    /// </para>
+    /// <para>
+    /// SNA metrics are tagged with the component name and the warmup flag, so a stream needs about two
+    /// data points per component of that type. Raise the limit for models with more than
+    /// <c>limit / 2</c> components of one type; measurements beyond the limit are aggregated into a
+    /// single data point tagged <c>otel.metric.overflow=true</c>.
+    /// </para>
+    /// <para>
+    /// The limit is applied through a metric view. If you add your own views for SNA instruments through
+    /// <see cref="ConfigureOpenTelemetry"/>, pass <c>null</c> here and set
+    /// <see cref="MetricStreamConfiguration.CardinalityLimit"/> on your views instead, because the SDK
+    /// exports a separate stream for every view that matches an instrument.
+    /// </para>
+    /// </remarks>
+    public SimulationTelemetryBuilder WithMetricCardinalityLimit(int? limit)
+    {
+        if (limit <= 0)
+            throw new ArgumentOutOfRangeException(nameof(limit), "Limit must be greater than zero.");
+        _metricCardinalityLimit = limit;
+        return this;
+    }
+
+    /// <summary>
     /// Enables advanced trace context propagation for distributed tracing scenarios.
     /// </summary>
     public SimulationTelemetryBuilder WithTraceContext()
@@ -411,6 +454,13 @@ public class SimulationTelemetryBuilder
             .AddMeter(SimulationTelemetry.MeterName)
             .SetResourceBuilder(ResourceBuilder.CreateDefault()
                 .AddService(serviceName: _serviceName, serviceVersion: _serviceVersion));
+
+        if (_metricCardinalityLimit is int metricCardinalityLimit)
+        {
+            meterBuilder.AddView(instrument => instrument.Meter.Name == SimulationTelemetry.MeterName
+                ? new MetricStreamConfiguration { CardinalityLimit = metricCardinalityLimit }
+                : null);
+        }
 
         // Apply sampling configuration if specified
         if (_samplingConfig != null)

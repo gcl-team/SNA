@@ -19,9 +19,9 @@ namespace SimNextgenApp.Benchmarks;
 /// </para>
 /// <para>
 /// <see cref="SimulationEngine.Run"/> always calls <see cref="SimulationTelemetry.Flush"/> after
-/// initialization and at the end of the run, on the simulation thread. That is a fixed per-run cost
-/// (about 1.5 ms with exporters), so <see cref="EventCount"/> is large enough to amortize it and keep
-/// the per-event numbers close to steady state.
+/// initialization and at the end of the run, on the simulation thread. That and the observers' metric
+/// streams are a fixed per-run cost (measured by <see cref="TelemetryPerRunCostBenchmarks"/>), so
+/// <see cref="EventCount"/> is large enough to amortize it and keep the per-event numbers close to steady state.
 /// </para>
 /// <para>
 /// Building the model, its observers (and their meters and instruments) and the engine happens in
@@ -130,7 +130,7 @@ public class TelemetryOverheadBenchmarks
     /// Adds exporters that use the same batching/periodic processors as the OTLP exporter,
     /// but drop the data instead of sending it over the network.
     /// </summary>
-    private static SimulationTelemetryBuilder WithDiscardingExporters(SimulationTelemetryBuilder builder) =>
+    internal static SimulationTelemetryBuilder WithDiscardingExporters(SimulationTelemetryBuilder builder) =>
         builder.ConfigureOpenTelemetry(
             configureTracer: tracer => tracer.AddProcessor(
                 new BatchActivityExportProcessor(new DiscardingActivityExporter())),
