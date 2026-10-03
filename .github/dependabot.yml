@@ -2,7 +2,7 @@
 # Reference: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
 version: 2
 updates:
-  # NuGet packages for all projects in SimNextgenApp.sln
+  # NuGet packages for all projects in SimNextgenApp.slnx
   - package-ecosystem: "nuget"
     directory: "/"
     schedule:
