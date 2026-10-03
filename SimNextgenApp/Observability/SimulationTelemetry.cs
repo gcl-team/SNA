@@ -28,10 +28,26 @@ public sealed class SimulationTelemetry : IDisposable
     private readonly CardinalityGuard? _cardinalityGuard;
     private readonly bool _enableTraceContext;
 
+    /// <summary>
+    /// The name of the <see cref="System.Diagnostics.ActivitySource"/> that SNA creates spans on.
+    /// Add it to an OpenTelemetry tracer provider to collect SNA traces.
+    /// </summary>
     public const string ActivitySourceName = "SNA.Simulation.Traces";
+
+    /// <summary>
+    /// The name of the <see cref="System.Diagnostics.Metrics.Meter"/> that SNA records metrics on.
+    /// Add it to an OpenTelemetry meter provider to collect SNA metrics.
+    /// </summary>
     public const string MeterName = "SNA.Simulation.Metrics";
 
+    /// <summary>
+    /// Gets the activity source named <see cref="ActivitySourceName"/>, owned by this instance.
+    /// </summary>
     public System.Diagnostics.ActivitySource ActivitySource { get; }
+
+    /// <summary>
+    /// Gets the meter named <see cref="MeterName"/>, owned by this instance.
+    /// </summary>
     public System.Diagnostics.Metrics.Meter Meter { get; }
 
     /// <summary>
@@ -162,6 +178,10 @@ public sealed class SimulationTelemetry : IDisposable
         return new SimulationObserver(engine, meter, ownsMeter: true, _volumeEstimator, warmupEndTime);
     }
 
+    /// <summary>
+    /// Disposes the tracer, meter and logger providers, the volume estimator, the cardinality guard,
+    /// and the activity source and meter, flushing any telemetry they still hold.
+    /// </summary>
     public void Dispose()
     {
         _tracerProvider?.Dispose();

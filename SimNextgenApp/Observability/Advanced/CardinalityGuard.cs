@@ -150,6 +150,9 @@ public sealed class CardinalityGuard : IDisposable
         CardinalityWarning?.Invoke(this, e);
     }
 
+    /// <summary>
+    /// Clears the tracked attribute values. Further calls to this guard have no effect.
+    /// </summary>
     public void Dispose()
     {
         if (_disposed)
@@ -183,6 +186,12 @@ public sealed class CardinalityWarningEventArgs : EventArgs
     /// </summary>
     public int Threshold { get; }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CardinalityWarningEventArgs"/> class.
+    /// </summary>
+    /// <param name="attributeName">The name of the attribute that exceeded the threshold.</param>
+    /// <param name="currentCardinality">The current number of unique values for the attribute.</param>
+    /// <param name="threshold">The configured threshold that was exceeded.</param>
     public CardinalityWarningEventArgs(string attributeName, int currentCardinality, int threshold)
     {
         AttributeName = attributeName;

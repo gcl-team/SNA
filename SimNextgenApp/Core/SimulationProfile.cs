@@ -32,7 +32,7 @@ public class SimulationProfile(
 
     /// <summary>
     /// Defines the simulation time unit (e.g., Seconds, Minutes).
-    /// </summary
+    /// </summary>
     public SimulationTimeUnit TimeUnit { get; init; } = timeUnit;
 
     /// <summary>

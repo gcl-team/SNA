@@ -3,18 +3,33 @@ using SimNextgenApp.Core;
 
 namespace SimNextgenApp.Modeling.Resource;
 
+/// <summary>
+/// Represents a fixed-size pool of reusable resources of type <typeparamref name="TResource"/>,
+/// such as staff, machines or database connections, that loads acquire and later release.
+/// </summary>
+/// <typeparam name="TResource">The type of resource held by this pool.</typeparam>
 public class ResourcePool<TResource> : AbstractSimulationModel, IResourcePool<TResource>
     where TResource : notnull
 {
     private readonly List<TResource> _idleResources;
     private readonly ILogger<ResourcePool<TResource>> _logger;
 
+    /// <inheritdoc/>
     public event Action<TResource, long>? ResourceAcquired;
+
+    /// <inheritdoc/>
     public event Action<TResource, long>? ResourceReleased;
+
+    /// <inheritdoc/>
     public event Action<long>? RequestFailed;
 
+    /// <inheritdoc/>
     public int TotalCapacity { get; }
+
+    /// <inheritdoc/>
     public int AvailableCount => _idleResources.Count;
+
+    /// <inheritdoc/>
     public int BusyCount => TotalCapacity - AvailableCount;
 
     /// <summary>

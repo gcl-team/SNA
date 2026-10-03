@@ -53,6 +53,7 @@ public class SimulationEngine : IScheduler, IRunContext
     /// </summary>
     public long ClockTime => _clockTime;
 
+    /// <inheritdoc/>
     public IScheduler Scheduler => this;
 
     /// <summary>

@@ -174,6 +174,9 @@ public class ServerObserver<TLoad> : IDisposable
         return new ServerObserver<TLoad>(server, meter, ownsMeter: true);
     }
 
+    /// <summary>
+    /// Unsubscribes from the server's events and disposes the meter if this observer created it.
+    /// </summary>
     public void Dispose()
     {
         _server.LoadDeparted -= OnLoadDeparted;
@@ -187,9 +190,15 @@ public class ServerObserver<TLoad> : IDisposable
     }
 }
 
+/// <summary>
+/// Factory methods for <see cref="ServerObserver{TLoad}"/>.
+/// </summary>
 public static class ServerObserver
 {
-    // Helper to avoid specifying TLoad for type inference where possible, or factory methods
+    /// <summary>
+    /// Creates a simple observer for the given server, inferring <typeparamref name="TLoad"/> from the argument.
+    /// </summary>
+    /// <inheritdoc cref="ServerObserver{TLoad}.CreateSimple"/>
     public static ServerObserver<TLoad> CreateSimple<TLoad>(IServer<TLoad> server)
     {
         return ServerObserver<TLoad>.CreateSimple(server);

@@ -9,7 +9,7 @@ namespace SimNextgenApp.Modeling.Generator;
 /// Represents a source component in a simulation model that generates entities (loads) of type <typeparamref name="TLoad"/>.
 /// It is typically used to model arrivals into a system, such as customers arriving at a store or data packets arriving at a router.
 /// The generation is driven by a configured inter-arrival time distribution.
-/// </summary
+/// </summary>
 /// <typeparam name="TLoad">The type of load (entity) produced by this generator.</typeparam>
 public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOperatableGenerator<TLoad> where TLoad : notnull
 {
@@ -17,10 +17,16 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     private readonly Random _random;
     private readonly ILogger<Generator<TLoad>> _logger;
 
+    /// <inheritdoc/>
     public long? StartTime { get; private set; }
+
+    /// <inheritdoc/>
     public bool IsActive { get; private set; }
+
+    /// <inheritdoc/>
     public int LoadsGeneratedCount { get; private set; }
 
+    /// <inheritdoc/>
     public event Action<TLoad, long>? LoadGenerated;
 
     /// <summary>
@@ -40,6 +46,7 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// <param name="seed">The seed for the random number stream used by this generator.</param>
     /// <param name="instanceName">A descriptive name for this generator instance (e.g., "CustomerArrivals").
     /// This name is used in logging and tracing output to uniquely identify this component.</param>
+    /// <param name="loggerFactory">The factory used to create this generator's logger.</param>
     /// <exception cref="ArgumentNullException">Thrown if <paramref name="config"/> is <c>null</c>.</exception>
     public Generator(GeneratorStaticConfig<TLoad> config, int seed, string instanceName, ILoggerFactory loggerFactory)
         : base(instanceName)
@@ -61,7 +68,7 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// If the generator is already active, this action may be ignored.
     /// </summary>
     /// <param name="engineContext">The simulation run context, used to get the current simulation time.</param>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="engine"/> is null.</exception>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="engineContext"/> is null.</exception>
     public void ScheduleStartGenerating(IRunContext engineContext)
     {
         ArgumentNullException.ThrowIfNull(engineContext);
@@ -74,9 +81,8 @@ public class Generator<TLoad> : AbstractSimulationModel, IGenerator<TLoad>, IOpe
     /// The stop will occur at the simulation time when the calling event is processed.
     /// Must be called after <see cref="Initialize"/> has been called.
     /// </summary>
-    /// <param name="engine">The simulation engine instance, used to get current time for scheduling.</param>
-    /// <exception cref="InvalidOperationException">Thrown if Initialize has not been called yet.</exception>
-    /// <exception cref="ArgumentNullException">Thrown if <paramref name="engine"/> is null.</exception>
+    /// <param name="engineContext">The simulation run context, used to get the current simulation time.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="engineContext"/> is null.</exception>
     public void ScheduleStopGenerating(IRunContext engineContext)
     {
         ArgumentNullException.ThrowIfNull(engineContext);

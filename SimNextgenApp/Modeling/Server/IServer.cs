@@ -2,6 +2,11 @@
 
 namespace SimNextgenApp.Modeling.Server;
 
+/// <summary>
+/// Defines the public, read-only view of a server: a component that serves up to a fixed number
+/// of loads of type <typeparamref name="TLoad"/> at a time, each for a sampled service time.
+/// </summary>
+/// <typeparam name="TLoad">The type of load (entity) served by the server.</typeparam>
 public interface IServer<TLoad> : IWarmupAware
 {
     /// <summary>

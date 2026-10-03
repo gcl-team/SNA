@@ -2,6 +2,10 @@
 
 namespace SimNextgenApp.Modeling.Resource;
 
+/// <summary>
+/// Defines the public view of a fixed-size pool of reusable resources of type <typeparamref name="TResource"/>.
+/// </summary>
+/// <typeparam name="TResource">The type of resource held by the pool.</typeparam>
 public interface IResourcePool<TResource> : IWarmupAware
 {
     /// <summary>

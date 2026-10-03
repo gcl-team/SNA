@@ -4,6 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     
     <PackageId>SimNextgenApp</PackageId>
     <Version>1.0.0</Version> <!-- Will override this with Git tag -->

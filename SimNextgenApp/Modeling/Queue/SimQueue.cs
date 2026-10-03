@@ -18,15 +18,31 @@ public class SimQueue<TLoad> : AbstractSimulationModel, ISimQueue<TLoad>, IOpera
     private bool _toDequeue = true;
     private readonly ILogger<SimQueue<TLoad>> _logger;
 
+    /// <inheritdoc/>
     public event Action<TLoad, long>? LoadEnqueued;
+
+    /// <inheritdoc/>
     public event Action<TLoad, long>? LoadDequeued;
+
+    /// <inheritdoc/>
     public event Action<TLoad, long>? LoadBalked;
+
+    /// <inheritdoc/>
     public event Action<long>? StateChanged;
 
+    /// <inheritdoc/>
     public IReadOnlyCollection<TLoad> WaitingItems => _waitingItems;
+
+    /// <inheritdoc/>
     public int Occupancy => _waitingItems.Count;
+
+    /// <inheritdoc/>
     public int Capacity => _config.Capacity;
+
+    /// <inheritdoc/>
     public int Vacancy => _config.Capacity == int.MaxValue ? int.MaxValue : _config.Capacity - Occupancy;
+
+    /// <inheritdoc/>
     public bool ToDequeue => _toDequeue;
 
     /// <summary>
