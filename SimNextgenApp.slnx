@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="Dockerfile" />
+    <File Path="LICENSE" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="SimNextgenApp.Benchmarks/SimNextgenApp.Benchmarks.csproj" />
+  <Project Path="SimNextgenApp.Demo/SimNextgenApp.Demo.csproj" />
+  <Project Path="SimNextgenApp.Tests/SimNextgenApp.Tests.csproj" />
+  <Project Path="SimNextgenApp/SimNextgenApp.csproj" />
+</Solution>
