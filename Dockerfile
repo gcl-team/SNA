@@ -1,6 +1,6 @@
 # Use official .NET SDK image to build the app
 # Reference: https://mcr.microsoft.com/artifact/mar/dotnet/sdk/tags
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 
 WORKDIR /src
 
